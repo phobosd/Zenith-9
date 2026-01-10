@@ -9,6 +9,7 @@ import { NPC } from '../components/NPC';
 import { Shop } from '../components/Shop';
 import { Container } from '../components/Container';
 import { Stats } from '../components/Stats';
+import { CombatStats } from '../components/CombatStats';
 import { Server } from 'socket.io';
 
 export class InteractionSystem extends System {
@@ -75,7 +76,16 @@ export class InteractionSystem extends System {
         const npcsInRoom = this.findNPCsAt(entities, playerPos.x, playerPos.y);
         const npcDescriptions = npcsInRoom.map(npc => {
             const npcComp = npc.getComponent(NPC);
-            return npcComp ? `<npc>${npcComp.typeName} is standing here.</npc>` : '';
+            const combatStats = npc.getComponent(CombatStats);
+            if (npcComp) {
+                // Enemies (with CombatStats) are red
+                if (combatStats) {
+                    return `<enemy>${npcComp.typeName} is standing here.</enemy>`;
+                } else {
+                    return `<npc>${npcComp.typeName} is standing here.</npc>`;
+                }
+            }
+            return '';
         }).join('\n');
 
         // Calculate Exits

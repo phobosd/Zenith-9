@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useRef } from 'react';
-import './CombatOverlay.css';
 
 interface SyncBarParams {
     speed: number;
@@ -17,9 +16,10 @@ interface CombatSyncData {
 
 interface CombatOverlayProps {
     socket: any;
+    onSyncBarUpdate: (bar: string) => void;
 }
 
-export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
+export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket, onSyncBarUpdate }) => {
     const [isActive, setIsActive] = useState(false);
     const [combatData, setCombatData] = useState<CombatSyncData | null>(null);
     const [cursorPosition, setCursorPosition] = useState(0);
@@ -55,12 +55,9 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
                 const barLength = combatData.syncBar.barLength;
                 const jitter = combatData.syncBar.jitter;
 
-                // Add jitter (random jumps)
                 const jitterAmount = Math.random() < jitter ? (Math.random() - 0.5) * 2 : 0;
-
                 let newPos = prev + (direction * speed * deltaTime / 100) + jitterAmount;
 
-                // Bounce at edges
                 if (newPos >= barLength) {
                     newPos = barLength;
                     setDirection(-1);
@@ -91,7 +88,6 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
             if (e.key.toLowerCase() === 'f') {
                 e.preventDefault();
 
-                // Calculate hit type based on cursor position
                 const barLength = combatData.syncBar.barLength;
                 const critZoneSize = combatData.syncBar.critZoneSize;
                 const critZoneCenter = barLength / 2;
@@ -114,15 +110,14 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
                     hitType = 'miss';
                 }
 
-                // Send result to server
                 socket.emit('combat-result', {
                     targetId: combatData.targetId,
                     hitType: hitType
                 });
 
-                // Close overlay
                 setIsActive(false);
                 setCombatData(null);
+                onSyncBarUpdate('');
             }
         };
 
@@ -131,11 +126,14 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
         return () => {
             window.removeEventListener('keydown', handleKeyPress);
         };
-    }, [isActive, combatData, cursorPosition, socket]);
+    }, [isActive, combatData, cursorPosition, socket, onSyncBarUpdate]);
 
-    if (!isActive || !combatData) return null;
+    useEffect(() => {
+        if (!isActive || !combatData) {
+            onSyncBarUpdate('');
+            return;
+        }
 
-    const renderSyncBar = () => {
         const barLength = combatData.syncBar.barLength;
         const critZoneSize = combatData.syncBar.critZoneSize;
         const critZoneCenter = barLength / 2;
@@ -147,51 +145,23 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
 
         const cursorPos = Math.floor(cursorPosition);
 
-        let bar = '';
+        // Build pure ASCII bar
+        let bar = '[';
         for (let i = 0; i < barLength; i++) {
             if (i === cursorPos) {
-                bar += '<span class="cursor">▼</span>';
-            }
-
-            if (i >= critZoneStart && i <= critZoneEnd) {
-                bar += '<span class="crit-zone">=</span>';
+                bar += '*';
+            } else if (i >= critZoneStart && i <= critZoneEnd) {
+                bar += '=';
             } else if (i === hitMarker1 || i === hitMarker2) {
-                bar += '<span class="hit-marker">|</span>';
+                bar += '|';
             } else {
-                bar += '<span class="miss-zone">-</span>';
+                bar += '-';
             }
         }
+        bar += ']';
 
-        return `[${bar}]`;
-    };
+        onSyncBarUpdate(bar);
+    }, [isActive, combatData, cursorPosition, onSyncBarUpdate]);
 
-    return (
-        <div className="combat-overlay">
-            <div className="combat-container">
-                <div className="combat-header">
-                    <div className="combat-title">═══ NEURAL SYNC INITIATED ═══</div>
-                    <div className="combat-info">
-                        <div>Target: <span className="target-name">{combatData.targetName}</span></div>
-                        <div>Weapon: <span className="weapon-name">{combatData.weaponName}</span></div>
-                    </div>
-                </div>
-
-                <div className="sync-bar-container">
-                    <div
-                        className="sync-bar"
-                        dangerouslySetInnerHTML={{ __html: renderSyncBar() }}
-                    />
-                </div>
-
-                <div className="combat-instructions">
-                    <div className="instruction-pulse">Press [F] to FIRE!</div>
-                    <div className="zone-legend">
-                        <span className="legend-crit">[==] CRIT ZONE</span>
-                        <span className="legend-hit">[|] HIT</span>
-                        <span className="legend-miss">[-] MISS</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+    return null;
 };

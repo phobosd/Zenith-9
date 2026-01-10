@@ -46,6 +46,13 @@ export class NPCSystem extends System {
     }
 
     private moveRandomly(npc: Entity, pos: Position, entities: Set<Entity>) {
+        const npcComp = npc.getComponent(NPC);
+
+        // Don't move Giant Rats - they stay in place
+        if (npcComp && npcComp.typeName === 'Giant Rat') {
+            return;
+        }
+
         const directions = [
             { x: 0, y: -1, name: 'north', reverse: 'south' },
             { x: 0, y: 1, name: 'south', reverse: 'north' },
@@ -61,7 +68,6 @@ export class NPCSystem extends System {
         const targetRoom = this.findRoomAt(entities, newX, newY);
 
         if (targetRoom) {
-            const npcComp = npc.getComponent(NPC);
             const name = npcComp ? npcComp.typeName : 'Something';
 
             // Broadcast leaving message to old room

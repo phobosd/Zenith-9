@@ -15,6 +15,7 @@ export const Terminal: React.FC = () => {
     const [lines, setLines] = useState<TerminalLine[]>([]);
     const [inputValue, setInputValue] = useState('');
     const [socket, setSocket] = useState<Socket | null>(null);
+    const [syncBarHtml, setSyncBarHtml] = useState('');
     const outputRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -46,7 +47,7 @@ export const Terminal: React.FC = () => {
         if (outputRef.current) {
             outputRef.current.scrollTop = outputRef.current.scrollHeight;
         }
-    }, [lines]);
+    }, [lines, syncBarHtml]);
 
     const addSystemLine = (text: string) => {
         setLines(prev => [...prev, { id: Date.now().toString() + Math.random(), text, type: 'system' }]);
@@ -83,7 +84,7 @@ export const Terminal: React.FC = () => {
 
     return (
         <div className="terminal-container">
-            {socket && <CombatOverlay socket={socket} />}
+            {socket && <CombatOverlay socket={socket} onSyncBarUpdate={setSyncBarHtml} />}
             <div className="terminal-output" ref={outputRef}>
                 {lines.map(line => (
                     <div key={line.id} className={`terminal-line ${line.type}`}>
@@ -92,6 +93,9 @@ export const Terminal: React.FC = () => {
                 ))}
             </div>
             <div className="terminal-input-area">
+                {syncBarHtml && (
+                    <div className="sync-bar-ascii">{syncBarHtml}</div>
+                )}
                 <span className="prompt">{'>'}</span>
                 <input
                     type="text"

@@ -34,6 +34,32 @@ export class WorldGenerator {
             }
         }
 
+        // Spawn a guaranteed rat in the center of Central Plaza
+        const centerX = Math.floor(this.width / 2);
+        const centerY = Math.floor(this.height / 2);
+        const plazaRat = new Entity();
+        plazaRat.addComponent(new Position(centerX, centerY));
+        plazaRat.addComponent(new NPC(
+            "Giant Rat",
+            ["Squeak!", "Hiss...", "*scratches floor*"],
+            "A large, mutated rat with glowing green eyes.",
+            `
+      __             
+   .-"  "-.          
+  /        \\         
+ |          |        
+  \\  .--.  /         
+   "|    |"          
+    |    |           
+   /      \\          
+  (        )         
+   \\      /          
+    "----"           
+            `
+        ));
+        plazaRat.addComponent(new CombatStats(20, 5, 0));
+        this.engine.addEntity(plazaRat);
+
         console.log('World generation complete.');
     }
 
@@ -196,7 +222,7 @@ export class WorldGenerator {
 / |  | \\    
                     `
                 ));
-            } else if (Math.random() > 0.4) { // 60% chance for Rat (if not Cyber Thug)
+            } else if (Math.random() > 0.2) { // 80% chance for Rat (if not Cyber Thug)
                 // Spawn a Rat
                 npc.addComponent(new NPC(
                     "Giant Rat",
