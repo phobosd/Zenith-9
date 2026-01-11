@@ -8,6 +8,7 @@ import { Container } from '../components/Container';
 import { Inventory } from '../components/Inventory';
 import { IsRoom } from '../components/IsRoom';
 import { WorldQuery } from '../utils/WorldQuery';
+import { IEngine } from '../commands/CommandRegistry';
 
 export interface AutocompleteData {
     type: 'room' | 'inventory';
@@ -20,13 +21,13 @@ export class AutocompleteAggregator {
     /**
      * Aggregates autocomplete data for the room the player is in.
      */
-    static getRoomAutocomplete(playerPos: Position, entities: Set<Entity>): AutocompleteData {
+    static getRoomAutocomplete(playerPos: Position, engine: IEngine): AutocompleteData {
         const objects: string[] = [];  // NPCs, terminals, puzzle objects (non-item entities)
         const groundItems: string[] = []; // Items on the ground
         const groundContainers: string[] = []; // Containers on the ground
 
         // Find NPCs
-        const npcs = WorldQuery.findNPCsAt(entities, playerPos.x, playerPos.y);
+        const npcs = WorldQuery.findNPCsAt(engine, playerPos.x, playerPos.y);
         npcs.forEach(npc => {
             const npcComp = npc.getComponent(NPC);
             if (npcComp) {
@@ -35,7 +36,7 @@ export class AutocompleteAggregator {
         });
 
         // Find Terminals
-        const terminals = WorldQuery.findTerminalsAt(entities, playerPos.x, playerPos.y);
+        const terminals = WorldQuery.findTerminalsAt(engine, playerPos.x, playerPos.y);
         terminals.forEach(terminal => {
             const desc = terminal.getComponent(Description);
             if (desc) {
@@ -44,7 +45,7 @@ export class AutocompleteAggregator {
         });
 
         // Find Puzzle Objects & Other Description entities (busts, tables, etc.)
-        const descEntities = Array.from(entities).filter(e => {
+        const descEntities = engine.getEntitiesWithComponent(Description).filter(e => {
             const pos = e.getComponent(Position);
             const desc = e.getComponent(Description);
             const hasItem = e.hasComponent(Item);
@@ -75,7 +76,7 @@ export class AutocompleteAggregator {
         });
 
         // Find Ground Items & Containers
-        const items = WorldQuery.findItemsAt(entities, playerPos.x, playerPos.y);
+        const items = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
         items.forEach(item => {
             const itemComp = item.getComponent(Item);
             const containerComp = item.getComponent(Container);
@@ -101,7 +102,7 @@ export class AutocompleteAggregator {
     /**
      * Aggregates autocomplete data for the player's inventory.
      */
-    static getInventoryAutocomplete(player: Entity, entities: Set<Entity>): AutocompleteData {
+    static getInventoryAutocomplete(player: Entity, engine: IEngine): AutocompleteData {
         const inventory = player.getComponent(Inventory);
         if (!inventory) return { type: 'inventory', items: [], containers: [] };
 
@@ -110,7 +111,7 @@ export class AutocompleteAggregator {
 
         const getHandContent = (handId: string | null) => {
             if (!handId) return null;
-            const item = WorldQuery.getEntityById(entities, handId);
+            const item = WorldQuery.getEntityById(engine, handId);
             return item?.getComponent(Item)?.name || null;
         };
 
@@ -129,7 +130,7 @@ export class AutocompleteAggregator {
         }
 
         inventory.equipment.forEach((itemId) => {
-            const item = WorldQuery.getEntityById(entities, itemId);
+            const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
             const container = item?.getComponent(Container);
 
@@ -139,7 +140,7 @@ export class AutocompleteAggregator {
 
             if (container) {
                 container.items.forEach(cid => {
-                    const cItem = WorldQuery.getEntityById(entities, cid);
+                    const cItem = WorldQuery.getEntityById(engine, cid);
                     const name = cItem?.getComponent(Item)?.name;
                     if (name) {
                         invItems.push(shortenName(name).toLowerCase());

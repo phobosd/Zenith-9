@@ -1,4 +1,5 @@
 import { createClient } from 'redis';
+import { Logger } from '../utils/Logger';
 
 export class PersistenceManager {
     private client;
@@ -8,12 +9,12 @@ export class PersistenceManager {
             url: 'redis://localhost:6379'
         });
 
-        this.client.on('error', (err) => console.log('Redis Client Error', err));
+        this.client.on('error', (err) => Logger.error('Persistence', 'Redis Client Error', err));
     }
 
     async connect() {
         await this.client.connect();
-        console.log('Connected to Redis');
+        Logger.info('Persistence', 'Connected to Redis');
     }
 
     async saveEntity(entityId: string, data: any) {

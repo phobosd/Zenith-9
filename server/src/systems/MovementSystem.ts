@@ -5,16 +5,21 @@ import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 import { InteractionSystem } from './InteractionSystem';
 import { WorldQuery } from '../utils/WorldQuery';
+import { IEngine } from '../commands/CommandRegistry';
+
+import { MessageService } from '../services/MessageService';
 
 export class MovementSystem extends System {
     private pendingMoves: Map<string, { x: number, y: number }>;
     private io: Server;
+    private messageService: MessageService;
     private interactionSystem?: InteractionSystem;
 
-    constructor(io: Server) {
+    constructor(io: Server, messageService: MessageService) {
         super();
         this.pendingMoves = new Map();
         this.io = io;
+        this.messageService = messageService;
     }
 
     setInteractionSystem(system: InteractionSystem) {
@@ -36,10 +41,10 @@ export class MovementSystem extends System {
         this.pendingMoves.set(entityId, { x: dx, y: dy });
     }
 
-    update(entities: Set<Entity>, deltaTime: number): void {
+    update(engine: IEngine, deltaTime: number): void {
         // Process all pending moves
         for (const [entityId, move] of this.pendingMoves.entries()) {
-            const entity = WorldQuery.getEntityById(entities, entityId);
+            const entity = engine.getEntity(entityId);
             if (!entity) continue;
 
             const pos = entity.getComponent(Position);
@@ -47,7 +52,7 @@ export class MovementSystem extends System {
             if (!pos) continue;
 
             if (stance && stance.current !== StanceType.Standing) {
-                this.io.to(entityId).emit('message', `You can't move while ${stance.current}!`);
+                this.messageService.info(entityId, `You can't move while ${stance.current}!`);
                 continue;
             }
 
@@ -55,17 +60,17 @@ export class MovementSystem extends System {
             const targetY = pos.y + move.y;
 
             // Check if target room exists
-            const targetRoom = WorldQuery.findRoomAt(entities, targetX, targetY);
+            const targetRoom = WorldQuery.findRoomAt(engine, targetX, targetY);
 
             if (targetRoom) {
                 pos.x = targetX;
                 pos.y = targetY;
                 // Trigger look
                 if (this.interactionSystem) {
-                    this.interactionSystem.handleLook(entityId, entities);
+                    this.interactionSystem.handleLook(entityId, engine);
                 }
             } else {
-                this.io.to(entityId).emit('message', "You can't go that way.");
+                this.messageService.info(entityId, "You can't go that way.");
             }
         }
 

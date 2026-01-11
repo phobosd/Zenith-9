@@ -4,6 +4,7 @@ import { InteractionSystem } from '../systems/InteractionSystem';
 import { NPCSystem } from '../systems/NPCSystem';
 import { CombatSystem } from '../systems/CombatSystem';
 import { Entity } from '../ecs/Entity';
+import { Logger } from '../utils/Logger';
 
 export interface SystemRegistry {
     movement: MovementSystem;
@@ -17,7 +18,10 @@ export interface IEngine {
     removeEntity(entityId: string): void;
     getEntity(entityId: string): Entity | undefined;
     getEntities(): Map<string, Entity>;
+    getEntitiesWithComponent<T extends any>(componentClass: any): Entity[];
 }
+
+import { MessageService } from '../services/MessageService';
 
 export interface CommandContext {
     socketId: string;
@@ -25,6 +29,7 @@ export interface CommandContext {
     io: Server;
     engine: IEngine;
     systems: SystemRegistry;
+    messageService: MessageService;
 }
 
 export interface Command {
@@ -54,11 +59,11 @@ export class CommandRegistry {
             try {
                 command.execute(context);
             } catch (error) {
-                console.error(`Error executing command '${commandName}':`, error);
-                context.io.to(context.socketId).emit('message', `<error>An internal error occurred while executing the command.</error>`);
+                Logger.error('CommandRegistry', `Error executing command '${commandName}':`, error);
+                context.messageService.error(context.socketId, "An internal error occurred while executing the command.");
             }
         } else {
-            context.io.to(context.socketId).emit('message', "Invalid command. Type '?' for a list of commands.");
+            context.messageService.info(context.socketId, "Invalid command. Type '?' for a list of commands.");
         }
     }
 

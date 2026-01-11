@@ -1,11 +1,14 @@
 import { Component, ComponentClass } from './Component';
 import { v4 as uuidv4 } from 'uuid';
+import { EventEmitter } from 'events';
 
-export class Entity {
+export class Entity extends EventEmitter {
     public id: string;
     public components: Map<string, Component>;
+    public version: number = 1;
 
     constructor(id?: string) {
+        super();
         this.id = id || uuidv4();
         this.components = new Map();
     }
@@ -13,6 +16,7 @@ export class Entity {
     addComponent(component: Component): void {
         const type = (component.constructor as any).type;
         this.components.set(type, component);
+        this.emit('componentAdded', type);
     }
 
     getComponent<T extends Component>(componentClass: ComponentClass<T>): T | undefined {
@@ -24,7 +28,11 @@ export class Entity {
     }
 
     removeComponent<T extends Component>(componentClass: ComponentClass<T>): void {
-        this.components.delete((componentClass as any).type);
+        const type = (componentClass as any).type;
+        if (this.components.has(type)) {
+            this.components.delete(type);
+            this.emit('componentRemoved', type);
+        }
     }
 
     toJSON() {
@@ -34,6 +42,7 @@ export class Entity {
         });
         return {
             id: this.id,
+            version: this.version,
             components: componentsObj
         };
     }

@@ -2,19 +2,13 @@ import { System } from '../ecs/System';
 import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
 import { Description } from '../components/Description';
-import { IsRoom } from '../components/IsRoom';
 import { Item } from '../components/Item';
 import { Inventory } from '../components/Inventory';
-import { NPC } from '../components/NPC';
-import { Shop } from '../components/Shop';
 import { Container } from '../components/Container';
 import { Stats } from '../components/Stats';
 import { CombatStats } from '../components/CombatStats';
 import { Stance, StanceType } from '../components/Stance';
 import { Terminal } from '../components/Terminal';
-import { PrefabFactory } from '../factories/PrefabFactory';
-import { PuzzleObject } from '../components/PuzzleObject';
-import { Engine } from '../ecs/Engine';
 import { Server } from 'socket.io';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -24,28 +18,42 @@ import { DescriptionService } from '../services/DescriptionService';
 import { MessageFormatter } from '../utils/MessageFormatter';
 import { AutocompleteAggregator } from '../services/AutocompleteAggregator';
 
+import { InventoryHandler } from '../handlers/InventoryHandler';
+import { PuzzleManager } from '../services/PuzzleManager';
+import { CommerceSystem } from '../services/CommerceSystem';
+
+import { MessageService } from '../services/MessageService';
+
 export class InteractionSystem extends System {
     private io: Server;
+    private messageService: MessageService;
+    private inventoryHandler: InventoryHandler;
+    private puzzleManager: PuzzleManager;
+    private commerceSystem: CommerceSystem;
 
     constructor(io: Server) {
         super();
         this.io = io;
+        this.messageService = new MessageService(io);
+        this.inventoryHandler = new InventoryHandler(io, this.messageService);
+        this.puzzleManager = new PuzzleManager(io, this.messageService);
+        this.commerceSystem = new CommerceSystem(io, this.messageService);
     }
 
 
-    update(entities: Set<Entity>, deltaTime: number): void {
+    update(engine: IEngine, deltaTime: number): void {
         // This system is mostly event-driven for now, but could handle timed interactions later
     }
 
-    handleStanceChange(entityId: string, newStance: StanceType, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleStanceChange(entityId: string, newStance: StanceType, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const stance = player.getComponent(Stance);
         if (!stance) return;
 
         if (stance.current === newStance) {
-            this.io.to(entityId).emit('message', `You are already ${newStance}.`);
+            this.messageService.info(entityId, `You are already ${newStance}.`);
             return;
         }
 
@@ -57,11 +65,11 @@ export class InteractionSystem extends System {
             case StanceType.Lying: msg = MessageFormatter.system("You lie down."); break;
         }
 
-        this.io.to(entityId).emit('message', msg);
+        this.messageService.system(entityId, msg);
     }
 
-    handleLook(entityId: string, entities: Set<Entity>, targetName?: string) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleLook(entityId: string, engine: IEngine, targetName?: string) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
@@ -71,40 +79,40 @@ export class InteractionSystem extends System {
             // Check if this is "look in <container>"
             if (targetName.startsWith('in ')) {
                 const containerName = targetName.substring(3).trim();
-                return this.handleLookInContainer(entityId, containerName, entities);
+                return this.handleLookInContainer(entityId, containerName, engine);
             }
 
-            const description = DescriptionService.describeTargetAt(player, entities, playerPos, targetName);
+            const description = DescriptionService.describeTargetAt(player, engine, playerPos, targetName);
             if (description) {
-                this.io.to(entityId).emit('message', description);
+                this.messageService.info(entityId, description);
             } else {
-                this.io.to(entityId).emit('message', `You don't see ${targetName} here.`);
+                this.messageService.info(entityId, `You don't see ${targetName} here.`);
             }
             return;
         }
 
         // Default Look (Room)
-        const fullDescription = DescriptionService.describeRoom(playerPos, entities);
-        this.io.to(entityId).emit('message', fullDescription);
+        const fullDescription = DescriptionService.describeRoom(playerPos, engine);
+        this.messageService.roomDesc(entityId, fullDescription);
 
-        const autocompleteData = AutocompleteAggregator.getRoomAutocomplete(playerPos, entities);
+        const autocompleteData = AutocompleteAggregator.getRoomAutocomplete(playerPos, engine);
         this.io.to(entityId).emit('autocomplete-update', autocompleteData);
     }
 
-    handleMap(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleMap(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
         if (!playerPos) return;
 
-        const mapOutput = DescriptionService.generateFullMap(playerPos, entities);
-        this.io.to(entityId).emit('message', mapOutput);
+        const mapOutput = DescriptionService.generateFullMap(playerPos, engine);
+        this.messageService.info(entityId, mapOutput);
     }
 
 
-    handleLookInContainer(entityId: string, containerName: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleLookInContainer(entityId: string, containerName: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -113,7 +121,7 @@ export class InteractionSystem extends System {
         // Search for the container in equipped items
         let targetContainer: Entity | undefined = undefined;
         for (const itemId of inventory.equipment.values()) {
-            const item = WorldQuery.getEntityById(entities, itemId);
+            const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
             if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
                 targetContainer = item;
@@ -122,399 +130,56 @@ export class InteractionSystem extends System {
         }
 
         if (!targetContainer) {
-            this.io.to(entityId).emit('message', `You don't have a ${containerName}.`);
+            this.messageService.info(entityId, `You don't have a ${containerName}.`);
             return;
         }
 
         const container = targetContainer.getComponent(Container);
         if (!container) {
-            this.io.to(entityId).emit('message', `The ${containerName} is not a container.`);
+            this.messageService.info(entityId, `The ${containerName} is not a container.`);
             return;
         }
 
         const itemComp = targetContainer.getComponent(Item);
         const containerDisplayName = itemComp?.name || containerName;
 
-        const output = DescriptionService.describeContainer(containerDisplayName, container, entities);
-        this.io.to(entityId).emit('message', output);
+        const output = DescriptionService.describeContainer(containerDisplayName, container, engine);
+        this.messageService.info(entityId, output);
     }
 
-    handleGet(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const playerPos = player.getComponent(Position);
-        const inventory = player.getComponent(Inventory);
-        if (!playerPos || !inventory) return;
-
-        // Clean up input
-        let targetName = itemName.toLowerCase();
-        let specifiedContainerName: string | null = null;
-
-        // Handle "get X from Y" syntax
-        const fromMatch = targetName.match(/^(.+?)\s+from\s+(.+)$/);
-        if (fromMatch) {
-            targetName = fromMatch[1].trim();
-            specifiedContainerName = fromMatch[2].trim();
-        }
-
-        if (targetName === 'can') targetName = 'beer can'; // Specific alias for convenience
-
-        // 1. Try to find item in current location (Room)
-        // Only if no container was specified
-        let targetItem: Entity | undefined = undefined;
-        if (!specifiedContainerName) {
-            const itemsInRoom = WorldQuery.findItemsAt(entities, playerPos.x, playerPos.y);
-            targetItem = itemsInRoom.find(item => {
-                const itemComp = item.getComponent(Item);
-                return itemComp && itemComp.name.toLowerCase().includes(targetName);
-            });
-        }
-
-        let fromContainer = false;
-        let containerEntity: Entity | undefined;
-        let containerDisplayName = "";
-
-        // 2. Search in equipped containers
-        if (!targetItem) {
-            for (const itemId of inventory.equipment.values()) {
-                const equipEntity = WorldQuery.getEntityById(entities, itemId);
-                const container = equipEntity?.getComponent(Container);
-                const equipItem = equipEntity?.getComponent(Item);
-
-                if (container && equipItem) {
-                    // If a container was specified, check if this is it
-                    if (specifiedContainerName && !equipItem.name.toLowerCase().includes(specifiedContainerName)) {
-                        continue;
-                    }
-
-                    const itemIdInContainer = container.items.find(id => {
-                        const item = WorldQuery.getEntityById(entities, id);
-                        const i = item?.getComponent(Item);
-                        return i && i.name.toLowerCase().includes(targetName);
-                    });
-
-                    if (itemIdInContainer) {
-                        targetItem = WorldQuery.getEntityById(entities, itemIdInContainer);
-                        fromContainer = true;
-                        containerEntity = equipEntity;
-                        containerDisplayName = equipItem.name;
-                        break;
-                    }
-                }
-            }
-        }
-
-        if (targetItem) {
-            // Check hands
-            if (!inventory.leftHand || !inventory.rightHand) {
-                const itemComp = targetItem.getComponent(Item);
-
-                // Logic to move item
-                if (fromContainer && containerEntity) {
-                    const container = containerEntity.getComponent(Container);
-                    if (container) {
-                        container.items = container.items.filter(id => id !== targetItem!.id);
-                        container.currentWeight -= itemComp!.weight;
-                    }
-                } else {
-                    targetItem.removeComponent(Position);
-                }
-
-                // Place in hand
-                let sourceMsg = "";
-                if (fromContainer) {
-                    sourceMsg = ` from your ${containerDisplayName}`;
-                }
-
-                if (!inventory.leftHand) {
-                    inventory.leftHand = targetItem.id;
-                    this.io.to(entityId).emit('message', `You picked up the ${itemComp!.name}${sourceMsg} with your left hand.`);
-                } else {
-                    inventory.rightHand = targetItem.id;
-                    this.io.to(entityId).emit('message', `You picked up the ${itemComp!.name}${sourceMsg} with your right hand.`);
-                }
-            } else {
-                this.io.to(entityId).emit('message', `Your hands are full!`);
-            }
-        } else {
-            if (specifiedContainerName) {
-                this.io.to(entityId).emit('message', `You don't see a ${targetName} in your ${specifiedContainerName}.`);
-            } else {
-                this.io.to(entityId).emit('message', `You don't see a ${itemName} here.`);
-            }
-        }
+    handleGet(entityId: string, itemName: string, engine: IEngine) {
+        this.inventoryHandler.handleGet(entityId, itemName, engine);
     }
 
-    handleDrop(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        const position = player.getComponent(Position);
-        if (!inventory || !position) return;
-
-        let targetName = itemName.toLowerCase();
-
-        // Check hands first
-        let itemIdToDrop: string | null = null;
-        let fromHand: 'left' | 'right' | null = null;
-
-        if (inventory.leftHand) {
-            const item = WorldQuery.getEntityById(entities, inventory.leftHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
-                itemIdToDrop = inventory.leftHand;
-                fromHand = 'left';
-            }
-        }
-
-        if (!itemIdToDrop && inventory.rightHand) {
-            const item = WorldQuery.getEntityById(entities, inventory.rightHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
-                itemIdToDrop = inventory.rightHand;
-                fromHand = 'right';
-            }
-        }
-
-        // If not in hands, check backpack
-        let fromContainer: Entity | null = null;
-        if (!itemIdToDrop) {
-            const backpackId = inventory.equipment.get('back');
-            if (backpackId) {
-                const backpack = WorldQuery.getEntityById(entities, backpackId);
-                const container = backpack?.getComponent(Container);
-                if (container) {
-                    const foundId = container.items.find(id => {
-                        const item = WorldQuery.getEntityById(entities, id);
-                        return item?.getComponent(Item)?.name.toLowerCase().includes(targetName);
-                    });
-                    if (foundId) {
-                        itemIdToDrop = foundId;
-                        fromContainer = backpack!;
-                    }
-                }
-            }
-        }
-
-        if (itemIdToDrop) {
-            const itemEntity = WorldQuery.getEntityById(entities, itemIdToDrop);
-            const itemComp = itemEntity?.getComponent(Item);
-
-            if (itemEntity && itemComp) {
-                // Remove from source
-                if (fromHand === 'left') inventory.leftHand = null;
-                else if (fromHand === 'right') inventory.rightHand = null;
-                else if (fromContainer) {
-                    const container = fromContainer.getComponent(Container);
-                    if (container) {
-                        container.items = container.items.filter(id => id !== itemIdToDrop);
-                        container.currentWeight -= itemComp.weight;
-                    }
-                }
-
-                // Add position component to drop it on the ground
-                itemEntity.addComponent(new Position(position.x, position.y));
-
-                this.io.to(entityId).emit('message', `You dropped the ${itemComp.name}.`);
-                const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
-                this.io.to(entityId).emit('autocomplete-update', autocompleteData);
-            }
-        } else {
-            this.io.to(entityId).emit('message', `You don't have a ${itemName} to drop.`);
-        }
+    handleDrop(entityId: string, itemName: string, engine: IEngine) {
+        this.inventoryHandler.handleDrop(entityId, itemName, engine);
     }
 
-    handleInventory(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        if (!inventory) return;
-
-        const getItemName = (id: string | null) => {
-            if (!id) return "Empty";
-            const item = WorldQuery.getEntityById(entities, id);
-            return item?.getComponent(Item)?.name || "Unknown";
-        };
-
-        // Get backpack contents
-        const backpackContents = DescriptionService.getBackpackContents(inventory, entities);
-
-        // Send structured data to client for React component
-        this.io.to(entityId).emit('inventory-data', {
-            leftHand: getItemName(inventory.leftHand),
-            rightHand: getItemName(inventory.rightHand),
-            backpack: getItemName(inventory.equipment.get('back') || null),
-            torso: getItemName(inventory.equipment.get('torso') || null),
-            legs: getItemName(inventory.equipment.get('legs') || null),
-            waist: getItemName(inventory.equipment.get('waist') || null),
-            backpackContents
-        });
-
-        const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
-        this.io.to(entityId).emit('autocomplete-update', autocompleteData);
+    handleInventory(entityId: string, engine: IEngine) {
+        this.inventoryHandler.handleInventory(entityId, engine);
     }
 
 
-    handleGlance(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        if (!inventory) return;
-
-        const getHandContent = (handId: string | null) => {
-            if (!handId) return "nothing";
-            const item = WorldQuery.getEntityById(entities, handId);
-            return item?.getComponent(Item)?.name || "something unknown";
-        };
-
-        const leftHand = getHandContent(inventory.leftHand);
-        const rightHand = getHandContent(inventory.rightHand);
-
-        let message = "";
-        if (leftHand === "nothing" && rightHand === "nothing") {
-            message = "You glance down at your empty hands.";
-        } else {
-            message = `You glance down and see you are holding ${leftHand === "nothing" ? "nothing" : `a ${leftHand}`} in your left hand and ${rightHand === "nothing" ? "nothing" : `a ${rightHand}`} in your right hand.`;
-        }
-
-        this.io.to(entityId).emit('message', message);
+    handleGlance(entityId: string, engine: IEngine) {
+        this.inventoryHandler.handleGlance(entityId, engine);
     }
 
-    handleStow(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        if (!inventory) return;
-
-        // Parse "put X in Y" syntax
-        let targetItemName = itemName.toLowerCase();
-        let targetContainerName = 'backpack'; // default
-
-        const inMatch = targetItemName.match(/^(.+?)\s+in\s+(.+)$/);
-        if (inMatch) {
-            targetItemName = inMatch[1].trim();
-            targetContainerName = inMatch[2].trim();
-        }
-
-        if (targetItemName === 'can') targetItemName = 'beer can';
-
-        // Find item in hands with fuzzy match
-        let itemIdToStow: string | null = null;
-        let fromHand: 'left' | 'right' | null = null;
-
-        if (inventory.leftHand) {
-            const item = WorldQuery.getEntityById(entities, inventory.leftHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
-                itemIdToStow = inventory.leftHand;
-                fromHand = 'left';
-            }
-        }
-
-        if (!itemIdToStow && inventory.rightHand) {
-            const item = WorldQuery.getEntityById(entities, inventory.rightHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
-                itemIdToStow = inventory.rightHand;
-                fromHand = 'right';
-            }
-        }
-
-        if (!itemIdToStow) {
-            this.io.to(entityId).emit('message', `You aren't holding a ${targetItemName}.`);
-            return;
-        }
-
-        // Find the target container
-        let targetContainer: Entity | undefined = undefined;
-        let containerName = '';
-
-        for (const equipId of inventory.equipment.values()) {
-            const equip = WorldQuery.getEntityById(entities, equipId);
-            const equipItem = equip?.getComponent(Item);
-            const equipContainer = equip?.getComponent(Container);
-
-            if (equipContainer && equipItem) {
-                if (equipItem.name.toLowerCase().includes(targetContainerName)) {
-                    targetContainer = equip;
-                    containerName = equipItem.name;
-                    break;
-                }
-            }
-        }
-
-        if (!targetContainer) {
-            this.io.to(entityId).emit('message', `You don't have a ${targetContainerName}.`);
-            return;
-        }
-
-        const container = targetContainer.getComponent(Container);
-        const itemToStow = WorldQuery.getEntityById(entities, itemIdToStow);
-        const itemComp = itemToStow?.getComponent(Item);
-
-        if (container && itemComp) {
-            if (container.currentWeight + itemComp.weight <= container.maxWeight) {
-                // Success
-                container.items.push(itemIdToStow);
-                container.currentWeight += itemComp.weight;
-
-                if (fromHand === 'left') inventory.leftHand = null;
-                if (fromHand === 'right') inventory.rightHand = null;
-
-                this.io.to(entityId).emit('message', `You put the ${itemComp.name} in your ${containerName}.`);
-                const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
-                this.io.to(entityId).emit('autocomplete-update', autocompleteData);
-            } else {
-                this.io.to(entityId).emit('message', `Your ${containerName} is too heavy! (${container.currentWeight.toFixed(1)}/${container.maxWeight} lbs)`);
-            }
-        }
+    handleStow(entityId: string, itemName: string, engine: IEngine) {
+        this.inventoryHandler.handleStow(entityId, itemName, engine);
     }
 
-    handleSwap(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        if (!inventory) return;
-
-        const leftItem = inventory.leftHand ? WorldQuery.getEntityById(entities, inventory.leftHand) : null;
-        const rightItem = inventory.rightHand ? WorldQuery.getEntityById(entities, inventory.rightHand) : null;
-
-        if (!leftItem && !rightItem) {
-            this.io.to(entityId).emit('message', "You have nothing in your hands to swap.");
-            return;
-        }
-
-        // Perform Swap
-        const temp = inventory.leftHand;
-        inventory.leftHand = inventory.rightHand;
-        inventory.rightHand = temp;
-
-        // Generate Message
-        if (leftItem && rightItem) {
-            const leftName = leftItem.getComponent(Item)?.name;
-            const rightName = rightItem.getComponent(Item)?.name;
-            this.io.to(entityId).emit('message', `You swapped the ${leftName} and ${rightName} between your hands.`);
-        } else if (leftItem) {
-            // Was in left, now in right
-            const name = leftItem.getComponent(Item)?.name;
-            this.io.to(entityId).emit('message', `You moved the ${name} to your right hand.`);
-        } else if (rightItem) {
-            // Was in right, now in left
-            const name = rightItem.getComponent(Item)?.name;
-            this.io.to(entityId).emit('message', `You moved the ${name} to your left hand.`);
-        }
+    handleSwap(entityId: string, engine: IEngine) {
+        this.inventoryHandler.handleSwap(entityId, engine);
     }
 
-    handleSheet(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleSheet(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const stats = player.getComponent(Stats);
         const combatStats = player.getComponent(CombatStats);
         if (!stats || !combatStats) {
-            this.io.to(entityId).emit('message', "You don't have a character sheet.");
+            this.messageService.info(entityId, "You don't have a character sheet.");
             return;
         }
 
@@ -541,13 +206,13 @@ export class InteractionSystem extends System {
         this.io.to(entityId).emit('sheet-data', sheetData);
     }
 
-    handleScore(entityId: string, entities: Set<Entity>) {
-        const player = WorldQuery.getEntityById(entities, entityId);
+    handleScore(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const stats = player.getComponent(Stats);
         if (!stats) {
-            this.io.to(entityId).emit('message', "You don't have a character sheet.");
+            this.messageService.info(entityId, "You don't have a character sheet.");
             return;
         }
 
@@ -566,154 +231,28 @@ export class InteractionSystem extends System {
 
 
 
-    handleRead(entityId: string, entities: Set<Entity>, targetName: string) {
+    handleRead(entityId: string, engine: IEngine, targetName: string) {
         if (targetName.toLowerCase() === 'guide') {
             try {
                 const guidePath = path.join(process.cwd(), '../docs/USERS_GUIDE.md');
                 const guideContent = fs.readFileSync(guidePath, 'utf-8');
                 this.io.to(entityId).emit('open-guide', { content: guideContent });
-                this.io.to(entityId).emit('message', "<system>Opening User's Guide...</system>");
+                this.messageService.system(entityId, "Opening User's Guide...");
             } catch (err) {
                 console.error("Error reading guide:", err);
-                this.io.to(entityId).emit('message', "<error>Failed to load User's Guide.</error>");
+                this.messageService.error(entityId, "Failed to load User's Guide.");
             }
             return;
         }
 
-        const player = WorldQuery.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(engine, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
         if (!playerPos) return;
 
         // Find items/objects at player position
-        // Let's iterate manually for now to find the terminal
-        let targetEntity: Entity | undefined;
-        for (const entity of entities) {
-            const pos = entity.getComponent(Position);
-            const desc = entity.getComponent(Description);
-            if (pos && desc && pos.x === playerPos.x && pos.y === playerPos.y) {
-                if (desc.title.toLowerCase().includes(targetName.toLowerCase())) {
-                    targetEntity = entity;
-                    break;
-                }
-            }
-        }
-
-        if (!targetEntity) {
-            this.io.to(entityId).emit('message', `You don't see '${targetName}' here.`);
-            return;
-        }
-
-        const terminal = targetEntity.getComponent(Terminal);
-        if (terminal) {
-            // It's a terminal!
-            const itemNames = terminal.data.items as string[];
-            const itemsData = itemNames.map(name => {
-                const tempEntity = PrefabFactory.createItem(name);
-                if (tempEntity) {
-                    const item = tempEntity.getComponent(Item);
-                    if (item) {
-                        return {
-                            name: item.name,
-                            weight: item.weight,
-                            size: item.size,
-                            legality: item.legality,
-                            attributes: item.attributes,
-                            description: item.description
-                        };
-                    }
-                }
-                return null;
-            }).filter(i => i !== null);
-
-            this.io.to(entityId).emit('terminal-data', {
-                title: "CYBERNETICS CATALOG",
-                items: itemsData
-            });
-            this.io.to(entityId).emit('message', "<system>You access the terminal...</system>");
-        } else {
-            // If it's not a terminal, just show the description (e.g. for the table)
-            const desc = targetEntity.getComponent(Description);
-            if (desc) {
-                this.io.to(entityId).emit('message', desc.description);
-            } else {
-                this.io.to(entityId).emit('message', "There's nothing to read on that.");
-            }
-        }
-    }
-
-    handleTerminalBuy(entityId: string, entities: Set<Entity>, itemName: string, cost: number) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        // Check if player has enough credits (assuming credits are stored in Stats or Inventory)
-        // For now, let's assume infinite credits or just check if they can carry it
-        // TODO: Implement Credits system properly.
-
-        // Create the item
-        const itemEntity = PrefabFactory.createItem(itemName);
-        if (!itemEntity) {
-            this.io.to(entityId).emit('message', "<system>Error: Item out of stock.</system>");
-            return;
-        }
-
-        const itemComp = itemEntity.getComponent(Item);
-        const inventory = player.getComponent(Inventory);
-
-        if (inventory && itemComp) {
-            // Check weight/capacity?
-            // For now, just add to backpack if possible, or drop on ground
-
-            // Try to add to backpack
-            const backpackId = inventory.equipment.get('back');
-            let added = false;
-
-            if (backpackId) {
-                const backpack = WorldQuery.getEntityById(entities, backpackId);
-                const container = backpack?.getComponent(Container);
-                if (container) {
-                    if (container.currentWeight + itemComp.weight <= container.maxWeight) {
-                        container.items.push(itemEntity.id);
-                        container.currentWeight += itemComp.weight;
-                        this.io.to(entityId).emit('message', `<system>Purchased ${itemComp.name} for ${cost} credits. Added to backpack.</system>`);
-                        added = true;
-                        // Add entity to engine? It's already created but needs to be in the entities set?
-                        // PrefabFactory creates it but doesn't add to engine.
-                        // We need to add it to the engine.
-                        // Wait, InteractionSystem doesn't have access to engine directly to add entities?
-                        // It receives `entities` set but that's a reference. 
-                        // The `entities` set in `update` is from the engine.
-                        // But we need to add it to the engine's main list so it persists and updates.
-                        // The `entities` passed here is a Set<Entity>. Adding to it might work if it's the live set.
-                        entities.add(itemEntity);
-                    }
-                }
-            }
-
-            if (!added) {
-                // Drop on ground
-                const pos = player.getComponent(Position);
-                if (pos) {
-                    itemEntity.addComponent(new Position(pos.x, pos.y));
-                    this.io.to(entityId).emit('message', `<system>Purchased ${itemComp.name}. Inventory full, dropped on ground.</system>`);
-                }
-            }
-
-            return itemEntity;
-        }
-        return null;
-    }
-
-    handleTurn(entityId: string, entities: Set<Entity>, targetName: string, direction: string, engine: IEngine) {
-        const player = WorldQuery.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const playerPos = player.getComponent(Position);
-        if (!playerPos) return;
-
-        // Find the target object in the room
-        const targetEntity = Array.from(entities).find(e => {
+        const targetEntity = engine.getEntitiesWithComponent(Description).find(e => {
             const pos = e.getComponent(Position);
             const desc = e.getComponent(Description);
             return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y &&
@@ -721,169 +260,30 @@ export class InteractionSystem extends System {
         });
 
         if (!targetEntity) {
-            this.io.to(entityId).emit('message', `You don't see ${targetName} here.`);
+            this.messageService.info(entityId, `You don't see '${targetName}' here.`);
             return;
         }
 
-        const puzzleObj = targetEntity.getComponent(PuzzleObject);
-        if (!puzzleObj) {
-            this.io.to(entityId).emit('message', `You can't turn that.`);
-            return;
-        }
-
-        // Check if it's the Terra Bust (cannot be turned)
-        const desc = targetEntity.getComponent(Description);
-        if (desc && desc.title === "Terra Bust") {
-            this.io.to(entityId).emit('message', "The bust is fused to its base and cannot be turned.");
-            return;
-        }
-
-        // Normalize direction
-        const validDirs = ['north', 'south', 'east', 'west'];
-        const dir = direction.toLowerCase();
-        if (!validDirs.includes(dir)) {
-            this.io.to(entityId).emit('message', `Invalid direction. Try north, south, east, or west.`);
-            return;
-        }
-
-        // Update Direction
-        puzzleObj.currentDirection = dir;
-
-        // Update Description
-        if (desc) {
-            // Remove old direction text if present (assuming it ends with "It is currently facing...")
-            const baseDesc = desc.description.split(" It is currently facing")[0];
-            desc.description = `${baseDesc} It is currently facing ${dir.charAt(0).toUpperCase() + dir.slice(1)}.`;
-        }
-
-        this.io.to(entityId).emit('message', `<action>You turn the ${targetName} to face ${dir}.</action>`);
-
-        // Atmospheric Hints for Wrong Directions
-        if (desc) {
-            if (desc.title === "Ignis Bust" && dir === "north") {
-                this.io.to(entityId).emit('message', "The ruby eyes of the bust catch the light, but it feels misplaced facing the north.");
-            } else if (desc.title === "Ignis Bust" && dir !== "west") {
-                // Generic hint for other wrong directions for Ignis? Or just leave it.
-            }
-
-            if (desc.title === "Aqua Bust" && dir !== "south") {
-                // Hint for Aqua?
+        const terminal = targetEntity.getComponent(Terminal);
+        if (terminal) {
+            this.commerceSystem.handleTerminalRead(entityId, engine, targetEntity);
+        } else {
+            // If it's not a terminal, just show the description (e.g. for the table)
+            const desc = targetEntity.getComponent(Description);
+            if (desc) {
+                this.messageService.info(entityId, desc.description);
+            } else {
+                this.messageService.info(entityId, "There's nothing to read on that.");
             }
         }
-
-        // Check Puzzle Completion
-        this.checkPuzzleCompletion(puzzleObj.puzzleId, entities, playerPos, engine, entityId);
-
-
     }
 
-    private checkPuzzleCompletion(puzzleId: string, entities: Set<Entity>, pos: Position, engine: IEngine, playerId: string) {
-        // Find all objects with this puzzleId
-        const puzzleObjects = Array.from(entities).filter(e => {
-            const p = e.getComponent(PuzzleObject);
-            return p && p.puzzleId === puzzleId;
-        });
+    handleTerminalBuy(entityId: string, engine: IEngine, itemName: string, cost: number) {
+        return this.commerceSystem.handleTerminalBuy(entityId, engine, itemName, cost);
+    }
 
-        // Check if all are correct
-        let allCorrect = true;
-        for (const obj of puzzleObjects) {
-            const p = obj.getComponent(PuzzleObject);
-            if (p && p.targetDirection && p.currentDirection !== p.targetDirection) {
-                allCorrect = false;
-                break;
-            }
-        }
-
-        if (allCorrect) {
-            // Check if already solved (to prevent infinite rewards)
-            const rewardInRoom = Array.from(entities).some(e => {
-                const item = e.getComponent(Item);
-                const p = e.getComponent(Position);
-                return item && item.name === "Platinum Hard Disk" && p && p.x === pos.x && p.y === pos.y;
-            });
-
-            // Check if player has the reward
-            const player = WorldQuery.getEntityById(entities, playerId);
-            let playerHasReward = false;
-            if (player) {
-                const inventory = player.getComponent(Inventory);
-                if (inventory) {
-                    // Check hands
-                    if (inventory.leftHand) {
-                        const lItem = WorldQuery.getEntityById(entities, inventory.leftHand);
-                        if (lItem?.getComponent(Item)?.name === "Platinum Hard Disk") playerHasReward = true;
-                    }
-                    if (inventory.rightHand) {
-                        const rItem = WorldQuery.getEntityById(entities, inventory.rightHand);
-                        if (rItem?.getComponent(Item)?.name === "Platinum Hard Disk") playerHasReward = true;
-                    }
-                    // Check backpack/equipment
-                    if (!playerHasReward) {
-                        for (const [slot, itemId] of inventory.equipment) {
-                            const item = WorldQuery.getEntityById(entities, itemId);
-                            if (item?.getComponent(Item)?.name === "Platinum Hard Disk") {
-                                playerHasReward = true;
-                                break;
-                            }
-                            // Check inside container (backpack)
-                            const container = item?.getComponent(Container);
-                            if (container) {
-                                for (const subId of container.items) {
-                                    const subItem = WorldQuery.getEntityById(entities, subId);
-                                    if (subItem?.getComponent(Item)?.name === "Platinum Hard Disk") {
-                                        playerHasReward = true;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if (!rewardInRoom && !playerHasReward) {
-                this.io.to(playerId).emit('message', `<success>CLICK! You hear a mechanical latch unlock inside the stone table. A compartment slides open!</success>`);
-
-                // Update Table Description
-                const table = Array.from(entities).find(e => {
-                    const p = e.getComponent(Position);
-                    const d = e.getComponent(Description);
-                    return p && d && p.x === pos.x && p.y === pos.y && d.title === "Stone Table";
-                });
-
-                if (table) {
-                    const d = table.getComponent(Description);
-                    if (d) {
-                        d.description = "A heavy stone table with an open compartment revealing a shiny object. The inscription reads: 'The sun sets in the west, the rain falls to the mud, and the wind blows toward the dawn.'";
-                    }
-                }
-
-                // Spawn Reward
-                const reward = PrefabFactory.createItem("platinum_disk");
-                if (reward) {
-                    reward.addComponent(new Position(pos.x, pos.y));
-                    engine.addEntity(reward);
-                    entities.add(reward);
-                } else {
-                    console.error("Failed to create platinum_disk reward. Check items.csv and ItemRegistry.");
-                    this.io.to(playerId).emit('message', "<system>Error: Reward item not found in database.</system>");
-                }
-            } else {
-                this.io.to(playerId).emit('message', `<system>The mechanism clicks, but nothing happens. It seems the compartment is already open.</system>`);
-            }
-
-            // Reset Puzzle (Scramble Busts)
-            puzzleObjects.forEach(obj => {
-                const p = obj.getComponent(PuzzleObject);
-                const d = obj.getComponent(Description);
-                if (p && d) {
-                    p.currentDirection = 'north'; // Reset to default
-                    const baseDesc = d.description.split(" It is currently facing")[0];
-                    d.description = `${baseDesc} It is currently facing North.`;
-                }
-            });
-            this.io.to(playerId).emit('message', `<action>The busts mechanically whir and reset to their original positions.</action>`);
-        }
+    handleTurn(entityId: string, engine: IEngine, targetName: string, direction: string) {
+        this.puzzleManager.handleTurn(entityId, engine, targetName, direction);
     }
 }
 

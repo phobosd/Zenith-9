@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 // import { parse } from 'csv-parse/sync';
 const { parse } = require('csv-parse/sync');
+import { Logger } from '../utils/Logger';
 
 export interface ItemDefinition {
     id: string;
@@ -36,15 +37,15 @@ export class ItemRegistry {
         try {
             // Use process.cwd() to ensure we are relative to the project root
             const csvPath = path.join(process.cwd(), 'data', 'items.csv');
-            console.log(`Loading items from: ${csvPath}`);
+            Logger.info('ItemRegistry', `Loading items from: ${csvPath}`);
 
             if (!fs.existsSync(csvPath)) {
-                console.error(`Error: items.csv not found at ${csvPath}`);
+                Logger.error('ItemRegistry', `Error: items.csv not found at ${csvPath}`);
                 return;
             }
 
             const fileContent = fs.readFileSync(csvPath, 'utf-8');
-            console.log(`File content length: ${fileContent.length}`);
+            Logger.debug('ItemRegistry', `File content length: ${fileContent.length}`);
 
             const records = parse(fileContent, {
                 columns: true,
@@ -71,12 +72,12 @@ export class ItemRegistry {
                     // Also map by name for fuzzy lookups if needed, but ID is primary
                     this.items.set(def.name.toLowerCase(), def);
                 } catch (err) {
-                    console.error(`Failed to parse item record: ${record.id}`, err);
+                    Logger.error('ItemRegistry', `Failed to parse item record: ${record.id}`, err);
                 }
             }
-            console.log(`Loaded ${this.items.size} item definitions from CSV.`);
+            Logger.info('ItemRegistry', `Loaded ${this.items.size} item definitions from CSV.`);
         } catch (error) {
-            console.error("Failed to load items.csv:", error);
+            Logger.error('ItemRegistry', "Failed to load items.csv:", error);
         }
     }
 

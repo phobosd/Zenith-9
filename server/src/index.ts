@@ -27,6 +27,11 @@ import { CommandRegistry } from './commands/CommandRegistry';
 import { Stance, StanceType } from './components/Stance';
 import { PrefabFactory } from './factories/PrefabFactory';
 import { ItemRegistry } from './services/ItemRegistry';
+import { Logger } from './utils/Logger';
+import { Credits } from './components/Credits';
+import { WorldStateService } from './services/WorldStateService';
+import { MessageService } from './services/MessageService';
+import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/SocketSchemas';
 
 // Initialize ItemRegistry
 ItemRegistry.getInstance();
@@ -44,10 +49,11 @@ const io = new Server(httpServer, {
 
 // ECS Setup
 const engine = new Engine();
-const movementSystem = new MovementSystem(io);
+const messageService = new MessageService(io);
+const movementSystem = new MovementSystem(io, messageService);
 const interactionSystem = new InteractionSystem(io);
-const npcSystem = new NPCSystem(io);
-const combatSystem = new CombatSystem(engine, io);
+const npcSystem = new NPCSystem(io, messageService);
+const combatSystem = new CombatSystem(engine, io, messageService);
 
 engine.addSystem(movementSystem);
 engine.addSystem(interactionSystem);
@@ -106,91 +112,91 @@ commandRegistry.register({
     name: 'look',
     aliases: ['l', 'la'],
     description: 'Look at the room, an item, or an NPC',
-    execute: (ctx) => ctx.systems.interaction.handleLook(ctx.socketId, new Set(ctx.engine.getEntities().values()), ctx.args.join(' '))
+    execute: (ctx) => ctx.systems.interaction.handleLook(ctx.socketId, ctx.engine, ctx.args.join(' '))
 });
 
 commandRegistry.register({
     name: 'get',
     aliases: ['g', 'take'],
     description: 'Pick up an item',
-    execute: (ctx) => ctx.systems.interaction.handleGet(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleGet(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'drop',
     aliases: ['d'],
     description: 'Drop an item',
-    execute: (ctx) => ctx.systems.interaction.handleDrop(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleDrop(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'read',
     aliases: ['scan'],
     description: 'Read a terminal or object',
-    execute: (ctx) => ctx.systems.interaction.handleRead(ctx.socketId, new Set(ctx.engine.getEntities().values()), ctx.args.join(' '))
+    execute: (ctx) => ctx.systems.interaction.handleRead(ctx.socketId, ctx.engine, ctx.args.join(' '))
 });
 
 commandRegistry.register({
     name: 'inventory',
     aliases: ['inv', 'i'],
     description: 'Check your inventory',
-    execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'glance',
     aliases: ['gl'],
     description: 'Glance at your hands',
-    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'sit',
     aliases: [],
     description: 'Sit down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'stand',
     aliases: ['st'],
     description: 'Stand up',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'lie',
     aliases: ['rest', 'sleep'],
     description: 'Lie down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'stow',
     aliases: ['put'],
     description: 'Put an item in your backpack (Usage: stow <item>)',
-    execute: (ctx) => ctx.systems.interaction.handleStow(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleStow(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'sheet',
     aliases: ['stats'],
     description: 'View your character attributes',
-    execute: (ctx) => ctx.systems.interaction.handleSheet(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleSheet(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'score',
     aliases: ['skills'],
     description: 'View your character skills',
-    execute: (ctx) => ctx.systems.interaction.handleScore(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleScore(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'swap',
     aliases: ['switch'],
     description: 'Swap items between your hands',
-    execute: (ctx) => ctx.systems.interaction.handleSwap(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleSwap(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
@@ -203,7 +209,7 @@ commandRegistry.register({
             ctx.io.to(ctx.socketId).emit('message', 'Attack what?');
             return;
         }
-        ctx.systems.combat.handleAttack(ctx.socketId, targetName, new Set(ctx.engine.getEntities().values()));
+        ctx.systems.combat.handleAttack(ctx.socketId, targetName, ctx.engine);
     }
 });
 
@@ -223,7 +229,7 @@ commandRegistry.register({
             return;
         }
         const targetName = args.join(' '); // Rest is object name
-        ctx.systems.interaction.handleTurn(ctx.socketId, new Set(ctx.engine.getEntities().values()), targetName, direction, ctx.engine);
+        ctx.systems.interaction.handleTurn(ctx.socketId, ctx.engine, targetName, direction);
     }
 });
 
@@ -231,7 +237,7 @@ commandRegistry.register({
     name: 'map',
     aliases: ['m'],
     description: 'Display the world map',
-    execute: (ctx) => ctx.systems.interaction.handleMap(ctx.socketId, new Set(ctx.engine.getEntities().values()))
+    execute: (ctx) => ctx.systems.interaction.handleMap(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
@@ -241,14 +247,14 @@ commandRegistry.register({
     execute: (ctx) => {
         const subCommand = ctx.args[0];
         if (!subCommand) {
-            ctx.io.to(ctx.socketId).emit('message', 'Usage: god <spawn> <type>');
+            ctx.messageService.info(ctx.socketId, 'Usage: god <spawn> <type>');
             return;
         }
 
         if (subCommand === 'spawn') {
             const name = ctx.args.slice(1).join(' ');
             if (!name) {
-                ctx.io.to(ctx.socketId).emit('message', 'Usage: god spawn <item name | npc name>');
+                ctx.messageService.info(ctx.socketId, 'Usage: god spawn <item name | npc name>');
                 return;
             }
 
@@ -263,7 +269,7 @@ commandRegistry.register({
             if (entity) {
                 entity.addComponent(new Position(pos.x, pos.y));
                 ctx.engine.addEntity(entity);
-                ctx.io.to(ctx.socketId).emit('message', `Spawned NPC: ${name}`);
+                ctx.messageService.success(ctx.socketId, `Spawned NPC: ${name}`);
                 return;
             }
 
@@ -272,15 +278,15 @@ commandRegistry.register({
             if (entity) {
                 entity.addComponent(new Position(pos.x, pos.y));
                 ctx.engine.addEntity(entity);
-                ctx.io.to(ctx.socketId).emit('message', `Spawned Item: ${name}`);
+                ctx.messageService.success(ctx.socketId, `Spawned Item: ${name}`);
                 return;
             }
 
-            ctx.io.to(ctx.socketId).emit('message', `Unknown entity: ${name}`);
+            ctx.messageService.error(ctx.socketId, `Unknown entity: ${name}`);
         } else if (subCommand === 'reset') {
             const target = ctx.args[1];
             if (!target) {
-                ctx.io.to(ctx.socketId).emit('message', 'Usage: god reset <skills|health>');
+                ctx.messageService.info(ctx.socketId, 'Usage: god reset <skills|health>');
                 return;
             }
 
@@ -295,16 +301,16 @@ commandRegistry.register({
                         skill.uses = 0;
                         skill.maxUses = 10;
                     }
-                    ctx.io.to(ctx.socketId).emit('message', 'Skills reset to Level 1.');
+                    ctx.messageService.success(ctx.socketId, 'Skills reset to Level 1.');
                 }
             } else if (target === 'health' || target === 'hp') {
                 const combatStats = player.getComponent(CombatStats);
                 if (combatStats) {
                     combatStats.hp = combatStats.maxHp;
-                    ctx.io.to(ctx.socketId).emit('message', 'Health restored to full.');
+                    ctx.messageService.success(ctx.socketId, 'Health restored to full.');
                 }
             } else {
-                ctx.io.to(ctx.socketId).emit('message', `Unknown reset target: ${target}`);
+                ctx.messageService.error(ctx.socketId, `Unknown reset target: ${target}`);
             }
         }
     }
@@ -316,13 +322,14 @@ commandRegistry.register({
     description: 'List all available commands',
     execute: (ctx) => {
         const helpText = commandRegistry.getHelp();
-        ctx.io.to(ctx.socketId).emit('message', helpText);
+        ctx.messageService.info(ctx.socketId, helpText);
     }
 });
 
 // Persistence Setup
 const persistence = new PersistenceManager();
 persistence.connect();
+const worldState = new WorldStateService(persistence);
 
 // Generate World
 const worldGen = new WorldGenerator(engine, 20, 20);
@@ -354,14 +361,14 @@ setInterval(() => {
 
     // Auto-save every 30 seconds
     if (Date.now() - lastSaveTime > 30000) {
-        persistence.saveWorldState(Array.from(engine.getEntities().values()));
-        console.log('World saved to Redis');
+        worldState.saveAllEntities(Array.from(engine.getEntities().values()));
+        Logger.info('Persistence', 'World saved to Redis');
         lastSaveTime = Date.now();
     }
 }, TICK_MS);
 
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    Logger.info('Network', `User connected: ${socket.id}`);
 
     // Send Autocomplete Data
     socket.emit('autocomplete-data', {
@@ -399,6 +406,7 @@ io.on('connection', (socket) => {
     player.addComponent(stats);
     player.addComponent(new CombatStats(100, 10, 5));
     player.addComponent(new Stance(StanceType.Standing));
+    player.addComponent(new Credits(1000));
 
     // Create Shirt with pockets
     const shirt = new Entity();
@@ -442,7 +450,13 @@ io.on('connection', (socket) => {
 
 
     socket.on('command', (cmd: string) => {
-        commandRegistry.execute(cmd, {
+        const result = CommandSchema.safeParse(cmd);
+        if (!result.success) {
+            Logger.warn('Network', `Invalid command received from ${socket.id}: ${cmd}`);
+            return;
+        }
+
+        commandRegistry.execute(result.data, {
             socketId: socket.id,
             args: [],
             io: io,
@@ -452,23 +466,31 @@ io.on('connection', (socket) => {
                 interaction: interactionSystem,
                 npc: npcSystem,
                 combat: combatSystem
-            }
+            },
+            messageService: messageService
         });
     });
 
-    socket.on('combat-result', (data: { targetId: string, hitType: 'crit' | 'hit' | 'miss' }) => {
-        combatSystem.handleSyncResult(socket.id, data.targetId, data.hitType, new Set(engine.getEntities().values()));
+    socket.on('combat-result', (data: any) => {
+        const result = CombatResultSchema.safeParse(data);
+        if (!result.success) {
+            Logger.warn('Network', `Invalid combat-result received from ${socket.id}`, result.error);
+            return;
+        }
+        combatSystem.handleSyncResult(socket.id, result.data.targetId, result.data.hitType, engine);
     });
 
-    socket.on('terminal-buy', (data: { itemName: string, cost: number }) => {
-        const createdItem = interactionSystem.handleTerminalBuy(socket.id, new Set(engine.getEntities().values()), data.itemName, data.cost);
-        if (createdItem) {
-            engine.addEntity(createdItem);
+    socket.on('terminal-buy', (data: any) => {
+        const result = TerminalBuySchema.safeParse(data);
+        if (!result.success) {
+            Logger.warn('Network', `Invalid terminal-buy received from ${socket.id}`, result.error);
+            return;
         }
+        interactionSystem.handleTerminalBuy(socket.id, engine, result.data.itemName, result.data.cost);
     });
 
     socket.on('disconnect', () => {
-        console.log('User disconnected:', socket.id);
+        Logger.info('Network', `User disconnected: ${socket.id}`);
         engine.removeEntity(socket.id);
     });
 });
@@ -476,5 +498,5 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 
 httpServer.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    Logger.info('Server', `Server running on port ${PORT}`);
 });

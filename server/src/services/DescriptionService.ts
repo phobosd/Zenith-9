@@ -10,27 +10,28 @@ import { Container } from '../components/Container';
 import { Inventory } from '../components/Inventory';
 import { WorldQuery } from '../utils/WorldQuery';
 import { MessageFormatter } from '../utils/MessageFormatter';
+import { IEngine } from '../commands/CommandRegistry';
 
 export class DescriptionService {
     /**
      * Generates a full room description including title, description, exits, mini-map, items, and NPCs.
      */
-    static describeRoom(playerPos: Position, entities: Set<Entity>): string {
-        const room = WorldQuery.findRoomAt(entities, playerPos.x, playerPos.y);
+    static describeRoom(playerPos: Position, engine: IEngine): string {
+        const room = WorldQuery.findRoomAt(engine, playerPos.x, playerPos.y);
         if (!room) return "You are in a void.";
 
         const roomDesc = room.getComponent(Description);
         if (!roomDesc) return "This room has no description.";
 
         // Find items in the room
-        const itemsInRoom = WorldQuery.findItemsAt(entities, playerPos.x, playerPos.y);
+        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
         const itemDescriptions = itemsInRoom.map(item => {
             const itemComp = item.getComponent(Item);
             return itemComp ? MessageFormatter.item(`There is a ${itemComp.name} here.`) : '';
         }).filter(s => s !== '').join('\n');
 
         // Find NPCs in the room
-        const npcsInRoom = WorldQuery.findNPCsAt(entities, playerPos.x, playerPos.y);
+        const npcsInRoom = WorldQuery.findNPCsAt(engine, playerPos.x, playerPos.y);
         const npcDescriptions = npcsInRoom.map(npc => {
             const npcComp = npc.getComponent(NPC);
             const combatStats = npc.getComponent(CombatStats);
@@ -46,7 +47,7 @@ export class DescriptionService {
         }).filter(s => s !== '').join('\n');
 
         // Find Terminals in the room
-        const terminalsInRoom = WorldQuery.findTerminalsAt(entities, playerPos.x, playerPos.y);
+        const terminalsInRoom = WorldQuery.findTerminalsAt(engine, playerPos.x, playerPos.y);
         let terminalText = "";
         if (terminalsInRoom.length > 0) {
             terminalText = "\n" + MessageFormatter.wrap('terminal', "A Shop Terminal is here.");
@@ -54,12 +55,12 @@ export class DescriptionService {
 
         // Calculate Exits
         const exits = [];
-        if (WorldQuery.findRoomAt(entities, playerPos.x, playerPos.y - 1)) exits.push('N');
-        if (WorldQuery.findRoomAt(entities, playerPos.x, playerPos.y + 1)) exits.push('S');
-        if (WorldQuery.findRoomAt(entities, playerPos.x + 1, playerPos.y)) exits.push('E');
-        if (WorldQuery.findRoomAt(entities, playerPos.x - 1, playerPos.y)) exits.push('W');
+        if (WorldQuery.findRoomAt(engine, playerPos.x, playerPos.y - 1)) exits.push('N');
+        if (WorldQuery.findRoomAt(engine, playerPos.x, playerPos.y + 1)) exits.push('S');
+        if (WorldQuery.findRoomAt(engine, playerPos.x + 1, playerPos.y)) exits.push('E');
+        if (WorldQuery.findRoomAt(engine, playerPos.x - 1, playerPos.y)) exits.push('W');
 
-        const miniMap = this.generateMiniMap(playerPos, entities);
+        const miniMap = this.generateMiniMap(playerPos, engine);
 
         return `
 ${MessageFormatter.title(`[${roomDesc.title}]`)}
@@ -74,7 +75,7 @@ ${npcDescriptions}
     /**
      * Generates a 5x5 mini-map centered on the player.
      */
-    static generateMiniMap(playerPos: Position, entities: Set<Entity>): string {
+    static generateMiniMap(playerPos: Position, engine: IEngine): string {
         let miniMap = "";
         const range = 2; // +/- 2 tiles
         for (let y = playerPos.y - range; y <= playerPos.y + range; y++) {
@@ -83,7 +84,7 @@ ${npcDescriptions}
                 if (x === playerPos.x && y === playerPos.y) {
                     row += MessageFormatter.mapPlayer("@");
                 } else {
-                    const r = WorldQuery.findRoomAt(entities, x, y);
+                    const r = WorldQuery.findRoomAt(engine, x, y);
                     if (r) {
                         const shop = r.getComponent(Shop);
                         const desc = r.getComponent(Description);
@@ -119,7 +120,7 @@ ${npcDescriptions}
     /**
      * Generates a full 20x20 city map.
      */
-    static generateFullMap(playerPos: Position, entities: Set<Entity>): string {
+    static generateFullMap(playerPos: Position, engine: IEngine): string {
         let mapOutput = MessageFormatter.title('[Ouroboro City Map]') + '\n';
 
         const width = 20;
@@ -131,7 +132,7 @@ ${npcDescriptions}
                 if (x === playerPos.x && y === playerPos.y) {
                     row += MessageFormatter.mapPlayer("@");
                 } else {
-                    const room = WorldQuery.findRoomAt(entities, x, y);
+                    const room = WorldQuery.findRoomAt(engine, x, y);
                     if (room) {
                         const shop = room.getComponent(Shop);
                         const desc = room.getComponent(Description);
@@ -204,16 +205,16 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
     /**
      * Gets the names of items in the backpack for the inventory UI.
      */
-    static getBackpackContents(inventory: Inventory, entities: Set<Entity>): string[] {
+    static getBackpackContents(inventory: Inventory, engine: IEngine): string[] {
         const backpackId = inventory.equipment.get('back');
         if (!backpackId) return [];
 
-        const backpack = WorldQuery.getEntityById(entities, backpackId);
+        const backpack = WorldQuery.getEntityById(engine, backpackId);
         const container = backpack?.getComponent(Container);
         if (!container) return [];
 
         return container.items.map(id => {
-            const item = WorldQuery.getEntityById(entities, id);
+            const item = WorldQuery.getEntityById(engine, id);
             const i = item?.getComponent(Item);
             if (!i) return "Unknown";
             return i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name;
@@ -223,14 +224,14 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
     /**
      * Generates a description for a container's contents.
      */
-    static describeContainer(containerName: string, container: Container, entities: Set<Entity>): string {
+    static describeContainer(containerName: string, container: Container, engine: IEngine): string {
         if (container.items.length === 0) {
             return `The ${containerName} is empty.`;
         }
 
         let output = `\n${MessageFormatter.title(`Contents of ${containerName}:`)}\n`;
         container.items.forEach(id => {
-            const item = WorldQuery.getEntityById(entities, id);
+            const item = WorldQuery.getEntityById(engine, id);
             const i = item?.getComponent(Item);
             if (i) {
                 const displayName = i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name;
@@ -244,12 +245,12 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
     /**
      * Generates a description for a specific target at a location.
      */
-    static describeTargetAt(player: Entity, entities: Set<Entity>, playerPos: Position, targetName: string): string | null {
+    static describeTargetAt(player: Entity, engine: IEngine, playerPos: Position, targetName: string): string | null {
         const name = targetName.toLowerCase();
 
         // 1. Check for "pedestals" or "pedestal" (special case for Alchemist's Study)
         if (name === 'pedestal' || name === 'pedestals') {
-            const pedestals = Array.from(entities).filter(e => {
+            const pedestals = engine.getEntitiesWithComponent(Description).filter(e => {
                 const pos = e.getComponent(Position);
                 const desc = e.getComponent(Description);
                 return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y && desc.title.toLowerCase().includes('bust');
@@ -268,7 +269,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         }
 
         // 2. Check for NPCs
-        const npcsInRoom = WorldQuery.findNPCsAt(entities, playerPos.x, playerPos.y);
+        const npcsInRoom = WorldQuery.findNPCsAt(engine, playerPos.x, playerPos.y);
         const targetNPC = npcsInRoom.find(npc => {
             const npcComp = npc.getComponent(NPC);
             return npcComp && npcComp.typeName.toLowerCase().includes(name);
@@ -279,7 +280,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         }
 
         // 3. Check for other entities (Terminals, Objects, PuzzleObjects)
-        const targetEntity = Array.from(entities).find(e => {
+        const targetEntity = engine.getEntitiesWithComponent(Description).find(e => {
             const pos = e.getComponent(Position);
             const desc = e.getComponent(Description);
             return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y && (
@@ -298,7 +299,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         const inventory = player.getComponent(Inventory);
         if (inventory) {
             const findInInventory = (itemId: string): string | null => {
-                const itemEntity = WorldQuery.getEntityById(entities, itemId);
+                const itemEntity = WorldQuery.getEntityById(engine, itemId);
                 if (!itemEntity) return null;
                 const item = itemEntity.getComponent(Item);
                 if (item && item.name.toLowerCase().includes(name)) {

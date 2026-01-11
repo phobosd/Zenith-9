@@ -13,6 +13,7 @@ import { Server } from 'socket.io';
 import { Engine } from '../ecs/Engine';
 import { WorldQuery } from '../utils/WorldQuery';
 import { IEngine } from '../commands/CommandRegistry';
+import { PrefabFactory } from '../factories/PrefabFactory';
 
 interface CriticalEffect {
     name: string;
@@ -21,14 +22,18 @@ interface CriticalEffect {
     apply: (target: Entity, source: Entity, skillLevel: number) => string;
 }
 
+import { MessageService } from '../services/MessageService';
+
 export class CombatSystem extends System {
     private engine: IEngine;
     private io: Server;
+    private messageService: MessageService;
 
-    constructor(engine: IEngine, io: Server) {
+    constructor(engine: IEngine, io: Server, messageService: MessageService) {
         super();
         this.engine = engine;
         this.io = io;
+        this.messageService = messageService;
     }
 
     private critTable: CriticalEffect[] = [
@@ -107,24 +112,24 @@ export class CombatSystem extends System {
         return log;
     }
 
-    handleAttack(attackerId: string, targetName: string, entities: Set<Entity>): void {
-        const attacker = WorldQuery.getEntityById(entities, attackerId);
+    handleAttack(attackerId: string, targetName: string, engine: IEngine): void {
+        const attacker = WorldQuery.getEntityById(engine, attackerId);
         if (!attacker) return;
 
         const attackerPos = attacker.getComponent(Position);
         const stance = attacker.getComponent(Stance);
         if (!attackerPos) {
-            this.io.to(attackerId).emit('message', "You don't have a position.");
+            this.messageService.info(attackerId, "You don't have a position.");
             return;
         }
 
         if (stance && stance.current !== StanceType.Standing) {
-            this.io.to(attackerId).emit('message', `You can't attack while ${stance.current}!`);
+            this.messageService.info(attackerId, `You can't attack while ${stance.current}!`);
             return;
         }
 
         // Find target NPC in the same room
-        const target = Array.from(entities).find(e => {
+        const target = engine.getEntitiesWithComponent(NPC).find(e => {
             const npc = e.getComponent(NPC);
             const pos = e.getComponent(Position);
             if (!npc || !pos) return false;
@@ -133,7 +138,7 @@ export class CombatSystem extends System {
         });
 
         if (!target) {
-            this.io.to(attackerId).emit('message', `You don't see "${targetName}" here.`);
+            this.messageService.info(attackerId, `You don't see "${targetName}" here.`);
             return;
         }
 
@@ -141,7 +146,7 @@ export class CombatSystem extends System {
         const targetCombatStats = target.getComponent(CombatStats);
 
         if (!targetCombatStats) {
-            this.io.to(attackerId).emit('message', `You can't attack ${targetNPC?.typeName || 'that'}.`);
+            this.messageService.info(attackerId, `You can't attack ${targetNPC?.typeName || 'that'}.`);
             return;
         }
 
@@ -150,7 +155,7 @@ export class CombatSystem extends System {
         const attackerStats = attacker.getComponent(Stats);
 
         if (!attackerInventory || !attackerStats) {
-            this.io.to(attackerId).emit('message', "You're not ready for combat.");
+            this.messageService.info(attackerId, "You're not ready for combat.");
             return;
         }
 
@@ -159,22 +164,22 @@ export class CombatSystem extends System {
         let weapon: Weapon | undefined;
 
         if (attackerInventory.rightHand) {
-            weaponEntity = WorldQuery.getEntityById(entities, attackerInventory.rightHand);
+            weaponEntity = WorldQuery.getEntityById(engine, attackerInventory.rightHand);
             weapon = weaponEntity?.getComponent(Weapon);
         }
 
         if (!weapon) {
-            this.io.to(attackerId).emit('message', "You need a weapon in your right hand to attack!");
+            this.messageService.info(attackerId, "You need a weapon in your right hand to attack!");
             return;
         }
 
         // Check ammo for ranged weapons and reload if needed
         if (weapon.range > 0 && weapon.currentAmmo <= 0) {
             // Try to find a magazine to reload
-            const magEntity = this.findMagazine(attacker, entities, weapon.ammoType || "9mm");
+            const magEntity = this.findMagazine(attacker, engine, weapon.ammoType || "9mm");
 
             if (!magEntity) {
-                this.io.to(attackerId).emit('message', `Your ${weapon.name} is out of ammo and you have no magazines!`);
+                this.messageService.info(attackerId, `Your ${weapon.name} is out of ammo and you have no magazines!`);
                 return;
             }
 
@@ -186,10 +191,10 @@ export class CombatSystem extends System {
 
                 // Remove magazine entity if depleted
                 if (magItem.quantity <= 0) {
-                    this.removeFromContainer(attacker, magEntity.id, entities);
+                    this.removeFromContainer(attacker, magEntity.id, engine);
                 }
 
-                this.io.to(attackerId).emit('message', `<cmd>Reloading ${weapon.name}... [${magItem.quantity} mags left]</cmd>`);
+                this.messageService.system(attackerId, `Reloading ${weapon.name}... [${magItem.quantity} mags left]`);
                 return; // Reloading consumes the action
             }
         }
@@ -224,9 +229,9 @@ export class CombatSystem extends System {
         });
     }
 
-    handleSyncResult(attackerId: string, targetId: string, hitType: 'crit' | 'hit' | 'miss', entities: Set<Entity>): void {
-        const attacker = WorldQuery.getEntityById(entities, attackerId);
-        const target = WorldQuery.getEntityById(entities, targetId);
+    handleSyncResult(attackerId: string, targetId: string, hitType: 'crit' | 'hit' | 'miss', engine: IEngine): void {
+        const attacker = WorldQuery.getEntityById(engine, attackerId);
+        const target = WorldQuery.getEntityById(engine, targetId);
 
         if (!attacker || !target) return;
 
@@ -242,7 +247,7 @@ export class CombatSystem extends System {
         let weapon: Weapon | undefined;
 
         if (attackerInventory.rightHand) {
-            weaponEntity = WorldQuery.getEntityById(entities, attackerInventory.rightHand);
+            weaponEntity = WorldQuery.getEntityById(engine, attackerInventory.rightHand);
             weapon = weaponEntity?.getComponent(Weapon);
         }
 
@@ -308,7 +313,7 @@ export class CombatSystem extends System {
             combatLog += `\n<combat>${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP</combat>`;
         }
 
-        this.io.to(attackerId).emit('message', combatLog);
+        this.messageService.combat(attackerId, combatLog);
     }
 
     private checkSkillLevelUp(entityId: string, skill: { name: string, level: number, uses: number, maxUses: number }) {
@@ -316,24 +321,23 @@ export class CombatSystem extends System {
             skill.level++;
             skill.uses -= skill.maxUses;
             skill.maxUses = Math.floor(skill.maxUses * 1.5); // Increase difficulty
-
-            this.io.to(entityId).emit('message', `<level-up>*** Your ${skill.name} skill has increased to level ${skill.level}! ***</level-up>`);
+            this.messageService.success(entityId, `*** Your ${skill.name} skill has increased to level ${skill.level}! ***`);
         }
     }
 
 
-    private findMagazine(attacker: Entity, entities: Set<Entity>, ammoType: string): Entity | null {
+    private findMagazine(attacker: Entity, engine: IEngine, ammoType: string): Entity | null {
         const inventory = attacker.getComponent(Inventory);
         if (!inventory) return null;
 
         // Search through all equipment containers
         for (const [slot, equipId] of inventory.equipment) {
-            const equip = WorldQuery.getEntityById(entities, equipId);
+            const equip = WorldQuery.getEntityById(engine, equipId);
             const container = equip?.getComponent(Container);
 
             if (container) {
                 for (const itemId of container.items) {
-                    const item = WorldQuery.getEntityById(entities, itemId);
+                    const item = WorldQuery.getEntityById(engine, itemId);
                     const itemComp = item?.getComponent(Item);
 
                     // Check if this is a magazine (contains "Mag" and the ammo type)
@@ -347,20 +351,20 @@ export class CombatSystem extends System {
         return null;
     }
 
-    private removeFromContainer(attacker: Entity, itemId: string, entities: Set<Entity>): void {
+    private removeFromContainer(attacker: Entity, itemId: string, engine: IEngine): void {
         const inventory = attacker.getComponent(Inventory);
         if (!inventory) return;
 
         // Find and remove from container
         for (const [slot, equipId] of inventory.equipment) {
-            const equip = WorldQuery.getEntityById(entities, equipId);
+            const equip = WorldQuery.getEntityById(engine, equipId);
             const container = equip?.getComponent(Container);
 
             if (container) {
                 const index = container.items.indexOf(itemId);
                 if (index > -1) {
                     container.items.splice(index, 1);
-                    const item = WorldQuery.getEntityById(entities, itemId)?.getComponent(Item);
+                    const item = WorldQuery.getEntityById(engine, itemId)?.getComponent(Item);
                     if (item) {
                         container.currentWeight -= item.weight;
                     }
@@ -371,7 +375,7 @@ export class CombatSystem extends System {
         }
     }
 
-    update(entities: Set<Entity>, dt: number): void {
+    update(engine: IEngine, deltaTime: number): void {
         // Combat loop logic will go here
     }
 }

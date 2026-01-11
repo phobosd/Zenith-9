@@ -5,26 +5,25 @@ import { Item } from '../components/Item';
 import { NPC } from '../components/NPC';
 import { Terminal } from '../components/Terminal';
 import { PuzzleObject } from '../components/PuzzleObject';
-import { Description } from '../components/Description';
+import { IEngine } from '../commands/CommandRegistry';
 
 export class WorldQuery {
     /**
      * Find an entity by its unique ID.
      */
-    static getEntityById(entities: Set<Entity>, id: string): Entity | undefined {
-        return Array.from(entities).find(e => e.id === id);
+    static getEntityById(engine: IEngine, id: string): Entity | undefined {
+        return engine.getEntity(id);
     }
 
     /**
      * Find a room at the specified coordinates.
      */
-    static findRoomAt(entities: Set<Entity>, x: number, y: number): Entity | undefined {
-        for (const entity of entities) {
-            if (entity.hasComponent(IsRoom)) {
-                const pos = entity.getComponent(Position);
-                if (pos && pos.x === x && pos.y === y) {
-                    return entity;
-                }
+    static findRoomAt(engine: IEngine, x: number, y: number): Entity | undefined {
+        const rooms = engine.getEntitiesWithComponent(IsRoom);
+        for (const room of rooms) {
+            const pos = room.getComponent(Position);
+            if (pos && pos.x === x && pos.y === y) {
+                return room;
             }
         }
         return undefined;
@@ -33,40 +32,44 @@ export class WorldQuery {
     /**
      * Find all NPCs at the specified coordinates.
      */
-    static findNPCsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
+    static findNPCsAt(engine: IEngine, x: number, y: number): Entity[] {
+        const npcs = engine.getEntitiesWithComponent(NPC);
+        return npcs.filter(e => {
             const pos = e.getComponent(Position);
-            return e.hasComponent(NPC) && pos && pos.x === x && pos.y === y;
+            return pos && pos.x === x && pos.y === y;
         });
     }
 
     /**
      * Find all items at the specified coordinates.
      */
-    static findItemsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
+    static findItemsAt(engine: IEngine, x: number, y: number): Entity[] {
+        const items = engine.getEntitiesWithComponent(Item);
+        return items.filter(e => {
             const pos = e.getComponent(Position);
-            return e.hasComponent(Item) && pos && pos.x === x && pos.y === y;
+            return pos && pos.x === x && pos.y === y;
         });
     }
 
     /**
      * Find all terminals at the specified coordinates.
      */
-    static findTerminalsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
+    static findTerminalsAt(engine: IEngine, x: number, y: number): Entity[] {
+        const terminals = engine.getEntitiesWithComponent(Terminal);
+        return terminals.filter(e => {
             const pos = e.getComponent(Position);
-            return e.hasComponent(Terminal) && pos && pos.x === x && pos.y === y;
+            return pos && pos.x === x && pos.y === y;
         });
     }
 
     /**
      * Find all puzzle objects at the specified coordinates.
      */
-    static findPuzzleObjectsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
+    static findPuzzleObjectsAt(engine: IEngine, x: number, y: number): Entity[] {
+        const objects = engine.getEntitiesWithComponent(PuzzleObject);
+        return objects.filter(e => {
             const pos = e.getComponent(Position);
-            return e.hasComponent(PuzzleObject) && pos && pos.x === x && pos.y === y;
+            return pos && pos.x === x && pos.y === y;
         });
     }
 }

@@ -53,8 +53,18 @@ export const Terminal: React.FC = () => {
             // console.log('Tick:', data);
         });
 
-        newSocket.on('message', (message: string) => {
-            addSystemLine(message);
+        newSocket.on('message', (message: string | any) => {
+            if (typeof message === 'string') {
+                addSystemLine(message);
+            } else {
+                // Handle structured message
+                addLine({
+                    id: (message.timestamp || Date.now()).toString() + Math.random(),
+                    text: message.content,
+                    type: message.type,
+                    data: message.payload
+                });
+            }
         });
 
         newSocket.on('autocomplete-data', (data: { spawnables: string[] }) => {
