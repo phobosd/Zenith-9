@@ -7,7 +7,10 @@ A cyberpunk-themed MUD (Multi-User Dungeon) with an innovative **Neural Pulse** 
 ### Core Gameplay
 - **Persistent World**: 20x20 procedurally generated cyberpunk city
 - **Real-time Multiplayer**: WebSocket-based server with Redis persistence
-- **Entity Component System (ECS)**: Modular, scalable architecture
+- **Entity Component System (ECS)**: Optimized with component indexing for high-performance queries
+- **Structured Messaging**: Type-safe JSON protocol for rich client-side rendering
+- **Input Validation**: Zod-powered schema validation for all network events
+- **Robust Persistence**: Redis-backed state management with complex object reconstruction
 - **Rich Inventory System**: Hands, equipment slots, and container management
 - **Character Stats**: Attributes (STR, AGI, CON, INT, CHA) and Skills (Marksmanship, Hacking, etc.)
 
@@ -28,6 +31,18 @@ Revolutionary timing-based combat with client-side rendering for zero-lag respon
 - **Living NPCs**: Cyber Thugs, Street Vendors, Giant Rats
 - **ASCII Portraits**: Unique character art for each NPC type
 - **Dynamic Dialogue**: 100+ contextual NPC barks
+
+---
+
+## 📖 Technical Documentation
+
+For developers and AI agents, please refer to [AGENTS.md](./AGENTS.md). It contains:
+- **Full System Architecture Diagram** (Mermaid)
+- **Mental Model** of the engine and game loop
+- **Golden Path Recipes** for adding items, NPCs, commands, and puzzles
+- **Guardrails** for maintaining system stability
+
+---
 
 ## 🚀 Quick Start
 
