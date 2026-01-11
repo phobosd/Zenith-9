@@ -73,7 +73,6 @@
   text-transform: uppercase;
   margin-bottom: 0;
   /* Removed margin to reduce gap */
-  display: block;
 }
 
 .text-room-desc {
