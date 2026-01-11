@@ -13,6 +13,7 @@ import { WorldGenerator } from './world/WorldGenerator';
 import { MovementSystem } from './systems/MovementSystem';
 import { InteractionSystem } from './systems/InteractionSystem';
 import { NPCSystem } from './systems/NPCSystem';
+import { NPC } from './components/NPC';
 import { CombatSystem } from './systems/CombatSystem';
 import { Inventory } from './components/Inventory';
 import { Item } from './components/Item';
@@ -20,9 +21,15 @@ import { Container } from './components/Container';
 import { Stats } from './components/Stats';
 import { CombatStats } from './components/CombatStats';
 import { Weapon } from './components/Weapon';
+import { Magazine } from './components/Magazine';
 import { PersistenceManager } from './persistence/PersistenceManager';
-
 import { CommandRegistry } from './commands/CommandRegistry';
+import { Stance, StanceType } from './components/Stance';
+import { PrefabFactory } from './factories/PrefabFactory';
+import { ItemRegistry } from './services/ItemRegistry';
+
+// Initialize ItemRegistry
+ItemRegistry.getInstance();
 
 const app = express();
 app.use(cors());
@@ -49,6 +56,15 @@ engine.addSystem(npcSystem);
 const commandRegistry = new CommandRegistry();
 
 const moveAndLook = (ctx: any, dir: 'n' | 's' | 'e' | 'w') => {
+    const player = (ctx.engine as any).getEntity(ctx.socketId);
+    const stance = player?.getComponent(Stance);
+
+    if (stance && stance.current !== StanceType.Standing) {
+        // Let MovementSystem handle the error message, but don't look
+        ctx.systems.movement.queueMove(ctx.socketId, dir);
+        return;
+    }
+
     ctx.systems.movement.queueMove(ctx.socketId, dir);
     setTimeout(() => {
         ctx.systems.interaction.handleLook(ctx.socketId, new Set((ctx.engine as any)['entities'].values()));
@@ -105,10 +121,45 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'read',
+    aliases: ['scan'],
+    description: 'Read a terminal or object',
+    execute: (ctx) => ctx.systems.interaction.handleRead(ctx.socketId, new Set((ctx.engine as any)['entities'].values()), ctx.args.join(' '))
+});
+
+commandRegistry.register({
     name: 'inventory',
     aliases: ['inv', 'i'],
     description: 'Check your inventory',
     execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+});
+
+commandRegistry.register({
+    name: 'glance',
+    aliases: ['gl'],
+    description: 'Glance at your hands',
+    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+});
+
+commandRegistry.register({
+    name: 'sit',
+    aliases: [],
+    description: 'Sit down',
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, new Set((ctx.engine as any)['entities'].values()))
+});
+
+commandRegistry.register({
+    name: 'stand',
+    aliases: ['st'],
+    description: 'Stand up',
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, new Set((ctx.engine as any)['entities'].values()))
+});
+
+commandRegistry.register({
+    name: 'lie',
+    aliases: ['rest', 'sleep'],
+    description: 'Lie down',
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, new Set((ctx.engine as any)['entities'].values()))
 });
 
 commandRegistry.register({
@@ -161,6 +212,82 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'god',
+    aliases: ['admin'],
+    description: 'Admin commands (Usage: god spawn <rat|thug>)',
+    execute: (ctx) => {
+        const subCommand = ctx.args[0];
+        if (!subCommand) {
+            ctx.io.to(ctx.socketId).emit('message', 'Usage: god <spawn> <type>');
+            return;
+        }
+
+        if (subCommand === 'spawn') {
+            const name = ctx.args.slice(1).join(' ');
+            if (!name) {
+                ctx.io.to(ctx.socketId).emit('message', 'Usage: god spawn <item name | npc name>');
+                return;
+            }
+
+            // Get player position
+            const player = (ctx.engine as any).getEntity(ctx.socketId);
+            if (!player) return;
+            const pos = player.getComponent(Position);
+            if (!pos) return;
+
+            // Try to spawn NPC
+            let entity = PrefabFactory.createNPC(name);
+            if (entity) {
+                entity.addComponent(new Position(pos.x, pos.y));
+                ctx.engine.addEntity(entity);
+                ctx.io.to(ctx.socketId).emit('message', `Spawned NPC: ${name}`);
+                return;
+            }
+
+            // Try to spawn Item
+            entity = PrefabFactory.createItem(name);
+            if (entity) {
+                entity.addComponent(new Position(pos.x, pos.y));
+                ctx.engine.addEntity(entity);
+                ctx.io.to(ctx.socketId).emit('message', `Spawned Item: ${name}`);
+                return;
+            }
+
+            ctx.io.to(ctx.socketId).emit('message', `Unknown entity: ${name}`);
+        } else if (subCommand === 'reset') {
+            const target = ctx.args[1];
+            if (!target) {
+                ctx.io.to(ctx.socketId).emit('message', 'Usage: god reset <skills|health>');
+                return;
+            }
+
+            const player = (ctx.engine as any).getEntity(ctx.socketId);
+            if (!player) return;
+
+            if (target === 'skills' || target === 'score') {
+                const stats = player.getComponent(Stats);
+                if (stats) {
+                    for (const [key, skill] of stats.skills) {
+                        skill.level = 1;
+                        skill.uses = 0;
+                        skill.maxUses = 10;
+                    }
+                    ctx.io.to(ctx.socketId).emit('message', 'Skills reset to Level 1.');
+                }
+            } else if (target === 'health' || target === 'hp') {
+                const combatStats = player.getComponent(CombatStats);
+                if (combatStats) {
+                    combatStats.hp = combatStats.maxHp;
+                    ctx.io.to(ctx.socketId).emit('message', 'Health restored to full.');
+                }
+            } else {
+                ctx.io.to(ctx.socketId).emit('message', `Unknown reset target: ${target}`);
+            }
+        }
+    }
+});
+
+commandRegistry.register({
     name: 'help',
     aliases: ['?'],
     description: 'List all available commands',
@@ -189,6 +316,19 @@ setInterval(() => {
     // Broadcast state to clients (Simplified for now)
     io.emit('tick', { timestamp: Date.now() });
 
+    // Send health updates to all connected players
+    for (const [id, entity] of (engine as any)['entities']) {
+        const combatStats = entity.getComponent(CombatStats);
+        const stance = entity.getComponent(Stance);
+        if (combatStats) {
+            io.to(id).emit('stats-update', {
+                hp: combatStats.hp,
+                maxHp: combatStats.maxHp,
+                stance: stance?.current || 'standing'
+            });
+        }
+    }
+
     // Auto-save every 30 seconds
     if (Date.now() - lastSaveTime > 30000) {
         persistence.saveWorldState(Array.from((engine as any)['entities'].values()));
@@ -200,7 +340,12 @@ setInterval(() => {
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Create a player entity
+    // Send Autocomplete Data
+    socket.emit('autocomplete-data', {
+        spawnables: [...PrefabFactory.getSpawnableItems(), ...PrefabFactory.getSpawnableNPCs()]
+    });
+
+    // Create player entity
     const player = new Entity(socket.id);
     player.addComponent(new Position(10, 10)); // Spawn in Central Plaza
     const inventory = new Inventory();
@@ -222,42 +367,46 @@ io.on('connection', (socket) => {
     stats.attributes.set('CHA', { name: 'CHA', value: 6 });  // Low Charisma
 
     // Skills
-    stats.skills.set('Hacking', { name: 'Hacking', level: 1, uses: 0, maxUses: 10 }); // Low
-    stats.skills.set('Stealth', { name: 'Stealth', level: 3, uses: 15, maxUses: 30 });
-    stats.skills.set('Marksmanship (Light)', { name: 'Marksmanship (Light)', level: 5, uses: 20, maxUses: 50 }); // High
-    stats.skills.set('Marksmanship (Medium)', { name: 'Marksmanship (Medium)', level: 2, uses: 5, maxUses: 20 });
+    stats.skills.set('Hacking', { name: 'Hacking', level: 1, uses: 0, maxUses: 10 });
+    stats.skills.set('Stealth', { name: 'Stealth', level: 1, uses: 0, maxUses: 10 });
+    stats.skills.set('Marksmanship (Light)', { name: 'Marksmanship (Light)', level: 1, uses: 0, maxUses: 10 });
+    stats.skills.set('Marksmanship (Medium)', { name: 'Marksmanship (Medium)', level: 1, uses: 0, maxUses: 10 });
     stats.skills.set('Marksmanship (Heavy)', { name: 'Marksmanship (Heavy)', level: 1, uses: 0, maxUses: 10 });
 
     player.addComponent(stats);
     player.addComponent(new CombatStats(100, 10, 5));
+    player.addComponent(new Stance(StanceType.Standing));
 
     // Create Shirt with pockets
     const shirt = new Entity();
     shirt.addComponent(new Item("Tactical Shirt", "A shirt with reinforced pockets.", 0.8));
-    shirt.addComponent(new Container(2.0)); // 2 slots worth ~2lbs
+    shirt.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(shirt);
     inventory.equipment.set('torso', shirt.id);
 
     // Create Pants with pockets
     const pants = new Entity();
     pants.addComponent(new Item("Cargo Pants", "Durable tactical pants with many pockets.", 1.5));
-    pants.addComponent(new Container(5.0)); // 5 slots worth ~5lbs
+    pants.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(pants);
     inventory.equipment.set('legs', pants.id);
 
     // Create Belt
     const belt = new Entity();
     belt.addComponent(new Item("Utility Belt", "A leather belt with pouches.", 0.5));
-    belt.addComponent(new Container(3.0)); // Belt holds 3lbs
+    belt.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(belt);
     inventory.equipment.set('waist', belt.id);
 
-    // Create 10 Magazines (in Belt)
-    const mags = new Entity();
-    mags.addComponent(new Item("9mm Mag", "Standard pistol magazines.", 0.2, 10)); // Quantity: 10
-    engine.addEntity(mags);
-    belt.getComponent(Container)?.items.push(mags.id);
-    belt.getComponent(Container)!.currentWeight += 2.0; // 10 mags * 0.2 = 2.0
+    // Create 3 Individual Magazines (in Belt)
+    for (let i = 0; i < 3; i++) {
+        const mag = new Entity();
+        mag.addComponent(new Item("9mm Mag", "A standard 10-round magazine.", 0.2));
+        mag.addComponent(new Magazine(10, 10, "9mm"));
+        engine.addEntity(mag);
+        belt.getComponent(Container)?.items.push(mag.id);
+        belt.getComponent(Container)!.currentWeight += 0.2;
+    }
 
     // Create Pistol (in Right Hand)
     const pistol = new Entity();
@@ -287,6 +436,13 @@ io.on('connection', (socket) => {
 
     socket.on('combat-result', (data: { targetId: string, hitType: 'crit' | 'hit' | 'miss' }) => {
         combatSystem.handleSyncResult(socket.id, data.targetId, data.hitType, new Set((engine as any)['entities'].values()));
+    });
+
+    socket.on('terminal-buy', (data: { itemName: string, cost: number }) => {
+        const createdItem = interactionSystem.handleTerminalBuy(socket.id, new Set((engine as any)['entities'].values()), data.itemName, data.cost);
+        if (createdItem) {
+            engine.addEntity(createdItem);
+        }
     });
 
     socket.on('disconnect', () => {

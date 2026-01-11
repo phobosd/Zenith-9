@@ -10,7 +10,12 @@ import { Shop } from '../components/Shop';
 import { Container } from '../components/Container';
 import { Stats } from '../components/Stats';
 import { CombatStats } from '../components/CombatStats';
+import { Stance, StanceType } from '../components/Stance';
+import { Terminal } from '../components/Terminal';
+import { PrefabFactory } from '../factories/PrefabFactory';
 import { Server } from 'socket.io';
+import * as fs from 'fs';
+import * as path from 'path';
 
 export class InteractionSystem extends System {
     private io: Server;
@@ -24,6 +29,29 @@ export class InteractionSystem extends System {
         // This system is mostly event-driven for now, but could handle timed interactions later
     }
 
+    handleStanceChange(entityId: string, newStance: StanceType, entities: Set<Entity>) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const stance = player.getComponent(Stance);
+        if (!stance) return;
+
+        if (stance.current === newStance) {
+            this.io.to(entityId).emit('message', `You are already ${newStance}.`);
+            return;
+        }
+
+        stance.current = newStance;
+        let msg = "";
+        switch (newStance) {
+            case StanceType.Standing: msg = "<system>You stand up.</system>"; break;
+            case StanceType.Sitting: msg = "<system>You sit down.</system>"; break;
+            case StanceType.Lying: msg = "<system>You lie down.</system>"; break;
+        }
+
+        this.io.to(entityId).emit('message', msg);
+    }
+
     handleLook(entityId: string, entities: Set<Entity>, targetName?: string) {
         const player = this.getEntityById(entities, entityId);
         if (!player) return;
@@ -33,6 +61,12 @@ export class InteractionSystem extends System {
 
         // If looking at a specific target
         if (targetName) {
+            // Check if this is "look in <container>"
+            if (targetName.startsWith('in ')) {
+                const containerName = targetName.substring(3).trim();
+                return this.handleLookInContainer(entityId, containerName, entities);
+            }
+
             // Check for NPCs
             const npcsInRoom = this.findNPCsAt(entities, playerPos.x, playerPos.y);
             const targetNPC = npcsInRoom.find(npc => {
@@ -46,7 +80,26 @@ export class InteractionSystem extends System {
                     const message = `
 <title>[${npcComp.typeName}]</title>
 <desc>${npcComp.description}</desc>
-<portrait>${npcComp.asciiPortrait}</portrait>
+                    `.trim();
+                    this.io.to(entityId).emit('message', message);
+                    return;
+                }
+            }
+
+            // Check for other entities (Terminals, Objects)
+            const targetEntity = Array.from(entities).find(e => {
+                const pos = e.getComponent(Position);
+                const desc = e.getComponent(Description);
+                return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y &&
+                    desc.title.toLowerCase().includes(targetName.toLowerCase());
+            });
+
+            if (targetEntity) {
+                const desc = targetEntity.getComponent(Description);
+                if (desc) {
+                    const message = `
+<title>[${desc.title}]</title>
+<desc>${desc.description}</desc>
                     `.trim();
                     this.io.to(entityId).emit('message', message);
                     return;
@@ -87,6 +140,19 @@ export class InteractionSystem extends System {
             }
             return '';
         }).join('\n');
+
+        // Find Terminals in the room
+        const terminalsInRoom = Array.from(entities).filter(e => {
+            const pos = e.getComponent(Position);
+            return e.hasComponent(Terminal) && pos && pos.x === playerPos.x && pos.y === playerPos.y;
+        });
+        const terminalDescriptions = terminalsInRoom.map(term => {
+            return `<terminal>A Shop Terminal is here.</terminal>`;
+        }).join('\n');
+
+        // Construct Message
+        let message = `<title>${roomDesc.title}</title>`;
+        message += `<room-desc>${roomDesc.description}</room-desc>\n`;
 
         // Calculate Exits
         const exits = [];
@@ -135,9 +201,15 @@ export class InteractionSystem extends System {
             miniMap += row + "\n";
         }
 
+        // Append terminal description to room description if present
+        let terminalText = "";
+        if (terminalsInRoom.length > 0) {
+            terminalText = "\n<terminal>A Shop Terminal is here.</terminal>";
+        }
+
         const fullDescription = `
 <title>[${roomDesc.title}]</title>
-<desc>${roomDesc.description}</desc>
+<desc>${roomDesc.description}</desc>${terminalText}
 <exits>Exits: ${exits.join(', ')}</exits>
 ${miniMap}
 ${itemDescriptions}
@@ -209,6 +281,57 @@ ${npcDescriptions}
         this.io.to(entityId).emit('message', mapOutput);
     }
 
+    handleLookInContainer(entityId: string, containerName: string, entities: Set<Entity>) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        if (!inventory) return;
+
+        // Search for the container in equipped items
+        let targetContainer: Entity | undefined = undefined;
+        for (const itemId of inventory.equipment.values()) {
+            const item = this.getEntityById(entities, itemId);
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
+                targetContainer = item;
+                break;
+            }
+        }
+
+        if (!targetContainer) {
+            this.io.to(entityId).emit('message', `You don't have a ${containerName}.`);
+            return;
+        }
+
+        const container = targetContainer.getComponent(Container);
+        if (!container) {
+            this.io.to(entityId).emit('message', `The ${containerName} is not a container.`);
+            return;
+        }
+
+        const itemComp = targetContainer.getComponent(Item);
+        const containerDisplayName = itemComp?.name || containerName;
+
+        if (container.items.length === 0) {
+            this.io.to(entityId).emit('message', `The ${containerDisplayName} is empty.`);
+            return;
+        }
+
+        // List contents
+        let output = `\n<title>Contents of ${containerDisplayName}:</title>\n`;
+        container.items.forEach(id => {
+            const item = this.getEntityById(entities, id);
+            const i = item?.getComponent(Item);
+            if (i) {
+                const displayName = i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name;
+                output += `<item>  - ${displayName}</item>\n`;
+            }
+        });
+
+        this.io.to(entityId).emit('message', output);
+    }
+
     handleGet(entityId: string, itemName: string, entities: Set<Entity>) {
         const player = this.getEntityById(entities, entityId);
         if (!player) return;
@@ -217,35 +340,59 @@ ${npcDescriptions}
         const inventory = player.getComponent(Inventory);
         if (!playerPos || !inventory) return;
 
-        // Clean up input (remove "from backpack" etc)
-        let targetName = itemName.toLowerCase().replace('from backpack', '').trim();
+        // Clean up input
+        let targetName = itemName.toLowerCase();
+        let specifiedContainerName: string | null = null;
+
+        // Handle "get X from Y" syntax
+        const fromMatch = targetName.match(/^(.+?)\s+from\s+(.+)$/);
+        if (fromMatch) {
+            targetName = fromMatch[1].trim();
+            specifiedContainerName = fromMatch[2].trim();
+        }
+
         if (targetName === 'can') targetName = 'beer can'; // Specific alias for convenience
 
         // 1. Try to find item in current location (Room)
-        const itemsInRoom = this.findItemsAt(entities, playerPos.x, playerPos.y);
-        let targetItem = itemsInRoom.find(item => {
-            const itemComp = item.getComponent(Item);
-            return itemComp && itemComp.name.toLowerCase().includes(targetName);
-        });
+        // Only if no container was specified
+        let targetItem: Entity | undefined = undefined;
+        if (!specifiedContainerName) {
+            const itemsInRoom = this.findItemsAt(entities, playerPos.x, playerPos.y);
+            targetItem = itemsInRoom.find(item => {
+                const itemComp = item.getComponent(Item);
+                return itemComp && itemComp.name.toLowerCase().includes(targetName);
+            });
+        }
 
         let fromContainer = false;
         let containerEntity: Entity | undefined;
+        let containerDisplayName = "";
 
-        // 2. If not in room, try to find in Backpack
+        // 2. Search in equipped containers
         if (!targetItem) {
-            const backpackId = inventory.equipment.get('back');
-            if (backpackId) {
-                const backpack = this.getEntityById(entities, backpackId);
-                const container = backpack?.getComponent(Container);
-                if (container) {
-                    const itemId = container.items.find(id => {
+            for (const itemId of inventory.equipment.values()) {
+                const equipEntity = this.getEntityById(entities, itemId);
+                const container = equipEntity?.getComponent(Container);
+                const equipItem = equipEntity?.getComponent(Item);
+
+                if (container && equipItem) {
+                    // If a container was specified, check if this is it
+                    if (specifiedContainerName && !equipItem.name.toLowerCase().includes(specifiedContainerName)) {
+                        continue;
+                    }
+
+                    const itemIdInContainer = container.items.find(id => {
                         const item = this.getEntityById(entities, id);
-                        return item?.getComponent(Item)?.name.toLowerCase().includes(targetName);
+                        const i = item?.getComponent(Item);
+                        return i && i.name.toLowerCase().includes(targetName);
                     });
-                    if (itemId) {
-                        targetItem = this.getEntityById(entities, itemId);
+
+                    if (itemIdInContainer) {
+                        targetItem = this.getEntityById(entities, itemIdInContainer);
                         fromContainer = true;
-                        containerEntity = backpack;
+                        containerEntity = equipEntity;
+                        containerDisplayName = equipItem.name;
+                        break;
                     }
                 }
             }
@@ -270,7 +417,7 @@ ${npcDescriptions}
                 // Place in hand
                 let sourceMsg = "";
                 if (fromContainer) {
-                    sourceMsg = " from your backpack";
+                    sourceMsg = ` from your ${containerDisplayName}`;
                 }
 
                 if (!inventory.leftHand) {
@@ -284,11 +431,145 @@ ${npcDescriptions}
                 this.io.to(entityId).emit('message', `Your hands are full!`);
             }
         } else {
-            this.io.to(entityId).emit('message', `You don't see a ${itemName} here.`);
+            if (specifiedContainerName) {
+                this.io.to(entityId).emit('message', `You don't see a ${targetName} in your ${specifiedContainerName}.`);
+            } else {
+                this.io.to(entityId).emit('message', `You don't see a ${itemName} here.`);
+            }
+        }
+    }
+
+    handleDrop(entityId: string, itemName: string, entities: Set<Entity>) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        const position = player.getComponent(Position);
+        if (!inventory || !position) return;
+
+        let targetName = itemName.toLowerCase();
+
+        // Check hands first
+        let itemIdToDrop: string | null = null;
+        let fromHand: 'left' | 'right' | null = null;
+
+        if (inventory.leftHand) {
+            const item = this.getEntityById(entities, inventory.leftHand);
+            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                itemIdToDrop = inventory.leftHand;
+                fromHand = 'left';
+            }
+        }
+
+        if (!itemIdToDrop && inventory.rightHand) {
+            const item = this.getEntityById(entities, inventory.rightHand);
+            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                itemIdToDrop = inventory.rightHand;
+                fromHand = 'right';
+            }
+        }
+
+        // If not in hands, check backpack
+        let fromContainer: Entity | null = null;
+        if (!itemIdToDrop) {
+            const backpackId = inventory.equipment.get('back');
+            if (backpackId) {
+                const backpack = this.getEntityById(entities, backpackId);
+                const container = backpack?.getComponent(Container);
+                if (container) {
+                    const foundId = container.items.find(id => {
+                        const item = this.getEntityById(entities, id);
+                        return item?.getComponent(Item)?.name.toLowerCase().includes(targetName);
+                    });
+                    if (foundId) {
+                        itemIdToDrop = foundId;
+                        fromContainer = backpack!;
+                    }
+                }
+            }
+        }
+
+        if (itemIdToDrop) {
+            const itemEntity = this.getEntityById(entities, itemIdToDrop);
+            const itemComp = itemEntity?.getComponent(Item);
+
+            if (itemEntity && itemComp) {
+                // Remove from source
+                if (fromHand === 'left') inventory.leftHand = null;
+                else if (fromHand === 'right') inventory.rightHand = null;
+                else if (fromContainer) {
+                    const container = fromContainer.getComponent(Container);
+                    if (container) {
+                        container.items = container.items.filter(id => id !== itemIdToDrop);
+                        container.currentWeight -= itemComp.weight;
+                    }
+                }
+
+                // Add position component to drop it on the ground
+                itemEntity.addComponent(new Position(position.x, position.y));
+
+                this.io.to(entityId).emit('message', `You dropped the ${itemComp.name}.`);
+                this.sendInventoryUpdate(entityId, entities);
+            }
+        } else {
+            this.io.to(entityId).emit('message', `You don't have a ${itemName} to drop.`);
         }
     }
 
     handleInventory(entityId: string, entities: Set<Entity>) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        if (!inventory) return;
+
+        const getItemName = (id: string | null) => {
+            if (!id) return "Empty";
+            const item = this.getEntityById(entities, id);
+            return item?.getComponent(Item)?.name || "Unknown";
+        };
+
+        // Get backpack contents
+        const backpackContents = this.getBackpackContents(inventory, entities);
+
+        // Send structured data to client for React component
+        this.io.to(entityId).emit('inventory-data', {
+            leftHand: getItemName(inventory.leftHand),
+            rightHand: getItemName(inventory.rightHand),
+            backpack: getItemName(inventory.equipment.get('back') || null),
+            torso: getItemName(inventory.equipment.get('torso') || null),
+            legs: getItemName(inventory.equipment.get('legs') || null),
+            waist: getItemName(inventory.equipment.get('waist') || null),
+            backpackContents
+        });
+
+        this.sendInventoryUpdate(entityId, entities);
+    }
+
+    private getBackpackContents(inventory: Inventory, entities: Set<Entity>): string[] {
+        const backpackId = inventory.equipment.get('back');
+        if (!backpackId) return [];
+
+        const backpack = this.getEntityById(entities, backpackId);
+        const container = backpack?.getComponent(Container);
+        if (!container) return [];
+
+        return container.items.map(id => {
+            const item = this.getEntityById(entities, id);
+            const i = item?.getComponent(Item);
+            if (!i) {
+                // Try to find it in the full entity list if not in the passed set?
+                // The passed 'entities' set should contain everything.
+                // If it's returning Unknown, it means getEntityById returned undefined or Item component is missing.
+                // Debug log:
+                // console.log(`Item ID ${id} not found in entities list of size ${entities.size}`);
+                return "Unknown";
+            }
+            return i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name;
+        });
+    }
+
+    private sendInventoryUpdate(entityId: string, entities: Set<Entity>) {
         const player = this.getEntityById(entities, entityId);
         if (!player) return;
 
@@ -301,58 +582,78 @@ ${npcDescriptions}
             return item?.getComponent(Item)?.name || "Unknown";
         };
 
-        const leftHand = getHandContent(inventory.leftHand);
-        const rightHand = getHandContent(inventory.rightHand);
+        const shortenName = (name: string): string => {
+            // Shorten common item names for autocomplete
+            if (name.toLowerCase().includes('pistol magazine')) return 'mag';
+            return name;
+        };
 
-        let output = `\n`;
-        output += `+-----------------------+-----------------------+\n`;
-        output += `| LEFT HAND             | RIGHT HAND            |\n`;
-        output += `+-----------------------+-----------------------+\n`;
-        output += `| ${leftHand.padEnd(21)} | ${rightHand.padEnd(21)} |\n`;
-        output += `+-----------------------+-----------------------+\n`;
+        // Send Autocomplete Update for Inventory
+        const invItems: string[] = [];
+        const containers: string[] = [];
 
-        // Equipment / Containers
-        inventory.equipment.forEach((itemId, slot) => {
+        if (inventory.leftHand) {
+            const name = shortenName(getHandContent(inventory.leftHand));
+            invItems.push(name.toLowerCase());
+        }
+        if (inventory.rightHand) {
+            const name = shortenName(getHandContent(inventory.rightHand));
+            invItems.push(name.toLowerCase());
+        }
+
+        inventory.equipment.forEach((itemId) => {
             const item = this.getEntityById(entities, itemId);
             const itemComp = item?.getComponent(Item);
-            const containerComp = item?.getComponent(Container);
+            const container = item?.getComponent(Container);
 
-            if (itemComp) {
-                output += `\n`;
-                // Header for the container/equipment
-                const slotName = slot.toUpperCase();
-                let rightHeader = "";
-                if (containerComp) {
-                    rightHeader = `[ ${containerComp.currentWeight.toFixed(1)}/${containerComp.maxWeight} lbs ]`;
-                }
+            // Add equipped containers to the containers list
+            if (container && itemComp) {
+                containers.push(itemComp.name.toLowerCase());
+            }
 
-                output += `+-----------------------+-----------------------+\n`;
-                output += `| ${slotName.padEnd(21)} | ${rightHeader.padStart(21)} |\n`;
-                output += `+-----------------------+-----------------------+\n`;
-
-                if (containerComp) {
-                    if (containerComp.items.length > 0) {
-                        containerComp.items.forEach(contentId => {
-                            const contentItem = this.getEntityById(entities, contentId);
-                            const contentItemComp = contentItem?.getComponent(Item);
-                            const name = contentItemComp?.name || "Unknown";
-                            const quantity = contentItemComp?.quantity || 1;
-                            const displayName = quantity > 1 ? `${name} (x${quantity})` : name;
-                            const weight = contentItemComp?.weight.toFixed(1) + " lbs";
-
-                            output += `| ${displayName.padEnd(21)} | ${weight.padStart(21)} |\n`;
-                        });
-                    } else {
-                        output += `| (Empty)               |                       |\n`;
+            if (container) {
+                container.items.forEach(cid => {
+                    const cItem = this.getEntityById(entities, cid);
+                    const name = cItem?.getComponent(Item)?.name;
+                    if (name) {
+                        const shortName = shortenName(name);
+                        invItems.push(shortName.toLowerCase());
                     }
-                } else {
-                    output += `| ${itemComp.name.padEnd(21)} |                       |\n`;
-                }
-                output += `+-----------------------+-----------------------+\n`;
+                });
             }
         });
 
-        this.io.to(entityId).emit('message', output);
+        this.io.to(entityId).emit('autocomplete-update', {
+            type: 'inventory',
+            items: invItems.filter(n => n !== 'empty' && n !== 'unknown'),
+            containers: containers
+        });
+    }
+
+    handleGlance(entityId: string, entities: Set<Entity>) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        if (!inventory) return;
+
+        const getHandContent = (handId: string | null) => {
+            if (!handId) return "nothing";
+            const item = this.getEntityById(entities, handId);
+            return item?.getComponent(Item)?.name || "something unknown";
+        };
+
+        const leftHand = getHandContent(inventory.leftHand);
+        const rightHand = getHandContent(inventory.rightHand);
+
+        let message = "";
+        if (leftHand === "nothing" && rightHand === "nothing") {
+            message = "You glance down at your empty hands.";
+        } else {
+            message = `You glance down and see you are holding ${leftHand === "nothing" ? "nothing" : `a ${leftHand}`} in your left hand and ${rightHand === "nothing" ? "nothing" : `a ${rightHand}`} in your right hand.`;
+        }
+
+        this.io.to(entityId).emit('message', message);
     }
 
     handleStow(entityId: string, itemName: string, entities: Set<Entity>) {
@@ -362,14 +663,17 @@ ${npcDescriptions}
         const inventory = player.getComponent(Inventory);
         if (!inventory) return;
 
-        // Clean up input
-        let targetName = itemName.toLowerCase();
+        // Parse "put X in Y" syntax
+        let targetItemName = itemName.toLowerCase();
+        let targetContainerName = 'backpack'; // default
 
-        // Handle "put X in Y" syntax
-        // For now, we only support putting things in the backpack/back
-        targetName = targetName.replace(/\s+(in|into)\s+(back|backpack|bag)$/, '').trim();
+        const inMatch = targetItemName.match(/^(.+?)\s+in\s+(.+)$/);
+        if (inMatch) {
+            targetItemName = inMatch[1].trim();
+            targetContainerName = inMatch[2].trim();
+        }
 
-        if (targetName === 'can') targetName = 'beer can';
+        if (targetItemName === 'can') targetItemName = 'beer can';
 
         // Find item in hands with fuzzy match
         let itemIdToStow: string | null = null;
@@ -377,7 +681,7 @@ ${npcDescriptions}
 
         if (inventory.leftHand) {
             const item = this.getEntityById(entities, inventory.leftHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
                 itemIdToStow = inventory.leftHand;
                 fromHand = 'left';
             }
@@ -385,27 +689,41 @@ ${npcDescriptions}
 
         if (!itemIdToStow && inventory.rightHand) {
             const item = this.getEntityById(entities, inventory.rightHand);
-            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+            if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
                 itemIdToStow = inventory.rightHand;
                 fromHand = 'right';
             }
         }
 
         if (!itemIdToStow) {
-            this.io.to(entityId).emit('message', `You aren't holding a ${itemName}.`);
+            this.io.to(entityId).emit('message', `You aren't holding a ${targetItemName}.`);
             return;
         }
 
-        // Find a container (Backpack)
-        // For now, assume 'back' slot has the backpack
-        const backpackId = inventory.equipment.get('back');
-        if (!backpackId) {
-            this.io.to(entityId).emit('message', `You don't have a backpack.`);
+        // Find the target container
+        let targetContainer: Entity | undefined = undefined;
+        let containerName = '';
+
+        for (const equipId of inventory.equipment.values()) {
+            const equip = this.getEntityById(entities, equipId);
+            const equipItem = equip?.getComponent(Item);
+            const equipContainer = equip?.getComponent(Container);
+
+            if (equipContainer && equipItem) {
+                if (equipItem.name.toLowerCase().includes(targetContainerName)) {
+                    targetContainer = equip;
+                    containerName = equipItem.name;
+                    break;
+                }
+            }
+        }
+
+        if (!targetContainer) {
+            this.io.to(entityId).emit('message', `You don't have a ${targetContainerName}.`);
             return;
         }
 
-        const backpack = this.getEntityById(entities, backpackId);
-        const container = backpack?.getComponent(Container);
+        const container = targetContainer.getComponent(Container);
         const itemToStow = this.getEntityById(entities, itemIdToStow);
         const itemComp = itemToStow?.getComponent(Item);
 
@@ -418,9 +736,10 @@ ${npcDescriptions}
                 if (fromHand === 'left') inventory.leftHand = null;
                 if (fromHand === 'right') inventory.rightHand = null;
 
-                this.io.to(entityId).emit('message', `You put the ${itemComp.name} in your backpack.`);
+                this.io.to(entityId).emit('message', `You put the ${itemComp.name} in your ${containerName}.`);
+                this.sendInventoryUpdate(entityId, entities);
             } else {
-                this.io.to(entityId).emit('message', `Your backpack is too heavy!`);
+                this.io.to(entityId).emit('message', `Your ${containerName} is too heavy! (${container.currentWeight.toFixed(1)}/${container.maxWeight} lbs)`);
             }
         }
     }
@@ -466,31 +785,33 @@ ${npcDescriptions}
         if (!player) return;
 
         const stats = player.getComponent(Stats);
-        if (!stats) {
+        const combatStats = player.getComponent(CombatStats);
+        if (!stats || !combatStats) {
             this.io.to(entityId).emit('message', "You don't have a character sheet.");
             return;
         }
 
-        let output = `<text-title>=== CHARACTER SHEET ===</text-title>\n\n`;
-
-        // Attributes Table
-        output += `+-----------------------+-----------------------+\n`;
-        output += `| ATTRIBUTE             | VALUE                 |\n`;
-        output += `+-----------------------+-----------------------+\n`;
+        const attributes = [];
         for (const [key, attr] of stats.attributes) {
             let fullName = attr.name;
             if (attr.name === 'STR') fullName = 'Strength';
             if (attr.name === 'CON') fullName = 'Constitution';
             if (attr.name === 'AGI') fullName = 'Agility';
             if (attr.name === 'CHA') fullName = 'Charisma';
-
-            output += `| ${fullName.padEnd(21)} | ${attr.value.toString().padEnd(21)} |\n`;
+            attributes.push({ name: fullName, value: attr.value });
         }
-        output += `+-----------------------+-----------------------+\n\n`;
 
+        const sheetData = {
+            attributes: attributes,
+            combat: {
+                hp: combatStats.hp,
+                maxHp: combatStats.maxHp,
+                defense: combatStats.defense,
+                damage: combatStats.attack
+            }
+        };
 
-
-        this.io.to(entityId).emit('message', output);
+        this.io.to(entityId).emit('sheet-data', sheetData);
     }
 
     handleScore(entityId: string, entities: Set<Entity>) {
@@ -503,26 +824,17 @@ ${npcDescriptions}
             return;
         }
 
-        let output = `\n`;
-        // Skills Table
-        output += `+-----------------------+-------+---------------+\n`;
-        output += `| SKILL                 | LEVEL | PROGRESS      |\n`;
-        output += `+-----------------------+-------+---------------+\n`;
-
+        const skills = [];
         for (const [key, skill] of stats.skills) {
             const percent = Math.floor((skill.uses / skill.maxUses) * 100);
-            const barLength = 5;
-            const filledLength = Math.floor((percent / 100) * barLength);
-            const bar = '#'.repeat(filledLength) + '-'.repeat(barLength - filledLength);
-
-            // Format: [###--]72%
-            const progressStr = `[${bar}]${percent}%`;
-
-            output += `| ${skill.name.padEnd(21)} | ${skill.level.toString().padStart(2, '0').padEnd(5)} | ${progressStr.padEnd(13)} |\n`;
+            skills.push({
+                name: skill.name,
+                level: skill.level,
+                progress: percent
+            });
         }
-        output += `+-----------------------+-------+---------------+\n`;
 
-        this.io.to(entityId).emit('message', output);
+        this.io.to(entityId).emit('score-data', { skills });
     }
 
     private getEntityById(entities: Set<Entity>, id: string): Entity | undefined {
@@ -561,9 +873,143 @@ ${npcDescriptions}
                 const pos = entity.getComponent(Position);
                 if (pos && pos.x === x && pos.y === y) {
                     npcs.push(entity);
+
                 }
             }
         }
         return npcs;
+    }
+
+    handleRead(entityId: string, entities: Set<Entity>, targetName: string) {
+        if (targetName.toLowerCase() === 'guide') {
+            try {
+                const guidePath = path.join(process.cwd(), '../docs/USERS_GUIDE.md');
+                const guideContent = fs.readFileSync(guidePath, 'utf-8');
+                this.io.to(entityId).emit('open-guide', { content: guideContent });
+                this.io.to(entityId).emit('message', "<system>Opening User's Guide...</system>");
+            } catch (err) {
+                console.error("Error reading guide:", err);
+                this.io.to(entityId).emit('message', "<error>Failed to load User's Guide.</error>");
+            }
+            return;
+        }
+
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        const playerPos = player.getComponent(Position);
+        if (!playerPos) return;
+
+        // Find items/objects at player position
+        // Let's iterate manually for now to find the terminal
+        let targetEntity: Entity | undefined;
+        for (const entity of entities) {
+            const pos = entity.getComponent(Position);
+            const desc = entity.getComponent(Description);
+            if (pos && desc && pos.x === playerPos.x && pos.y === playerPos.y) {
+                if (desc.title.toLowerCase().includes(targetName.toLowerCase())) {
+                    targetEntity = entity;
+                    break;
+                }
+            }
+        }
+
+        if (!targetEntity) {
+            this.io.to(entityId).emit('message', `You don't see '${targetName}' here.`);
+            return;
+        }
+
+        const terminal = targetEntity.getComponent(Terminal);
+        if (terminal) {
+            // It's a terminal!
+            const itemNames = terminal.data.items as string[];
+            const itemsData = itemNames.map(name => {
+                const tempEntity = PrefabFactory.createItem(name);
+                if (tempEntity) {
+                    const item = tempEntity.getComponent(Item);
+                    if (item) {
+                        return {
+                            name: item.name,
+                            weight: item.weight,
+                            size: item.size,
+                            legality: item.legality,
+                            attributes: item.attributes,
+                            description: item.description
+                        };
+                    }
+                }
+                return null;
+            }).filter(i => i !== null);
+
+            this.io.to(entityId).emit('terminal-data', {
+                title: "CYBERNETICS CATALOG",
+                items: itemsData
+            });
+            this.io.to(entityId).emit('message', "<system>You access the terminal...</system>");
+        } else {
+            this.io.to(entityId).emit('message', "There's nothing to read on that.");
+        }
+    }
+
+    handleTerminalBuy(entityId: string, entities: Set<Entity>, itemName: string, cost: number) {
+        const player = this.getEntityById(entities, entityId);
+        if (!player) return;
+
+        // Check if player has enough credits (assuming credits are stored in Stats or Inventory)
+        // For now, let's assume infinite credits or just check if they can carry it
+        // TODO: Implement Credits system properly.
+
+        // Create the item
+        const itemEntity = PrefabFactory.createItem(itemName);
+        if (!itemEntity) {
+            this.io.to(entityId).emit('message', "<system>Error: Item out of stock.</system>");
+            return;
+        }
+
+        const itemComp = itemEntity.getComponent(Item);
+        const inventory = player.getComponent(Inventory);
+
+        if (inventory && itemComp) {
+            // Check weight/capacity?
+            // For now, just add to backpack if possible, or drop on ground
+
+            // Try to add to backpack
+            const backpackId = inventory.equipment.get('back');
+            let added = false;
+
+            if (backpackId) {
+                const backpack = this.getEntityById(entities, backpackId);
+                const container = backpack?.getComponent(Container);
+                if (container) {
+                    if (container.currentWeight + itemComp.weight <= container.maxWeight) {
+                        container.items.push(itemEntity.id);
+                        container.currentWeight += itemComp.weight;
+                        this.io.to(entityId).emit('message', `<system>Purchased ${itemComp.name} for ${cost} credits. Added to backpack.</system>`);
+                        added = true;
+                        // Add entity to engine? It's already created but needs to be in the entities set?
+                        // PrefabFactory creates it but doesn't add to engine.
+                        // We need to add it to the engine.
+                        // Wait, InteractionSystem doesn't have access to engine directly to add entities?
+                        // It receives `entities` set but that's a reference. 
+                        // The `entities` set in `update` is from the engine.
+                        // But we need to add it to the engine's main list so it persists and updates.
+                        // The `entities` passed here is a Set<Entity>. Adding to it might work if it's the live set.
+                        entities.add(itemEntity);
+                    }
+                }
+            }
+
+            if (!added) {
+                // Drop on ground
+                const pos = player.getComponent(Position);
+                if (pos) {
+                    itemEntity.addComponent(new Position(pos.x, pos.y));
+                    this.io.to(entityId).emit('message', `<system>Purchased ${itemComp.name}. Inventory full, dropped on ground.</system>`);
+                }
+            }
+
+            return itemEntity;
+        }
+        return null;
     }
 }

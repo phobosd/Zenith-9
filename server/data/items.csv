@@ -1,0 +1,30 @@
+id,name,shortName,description,weight,size,legality,attributes,cost,type,extraData
+neural_deck,"Neural Deck (Mk.I)",deck,"A standard issue cyberdeck.",1.2,Small,Legal,"2 Slots for Programs; allows hacking.",1000,item,
+data_chip,"Data Chip (Encrypted)",chip,"A secure storage chip.",0.05,Tiny,Variable,"Contains lore or mission data; requires 'Decrypt' skill.",50,item,
+optical_hud,"Optical Internal HUD",hud,"Retinal implant overlay.",0.0,Built-in,Legal,"Displays room exits and player health in real-time.",500,item,
+signal_jammer,"Signal Jammer",jammer,"A handheld radio jammer.",0.8,Small,Illegal,"Prevents 'Call for Backup' in the current room.",300,item,
+ext_drive,"External Hard Drive",drive,"High-capacity storage unit.",0.3,Small,Legal,"Used to extract 'Data Payloads' from servers.",150,item,
+exoskeleton_frame,"Exoskeleton Frame",exo,"A hydraulic frame that boosts strength.",15.0,Large,Restricted,"Increases carry capacity by 50lbs.",2500,item,
+beer_can,"Beer Can",can,"An empty, crushed beer can.",0.1,Small,Legal,"Trash",0,item,
+medkit,"Medkit",medkit,"A standard medical kit.",2.0,Medium,Legal,"Heals 50 HP",100,item,
+stimpack,"Stimpack",stim,"A combat stimulant injector.",0.2,Tiny,Restricted,"Boosts AP for 3 turns",50,item,
+bandage,"Bandage",bandage,"A sterile bandage.",0.1,Tiny,Legal,"Stops bleeding",10,item,
+painkillers,"Painkillers",pills,"A bottle of pain relief pills.",0.1,Tiny,Legal,"Heals 10 HP over time",20,item,
+reflex_boost,"Reflex Boost",booster,"A synaptic accelerator.",0.1,Tiny,Illegal,"Increases initiative.",500,item,
+flatline_heal,"Flatline-Heal",injector,"An emergency resuscitation device.",1.0,Small,Restricted,"Revives a downed ally.",1000,item,
+flashlight,"Flashlight",light,"A heavy-duty tactical flashlight.",0.5,Small,Legal,"Illuminates dark areas",30,item,
+water_bottle,"Water Bottle",bottle,"A plastic water bottle.",0.5,Small,Legal,"Hydration",5,item,
+multitool,"Multitool",tool,"A versatile pocket tool.",0.3,Tiny,Legal,"Bonus to mechanical tasks.",75,item,
+neon_spray,"Neon Spray-Paint",spray,"A can of glowing spray paint.",0.5,Small,Legal,"Used to mark areas.",15,item,
+backpack,"Backpack",pack,"A sturdy canvas backpack.",1.0,Medium,Legal,"Container",50,container,"{""capacity"":20}"
+combat_knife,"Combat Knife",knife,"A sharp military-grade knife.",1.0,Small,Legal,"Melee Weapon",150,weapon,"{""damage"":10,""range"":1}"
+pistol_9mm,"Pistol (9mm)",pistol,"A reliable semi-automatic pistol.",2.5,Medium,Legal,"Ranged Weapon",500,weapon,"{""damage"":15,""range"":20,""ammoType"":""9mm"",""magSize"":15}"
+shotgun_12g,"Shotgun (12g)",shotgun,"A pump-action shotgun.",4.0,Large,Legal,"Ranged Weapon",800,weapon,"{""damage"":40,""range"":10,""ammoType"":""12g"",""magSize"":6}"
+rifle_556,"Assault Rifle (5.56)",rifle,"A selective-fire assault rifle.",3.5,Large,Restricted,"Ranged Weapon",1200,weapon,"{""damage"":25,""range"":40,""ammoType"":""5.56"",""magSize"":30}"
+monofilament_wire,"Monofilament Wire",wire,"A molecularly sharp wire.",0.1,Tiny,Illegal,"Melee Weapon; ignores armor.",2000,weapon,"{""damage"":30,""range"":2}"
+smart_pistol,"Smart-Pistol",smartgun,"A pistol with auto-aim link.",2.0,Medium,Restricted,"Ranged Weapon; +2 to hit.",1500,weapon,"{""damage"":12,""range"":25,""ammoType"":""9mm"",""magSize"":12}"
+street_sweeper,"Street-Sweeper",sweeper,"A fully automatic shotgun.",5.0,Large,Illegal,"Ranged Weapon; Area of Effect.",3000,weapon,"{""damage"":35,""range"":15,""ammoType"":""12g"",""magSize"":20}"
+vibro_blade,"Vibro-Blade",blade,"A high-frequency oscillating sword.",2.0,Medium,Restricted,"Melee Weapon; high damage.",1200,weapon,"{""damage"":25,""range"":1}"
+ammo_9mm,"Ammo (9mm)",ammo,"A box of 9mm ammunition.",0.5,Small,Legal,"50 rounds",20,item,
+ammo_12g,"Ammo (12g)",shells,"A box of shotgun shells.",0.8,Small,Legal,"10 shells",25,item,
+ammo_556,"Ammo (5.56)",ammo,"A box of 5.56mm rifle rounds.",0.6,Small,Restricted,"30 rounds",30,item,

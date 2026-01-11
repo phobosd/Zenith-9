@@ -7,6 +7,7 @@ import { Item } from '../components/Item';
 import { NPC } from '../components/NPC';
 import { Shop } from '../components/Shop';
 import { CombatStats } from '../components/CombatStats';
+import { Terminal } from '../components/Terminal';
 
 export class WorldGenerator {
     private engine: Engine;
@@ -42,20 +43,7 @@ export class WorldGenerator {
         plazaRat.addComponent(new NPC(
             "Giant Rat",
             ["Squeak!", "Hiss...", "*scratches floor*"],
-            "A large, mutated rat with glowing green eyes.",
-            `
-      __             
-   .-"  "-.          
-  /        \\         
- |          |        
-  \\  .--.  /         
-   "|    |"          
-    |    |           
-   /      \\          
-  (        )         
-   \\      /          
-    "----"           
-            `
+            "A large, mutated rat with glowing green eyes."
         ));
         plazaRat.addComponent(new CombatStats(20, 5, 0));
         this.engine.addEntity(plazaRat);
@@ -78,6 +66,10 @@ export class WorldGenerator {
         layout[cy + 1][cx] = 2;
         layout[cy][cx - 1] = 2;
         layout[cy][cx + 1] = 2;
+        layout[cy - 1][cx - 1] = 2;
+        layout[cy - 1][cx + 1] = 2;
+        layout[cy + 1][cx - 1] = 2;
+        layout[cy + 1][cx + 1] = 2;
         layout[cy - 1][cx - 1] = 2;
         layout[cy - 1][cx + 1] = 2;
         layout[cy + 1][cx - 1] = 2;
@@ -127,6 +119,58 @@ export class WorldGenerator {
 
         if (flavor.shopData) {
             room.addComponent(new Shop(flavor.shopData.name, flavor.shopData.desc));
+
+            // Spawn Terminal in all shops
+            const terminal = new Entity();
+            terminal.addComponent(new Position(x, y));
+            terminal.addComponent(new Description("Shop Terminal", "A sleek terminal displaying a catalog of goods. Type 'read terminal' to view."));
+
+            let items: string[] = [];
+            if (flavor.shopData.name === "Chrome & Steel") {
+                items = [
+                    'neural_deck',
+                    'data_chip',
+                    'optical_hud',
+                    'signal_jammer',
+                    'ext_drive',
+                    'exoskeleton_frame'
+                ];
+            } else if (flavor.shopData.name === "The Armory") {
+                items = [
+                    'combat_knife',
+                    'pistol_9mm',
+                    'shotgun_12g',
+                    'rifle_556',
+                    'ammo_9mm',
+                    'ammo_12g',
+                    'ammo_556',
+                    'monofilament_wire',
+                    'smart_pistol',
+                    'street_sweeper',
+                    'vibro_blade'
+                ];
+            } else if (flavor.shopData.name === "Bits & Bytes") {
+                items = [
+                    'beer_can',
+                    'backpack',
+                    'flashlight',
+                    'water_bottle',
+                    'multitool',
+                    'neon_spray'
+                ];
+            } else if (flavor.shopData.name === "Doc's Clinic") {
+                items = [
+                    'medkit',
+                    'stimpack',
+                    'bandage',
+                    'painkillers',
+                    'reflex_boost',
+                    'flatline_heal'
+                ];
+            }
+
+            terminal.addComponent(new Terminal("shop-catalog", { items }));
+            this.engine.addEntity(terminal);
         }
 
         this.engine.addEntity(room);
@@ -153,27 +197,13 @@ export class WorldGenerator {
             npc.addComponent(new NPC(
                 "Dancer",
                 ["Keep the rhythm.", "Want a drink?", "Too loud? Never."],
-                "A holographic dancer shimmering in the strobe lights.",
-                `
-      /\\
-     (  )
-     /  \\
-    /|  |\\
-   / |  | \\
-                `
+                "A holographic dancer shimmering in the strobe lights."
             ));
         } else if (type === 4) { // Clinic
             npc.addComponent(new NPC(
                 "Ripperdoc",
                 ["Need a fix?", "I can replace that arm.", "Clean credits only."],
-                "A surgeon with multi-tool fingers and a blood-stained apron.",
-                `
-     .--.
-    ( () )
-     |__|
-    /|  |\\
-   / |  | \\
-                `
+                "A surgeon with multi-tool fingers and a blood-stained apron."
             ));
         } else {
             // Generic NPCs
@@ -206,41 +236,14 @@ export class WorldGenerator {
                         "Uploading pain...", "Downloading suffering...", "Buffering violence...", "Ping: 0ms.", "Packet loss: 100%.",
                         "You're offline.", "Rebooting... just kidding.", "Shutting down...", "Power off.", "End of line."
                     ],
-                    "A menacing figure with a glowing red cybernetic eye.",
-                    `
-  .  .      
-  |\\/|      
-  |  |      
- .|  |.     
-/      \\    
-|  *   |    
-| \\__/ |    
- \\    /     
-  \\  /      
-  |  |      
- /|  |\\     
-/ |  | \\    
-                    `
+                    "A menacing figure with a glowing red cybernetic eye."
                 ));
             } else if (Math.random() > 0.2) { // 80% chance for Rat (if not Cyber Thug)
                 // Spawn a Rat
                 npc.addComponent(new NPC(
                     "Giant Rat",
                     ["Squeak!", "Hiss...", "*scratches floor*"],
-                    "A large, mutated rat with glowing green eyes.",
-                    `
-      __             
-   .-"  "-.          
-  /        \\         
- |          |        
-  \\  .--.  /         
-   "|    |"          
-    |    |           
-   /      \\          
-  (        )         
-   \\      /          
-    "----"           
-                    `
+                    "A large, mutated rat with glowing green eyes."
                 ));
                 npc.addComponent(new CombatStats(20, 5, 0)); // Weak stats
             } else {
@@ -273,14 +276,7 @@ export class WorldGenerator {
                         "Radioactive-free guarantee!", "Geiger counter says it's safe!", "Glowing green means it's good!", "Neon noodles!", "Cyber-spices!",
                         "Upgrade your lunch!", "Patch your hunger!", "Version 2.0 flavors!", "The ultimate food update!"
                     ],
-                    "An old man hunched over a steaming cart.",
-                    `
-     ___
-                    /   \\
-   | o o |
-   |  =  |
-                    \\___ /
-                    `
+                    "An old man hunched over a steaming cart."
                 ));
             }
         }

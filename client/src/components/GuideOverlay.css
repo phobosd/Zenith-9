@@ -1,0 +1,143 @@
+.guide-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 800px;
+    height: 600px;
+    background-color: rgba(10, 10, 15, 0.95);
+    border: 2px solid #00ff00;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    color: #00ff00;
+    font-family: 'Courier New', Courier, monospace;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    padding: 20px;
+    text-align: left;
+}
+
+.guide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #00ff00;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.guide-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+.guide-close-btn {
+    background: transparent;
+    border: 1px solid #00ff00;
+    color: #00ff00;
+    cursor: pointer;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-weight: bold;
+}
+
+.guide-close-btn:hover {
+    background: #00ff00;
+    color: #000;
+}
+
+.guide-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    gap: 20px;
+}
+
+.guide-toc {
+    width: 200px;
+    border-right: 1px solid #333;
+    padding-right: 10px;
+    overflow-y: auto;
+    text-align: left;
+}
+
+.guide-toc-item {
+    cursor: pointer;
+    padding: 5px;
+    margin-bottom: 5px;
+    transition: all 0.2s;
+}
+
+.guide-toc-item:hover {
+    background: rgba(0, 255, 0, 0.1);
+    padding-left: 10px;
+}
+
+.guide-toc-item.active {
+    background: #00ff00;
+    color: #000;
+}
+
+.guide-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 10px;
+    text-align: left;
+}
+
+.guide-content h1,
+.guide-content h2,
+.guide-content h3 {
+    color: #fff;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    margin-top: 20px;
+}
+
+.guide-content table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+}
+
+.guide-content th,
+.guide-content td {
+    border: 1px solid #444;
+    padding: 8px;
+    text-align: left;
+}
+
+.guide-content th {
+    background-color: rgba(0, 255, 0, 0.1);
+    color: #fff;
+}
+
+.guide-content code {
+    background: #222;
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: #0f0;
+}
+
+/* Scrollbar styling */
+.guide-content::-webkit-scrollbar,
+.guide-toc::-webkit-scrollbar {
+    width: 8px;
+}
+
+.guide-content::-webkit-scrollbar-track,
+.guide-toc::-webkit-scrollbar-track {
+    background: #111;
+}
+
+.guide-content::-webkit-scrollbar-thumb,
+.guide-toc::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+}
+
+.guide-content::-webkit-scrollbar-thumb:hover,
+.guide-toc::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}

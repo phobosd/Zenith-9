@@ -1,0 +1,158 @@
+.inventory-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    font-family: 'Courier New', Courier, monospace;
+    color: #0f0;
+}
+
+.inventory-container {
+    border: 2px solid #0f0;
+    padding: 20px;
+    background-color: #000;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.inventory-header {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    border-top: 1px solid #0f0;
+    border-bottom: 1px solid #0f0;
+    padding: 15px 0;
+}
+
+.equipment-col,
+.backpack-col {
+    border-right: 1px solid #0f0;
+    padding-right: 15px;
+}
+
+.backpack-col {
+    border-right: none;
+    padding-right: 0;
+    padding-left: 15px;
+}
+
+.section-header {
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.equipment-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin: 5px 0;
+}
+
+.equipment-row.hands {
+    justify-content: space-between;
+}
+
+.label {
+    min-width: 80px;
+    font-weight: bold;
+}
+
+.label.right {
+    text-align: right;
+}
+
+.item-box {
+    border: 1px solid #0f0;
+    padding: 2px 8px;
+    min-width: 120px;
+    text-align: center;
+    background-color: rgba(0, 255, 0, 0.05);
+}
+
+.item-box.chest {
+    min-width: 140px;
+}
+
+.ascii-art {
+    margin: 5px 0;
+    line-height: 1.2;
+}
+
+.ascii-art pre {
+    margin: 0;
+    font-family: inherit;
+    color: #0f0;
+}
+
+.ascii-body {
+    font-family: inherit;
+    white-space: pre;
+    color: #0f0;
+}
+
+.backpack-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.backpack-item {
+    padding: 3px 8px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    background-color: rgba(0, 255, 0, 0.05);
+}
+
+.empty-message {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+}
+
+.inventory-footer {
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #0f0;
+    font-weight: bold;
+}
+
+.close-hint {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: #0a0;
+}
+
+/* Scrollbar styling */
+.inventory-container::-webkit-scrollbar {
+    width: 8px;
+}
+
+.inventory-container::-webkit-scrollbar-track {
+    background: #000;
+}
+
+.inventory-container::-webkit-scrollbar-thumb {
+    background: #0f0;
+    border: 1px solid #0f0;
+}
+
+.inventory-container::-webkit-scrollbar-thumb:hover {
+    background: #0a0;
+}

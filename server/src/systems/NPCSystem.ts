@@ -114,7 +114,7 @@ export class NPCSystem extends System {
 
     private bark(npc: Entity, npcComp: NPC, pos: Position, entities: Set<Entity>) {
         const bark = npcComp.barks[Math.floor(Math.random() * npcComp.barks.length)];
-        const message = `[${npcComp.typeName}] says: "${bark}"`;
+        const message = `<speech>[${npcComp.typeName}] says: "${bark}"</speech>`;
 
         // Broadcast to players in the same room
         for (const entity of entities) {

@@ -1,0 +1,97 @@
+.inv {
+    font-family: 'Courier New', monospace;
+    color: #0f0;
+    background: #000;
+    padding: 15px;
+    margin: 10px 0;
+    border: 2px solid #0f0;
+    display: inline-block;
+    min-width: 800px;
+    max-width: 900px;
+}
+
+.inv-title {
+    text-align: center;
+    font-weight: bold;
+    letter-spacing: 2px;
+    margin-bottom: 8px;
+}
+
+.inv-border {
+    border-top: 1px solid #0f0;
+    margin: 8px 0;
+}
+
+.inv-body {
+    display: flex;
+    gap: 30px;
+}
+
+.inv-left {
+    flex: 0 0 480px;
+    min-width: 480px;
+}
+
+.inv-divider {
+    width: 1px;
+    background: #0f0;
+}
+
+.inv-right {
+    flex: 1;
+}
+
+.inv-section {
+    font-weight: bold;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+}
+
+.inv-slot {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 8px;
+    flex-wrap: nowrap;
+}
+
+.slot-label {
+    font-weight: bold;
+    min-width: 70px;
+    flex-shrink: 0;
+}
+
+.slot-item {
+    border: 1px solid #0f0;
+    padding: 3px 8px;
+    background: rgba(0, 255, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.slot-item.wide {
+    flex: 1;
+}
+
+.inv-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.inv-item {
+    padding: 3px 8px;
+    border: 1px solid rgba(0, 255, 0, 0.3);
+    background: rgba(0, 255, 0, 0.05);
+}
+
+.inv-empty {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 30px 10px;
+}
+
+.inv-footer {
+    margin-top: 8px;
+    font-weight: bold;
+}

@@ -41,3 +41,4 @@ dump.rdb
 *.md
 !README.md
 !readme.md
+!docs/USERS_GUIDE.md

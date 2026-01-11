@@ -1,0 +1,137 @@
+.term-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.term-window {
+    background-color: #001100;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    font-family: 'Courier New', Courier, monospace;
+    width: 80%;
+    max-width: 1000px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.4);
+}
+
+.term-header {
+    background-color: #003300;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #00ff00;
+}
+
+.term-title {
+    font-weight: bold;
+    font-size: 1.2em;
+    text-shadow: 0 0 5px #00ff00;
+}
+
+.term-close {
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.term-close:hover {
+    color: #fff;
+}
+
+.term-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex-grow: 1;
+}
+
+.term-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.term-table th {
+    text-align: left;
+    border-bottom: 1px solid #00ff00;
+    padding: 10px;
+    color: #00aa00;
+}
+
+.term-table td {
+    padding: 10px;
+    border-bottom: 1px solid #003300;
+}
+
+.term-table tr.selected {
+    background-color: #003300;
+    color: #ffffff;
+}
+
+.term-name {
+    font-weight: bold;
+    color: #00ffff;
+}
+
+.term-table tr.selected .term-name {
+    color: #ffffff;
+    text-shadow: 0 0 5px #ffffff;
+}
+
+.term-cursor {
+    color: #ffff00;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+.term-legality.legal {
+    color: #00ff00;
+}
+
+.term-legality.illegal {
+    color: #ff0000;
+    text-shadow: 0 0 5px #ff0000;
+}
+
+.term-legality.variable {
+    color: #ffff00;
+}
+
+.term-attr {
+    font-style: italic;
+    color: #aaaaaa;
+}
+
+.term-cost {
+    color: #ffd700;
+    font-weight: bold;
+    text-align: right;
+}
+
+.term-footer {
+    padding: 10px;
+    background-color: #002200;
+    border-top: 1px solid #00ff00;
+    text-align: center;
+    font-size: 0.9em;
+    color: #00aa00;
+}

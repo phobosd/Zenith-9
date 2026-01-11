@@ -3,6 +3,7 @@ import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
 import { Description } from '../components/Description';
 import { IsRoom } from '../components/IsRoom';
+import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 
 export class MovementSystem extends System {
@@ -37,7 +38,13 @@ export class MovementSystem extends System {
             if (!entity) continue;
 
             const pos = entity.getComponent(Position);
+            const stance = entity.getComponent(Stance);
             if (!pos) continue;
+
+            if (stance && stance.current !== StanceType.Standing) {
+                this.io.to(entityId).emit('message', `You can't move while ${stance.current}!`);
+                continue;
+            }
 
             const targetX = pos.x + move.x;
             const targetY = pos.y + move.y;

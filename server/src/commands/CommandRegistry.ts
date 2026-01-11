@@ -29,7 +29,7 @@ export class CommandRegistry {
     }
 
     execute(input: string, context: CommandContext) {
-        const parts = input.trim().split(' ');
+        const parts = input.trim().split(/\s+/);
         const commandName = parts[0].toLowerCase();
         const args = parts.slice(1);
         context.args = args; // Update args in context

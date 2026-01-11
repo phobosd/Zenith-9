@@ -6,8 +6,7 @@ export class NPC extends Component {
     constructor(
         public typeName: string,
         public barks: string[],
-        public description: string,
-        public asciiPortrait: string
+        public description: string
     ) {
         super();
     }

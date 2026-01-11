@@ -1,31 +1,89 @@
-.sync-bar-ascii {
+.combat-overlay {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    background: #000;
+    border: 4px solid #0f0;
+    padding: 20px;
     font-family: 'Courier New', monospace;
-    font-size: 1.5rem;
-    color: #0ff;
-    text-align: center;
-    margin-bottom: 0.5rem;
-    letter-spacing: 3px;
-    font-weight: bold;
-    background: linear-gradient(90deg, #000 0%, #001a1a 50%, #000 100%);
-    padding: 0.8rem;
-    border: 2px solid #0ff;
-    border-radius: 4px;
-    box-shadow: 0 0 20px rgba(0, 255, 255, 0.5),
-        inset 0 0 20px rgba(0, 255, 255, 0.1);
-    animation: syncBarPulse 1.5s ease-in-out infinite;
-    text-shadow: 0 0 10px #0ff;
+    color: #0f0;
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.5), inset 0 0 20px rgba(0, 255, 0, 0.2);
+    z-index: 1000;
 }
 
-@keyframes syncBarPulse {
+.combat-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #0f0;
+    padding-bottom: 10px;
+}
 
-    0%,
-    100% {
-        box-shadow: 0 0 20px rgba(0, 255, 255, 0.5),
-            inset 0 0 20px rgba(0, 255, 255, 0.1);
-    }
+.combat-target {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #f00;
+    text-shadow: 0 0 5px #f00;
+}
 
-    50% {
-        box-shadow: 0 0 30px rgba(0, 255, 255, 0.8),
-            inset 0 0 30px rgba(0, 255, 255, 0.2);
-    }
+.combat-weapon {
+    font-size: 0.9em;
+    color: #0ff;
+}
+
+.sync-bar-container {
+    position: relative;
+    height: 40px;
+    background: #111;
+    border: 2px solid #0f0;
+    margin: 20px 0;
+    overflow: hidden;
+}
+
+.sync-bar-track {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.crit-zone {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    background: rgba(255, 0, 0, 0.3);
+    border-left: 1px solid #f00;
+    border-right: 1px solid #f00;
+}
+
+.hit-marker {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    background: #ff0;
+}
+
+.sync-cursor {
+    position: absolute;
+    top: 0;
+    width: 4px;
+    height: 100%;
+    background: #0ff;
+    box-shadow: 0 0 10px #0ff;
+    z-index: 10;
+}
+
+.combat-instructions {
+    text-align: center;
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 10px;
+}
+
+.combat-instructions span {
+    color: #fff;
+    font-weight: bold;
 }

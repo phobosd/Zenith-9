@@ -1,152 +1,190 @@
 .terminal-container {
-  background-color: #000;
-  color: #fff;
-  font-family: 'Courier New', Courier, monospace;
-  height: 100vh;
-  width: 100vw;
   display: flex;
   flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background-color: #000;
+  color: #ccc;
+  font-family: 'Courier New', Courier, monospace;
   overflow: hidden;
-  padding: 20px;
-  box-sizing: border-box;
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
-  /* Slight glow */
 }
 
 .terminal-output {
-  flex-grow: 1;
+  flex: 1;
   overflow-y: auto;
-  margin-bottom: 20px;
-  white-space: pre-wrap;
   display: flex;
   flex-direction: column;
+  padding: 10px 20px;
+  /* This ensures content starts at the bottom */
   justify-content: flex-end;
-  align-items: flex-start;
-  /* Align text to the left */
 }
 
 .terminal-line {
-  margin-bottom: 5px;
-  text-align: left;
-  /* Ensure text is left-aligned */
-  width: 100%;
+  word-wrap: break-word;
+  margin-bottom: 2px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  /* Preserves newlines for map rendering */
+  font-family: 'Courier New', Courier, monospace;
 }
 
-.text-title {
-  color: #00ffff;
-  /* Cyan */
-  font-weight: bold;
-}
-
-.text-desc {
-  color: #cccccc;
-  /* Light Gray */
-}
-
-.text-exits {
+.terminal-line.system {
   color: #ffff00;
-  /* Yellow */
 }
 
-.text-item {
-  color: #00ff00;
-  /* Green */
-}
-
-.text-npc {
-  color: #ff00ff;
-  /* Magenta */
-}
-
-.text-map {
-  color: #ffffff;
-  line-height: 1.2;
-}
-
-.text-portrait {
-  color: #ff00ff;
-  /* Magenta */
-  line-height: 1.2;
-  white-space: pre;
-}
-
-.text-cmd {
-  color: #ffa500;
-  /* Orange */
-  font-weight: bold;
+.terminal-line.input {
+  color: #888;
 }
 
 .terminal-input-area {
+  flex-shrink: 0;
+  padding: 10px 20px;
+  background-color: #000;
+  border-top: 1px solid #333;
+}
+
+.terminal-input-row {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .prompt {
   margin-right: 10px;
-  color: #0f0;
+  color: #00ff00;
+  font-weight: bold;
+  white-space: nowrap;
 }
 
 .terminal-input {
+  flex: 1;
   background: transparent;
   border: none;
   color: #fff;
   font-family: inherit;
-  font-size: inherit;
-  flex-grow: 1;
-  width: 100%;
+  font-size: 1rem;
   outline: none;
-  caret-color: #0f0;
 }
 
-.text-map-shop {
-  color: #ffd700;
+/* Text Colors */
+.text-title {
+  color: #00ffff;
+  font-weight: bold;
+  font-size: 1.1em;
+  text-transform: uppercase;
+  margin-bottom: 0;
+  /* Removed margin to reduce gap */
+  display: block;
 }
 
-/* Gold */
-.text-map-clinic {
-  color: #ff4444;
+.text-room-desc {
+  color: #ffffff;
+  /* Changed to white */
 }
 
-/* Red */
-.text-map-club {
+.text-exits {
+  color: #00ff00;
+}
+
+.text-item {
   color: #ff00ff;
 }
 
-/* Magenta */
-.text-map-player {
-  color: #00ffff;
-  font-weight: bold;
-}
-
-/* Cyan */
-.text-map-wall {
-  color: #444444;
-}
-
-/* Dark Gray */
-.text-map-street {
-  color: #888888;
-}
-
-/* Gray */
-.text-map-water {
-  color: #4444ff;
-}
-
-/* Blue */
-.text-map-grass {
-  color: #00aa00;
-}
-
-/* Green */
-.text-legend {
-  color: #aaaaaa;
-  font-style: italic;
+.text-npc {
+  color: #0088ff;
+  text-shadow: 0 0 5px #0088ff;
 }
 
 .text-enemy {
   color: #ff0000;
   font-weight: bold;
-  text-shadow: 0 0 8px rgba(255, 0, 0, 0.8);
+}
+
+.text-cmd {
+  color: #fff;
+  background: #333;
+  padding: 0 4px;
+  border-radius: 3px;
+}
+
+.text-system {
+  color: #cccccc;
+  /* Changed from yellow to grey to reduce yellow */
+  font-style: italic;
+}
+
+.text-error {
+  color: #ff3333;
+}
+
+.text-speech {
+  color: #ffffff;
+}
+
+.text-terminal {
+  color: #ffffff;
+  text-shadow: 0 0 5px #ffffff;
+  animation: pulse 2s infinite;
+}
+
+/* Map Colors */
+.text-map-player {
+  color: #00ff00;
+  font-weight: bold;
+}
+
+.text-map-wall {
+  color: #555555;
+}
+
+.text-map-shop {
+  color: #ffff00;
+}
+
+.text-map-clinic {
+  color: #ff00ff;
+}
+
+.text-map-club {
+  color: #00ffff;
+}
+
+.text-map-grass {
+  color: #00aa00;
+}
+
+.text-map-street {
+  color: #333333;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.8;
+  }
+
+  50% {
+    opacity: 1;
+    text-shadow: 0 0 10px #ffffff;
+  }
+
+  100% {
+    opacity: 0.8;
+  }
+}
+
+/* Scrollbar */
+.terminal-output::-webkit-scrollbar {
+  width: 10px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #111;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 5px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #555;
 }

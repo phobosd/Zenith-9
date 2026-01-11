@@ -8,6 +8,7 @@ import { NPC } from '../components/NPC';
 import { Inventory } from '../components/Inventory';
 import { Item } from '../components/Item';
 import { Container } from '../components/Container';
+import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 import { Engine } from '../ecs/Engine';
 
@@ -109,8 +110,14 @@ export class CombatSystem extends System {
         if (!attacker) return;
 
         const attackerPos = attacker.getComponent(Position);
+        const stance = attacker.getComponent(Stance);
         if (!attackerPos) {
             this.io.to(attackerId).emit('message', "You don't have a position.");
+            return;
+        }
+
+        if (stance && stance.current !== StanceType.Standing) {
+            this.io.to(attackerId).emit('message', `You can't attack while ${stance.current}!`);
             return;
         }
 
@@ -239,24 +246,39 @@ export class CombatSystem extends System {
 
         if (!weapon) return;
 
-        let combatLog = `\n<combat>You attack ${targetNPC?.typeName || 'the target'} with your ${weapon.name}!\n`;
+        let combatLog = `\n<combat>You attack ${targetNPC?.typeName || 'the target'} with your ${weapon.name}!</combat>\n`;
 
         if (hitType === 'crit') {
             // CRITICAL HIT!
-            const skillLevel = attackerStats.skills.get('Marksmanship (Light)')?.level || 1;
+            const skillName = 'Marksmanship (Light)'; // Hardcoded for now, should be dynamic based on weapon
+            const skill = attackerStats.skills.get(skillName);
+            if (skill) {
+                skill.uses += 5; // More XP for crits
+                this.checkSkillLevelUp(attackerId, skill);
+            }
+
+            const skillLevel = skill?.level || 1;
             const critDamage = weapon.damage * 2;
             targetCombatStats.hp -= critDamage;
 
             combatLog += this.resolveCrit(target, attacker, weapon, skillLevel);
-            combatLog += `\nYou deal ${critDamage} CRITICAL damage!`;
+            combatLog += `\n<combat-hit>You deal ${critDamage} CRITICAL damage!</combat-hit>`;
         } else if (hitType === 'hit') {
             // NORMAL HIT
+            const skillName = 'Marksmanship (Light)';
+            const skill = attackerStats.skills.get(skillName);
+            if (skill) {
+                skill.uses += 1;
+                this.checkSkillLevelUp(attackerId, skill);
+            }
+
             const damage = weapon.damage;
             targetCombatStats.hp -= damage;
-            combatLog += `You hit for ${damage} damage!`;
+            combatLog += `<combat-hit>You hit for ${damage} damage!</combat-hit>`;
         } else {
             // MISS
-            combatLog += `You miss!`;
+            // Optional: Small XP for trying?
+            combatLog += `<combat-miss>You miss!</combat-miss>`;
         }
 
         // Consume ammo
@@ -265,16 +287,36 @@ export class CombatSystem extends System {
             combatLog += `\n[${weapon.currentAmmo}/${weapon.magSize} rounds remaining]`;
         }
 
+        combatLog += `</combat>`;
+
         // Check if target is dead
         if (targetCombatStats.hp <= 0) {
-            combatLog += `\n\n<combat-death>${targetNPC?.typeName || 'Target'} has been eliminated!</combat-death>`;
+            combatLog += `\n<combat-death>${targetNPC?.typeName || 'Target'} has been eliminated!</combat-death>`;
+
+            // Bonus XP for kill
+            const skillName = 'Marksmanship (Light)';
+            const skill = attackerStats.skills.get(skillName);
+            if (skill) {
+                skill.uses += 10;
+                this.checkSkillLevelUp(attackerId, skill);
+            }
+
             this.engine.removeEntity(target.id);
         } else {
-            combatLog += `\n${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP`;
+            combatLog += `\n<combat>${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP</combat>`;
         }
 
-        combatLog += `</combat>`;
         this.io.to(attackerId).emit('message', combatLog);
+    }
+
+    private checkSkillLevelUp(entityId: string, skill: { name: string, level: number, uses: number, maxUses: number }) {
+        if (skill.uses >= skill.maxUses) {
+            skill.level++;
+            skill.uses -= skill.maxUses;
+            skill.maxUses = Math.floor(skill.maxUses * 1.5); // Increase difficulty
+
+            this.io.to(entityId).emit('message', `<level-up>*** Your ${skill.name} skill has increased to level ${skill.level}! ***</level-up>`);
+        }
     }
 
     private getEntityById(entities: Set<Entity>, id: string): Entity | undefined {
