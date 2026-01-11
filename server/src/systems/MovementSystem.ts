@@ -1,11 +1,10 @@
 import { System } from '../ecs/System';
 import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
-import { Description } from '../components/Description';
-import { IsRoom } from '../components/IsRoom';
 import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 import { InteractionSystem } from './InteractionSystem';
+import { WorldQuery } from '../utils/WorldQuery';
 
 export class MovementSystem extends System {
     private pendingMoves: Map<string, { x: number, y: number }>;
@@ -40,7 +39,7 @@ export class MovementSystem extends System {
     update(entities: Set<Entity>, deltaTime: number): void {
         // Process all pending moves
         for (const [entityId, move] of this.pendingMoves.entries()) {
-            const entity = Array.from(entities).find(e => e.id === entityId);
+            const entity = WorldQuery.getEntityById(entities, entityId);
             if (!entity) continue;
 
             const pos = entity.getComponent(Position);
@@ -56,7 +55,7 @@ export class MovementSystem extends System {
             const targetY = pos.y + move.y;
 
             // Check if target room exists
-            const targetRoom = this.findRoomAt(entities, targetX, targetY);
+            const targetRoom = WorldQuery.findRoomAt(entities, targetX, targetY);
 
             if (targetRoom) {
                 pos.x = targetX;
@@ -72,17 +71,5 @@ export class MovementSystem extends System {
 
         // Clear processed moves
         this.pendingMoves.clear();
-    }
-
-    private findRoomAt(entities: Set<Entity>, x: number, y: number): Entity | undefined {
-        for (const entity of entities) {
-            if (entity.hasComponent(IsRoom)) {
-                const pos = entity.getComponent(Position);
-                if (pos && pos.x === x && pos.y === y) {
-                    return entity;
-                }
-            }
-        }
-        return undefined;
     }
 }

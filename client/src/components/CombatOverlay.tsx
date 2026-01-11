@@ -29,7 +29,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
     const combatDataRef = useRef<CombatSyncData | null>(null);
     const cursorValRef = useRef(0); // 0 to barLength
     const directionRef = useRef(1);
-    const animationRef = useRef<number>();
+    const animationRef = useRef<number | null>(null);
     const lastTimeRef = useRef<number>(0);
     const isActiveRef = useRef(false);
 

@@ -45,7 +45,6 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ content, onClose }) 
     const renderContent = () => {
         const lines = content.split(/\r?\n/);
         let inTable = false;
-        let tableHeader = false;
 
         return lines.map((line, index) => {
             const trimmedLine = line.trim();
@@ -54,7 +53,7 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ content, onClose }) 
             const headerMatch = trimmedLine.match(/^(#{1,3})\s+(.+)$/);
             if (headerMatch) {
                 const level = headerMatch[1].length;
-                const Tag = `h${level}` as keyof JSX.IntrinsicElements;
+                const Tag = `h${level}` as any;
                 return <Tag key={index} id={`chapter-${index}`}>{headerMatch[2]}</Tag>;
             }
 
@@ -64,13 +63,11 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ content, onClose }) 
 
                 if (line.includes('---')) {
                     inTable = true;
-                    tableHeader = false;
                     return null; // Skip separator line
                 }
 
                 if (!inTable) {
                     inTable = true;
-                    tableHeader = true;
                     return (
                         <table key={index}>
                             <thead>

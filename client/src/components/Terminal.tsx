@@ -26,10 +26,11 @@ export const Terminal: React.FC = () => {
     const outputRef = useRef<HTMLDivElement>(null);
     const [autocompleteData, setAutocompleteData] = useState<{
         spawnables: string[];
-        room: string[];
+        roomObjects: string[];
+        roomItems: string[];
         inventory: string[];
         containers: string[];
-    }>({ spawnables: [], room: [], inventory: [], containers: [] });
+    }>({ spawnables: [], roomObjects: [], roomItems: [], inventory: [], containers: [] });
 
     const [playerStats, setPlayerStats] = useState<{ hp: number; maxHp: number; stance: string } | null>(null);
 
@@ -48,7 +49,7 @@ export const Terminal: React.FC = () => {
             addSystemLine('Disconnected from server.');
         });
 
-        newSocket.on('tick', (data: any) => {
+        newSocket.on('tick', () => {
             // console.log('Tick:', data);
         });
 
@@ -60,11 +61,19 @@ export const Terminal: React.FC = () => {
             setAutocompleteData(prev => ({ ...prev, spawnables: data.spawnables }));
         });
 
-        newSocket.on('autocomplete-update', (data: { type: 'room' | 'inventory', items: string[], containers?: string[] }) => {
-            if (data.type === 'inventory' && data.containers) {
-                setAutocompleteData(prev => ({ ...prev, inventory: data.items, containers: data.containers || [] }));
-            } else {
-                setAutocompleteData(prev => ({ ...prev, [data.type]: data.items }));
+        newSocket.on('autocomplete-update', (data: { type: 'room' | 'inventory', items?: string[], objects?: string[], containers?: string[] }) => {
+            if (data.type === 'room') {
+                setAutocompleteData(prev => ({
+                    ...prev,
+                    roomObjects: data.objects || [],
+                    roomItems: data.items || []
+                }));
+            } else if (data.type === 'inventory') {
+                setAutocompleteData(prev => ({
+                    ...prev,
+                    inventory: data.items || [],
+                    containers: data.containers || []
+                }));
             }
         });
 
@@ -133,18 +142,17 @@ export const Terminal: React.FC = () => {
         addLine({ id: Date.now().toString() + Math.random(), text, type: 'system' });
     };
 
-    const addInputLine = (text: string) => {
-        addLine({ id: Date.now().toString() + Math.random(), text: `> ${text}`, type: 'input' });
-    };
 
     const [history, setHistory] = useState<string[]>([]);
     const [historyIndex, setHistoryIndex] = useState(-1);
 
     const COMMANDS = [
-        'look', 'north', 'south', 'east', 'west',
-        'get', 'drop', 'inventory', 'glance', 'attack', 'kill',
-        'god', 'help', 'map', 'sheet', 'score',
-        'stow', 'swap', 'use', 'sit', 'stand', 'lie'
+        'look', 'l', 'la', 'north', 'n', 'south', 's', 'east', 'e', 'west', 'w',
+        'get', 'g', 'take', 'drop', 'd', 'inventory', 'inv', 'i', 'glance', 'gl',
+        'attack', 'kill', 'fight', 'read', 'scan',
+        'god', 'admin', 'help', '?', 'map', 'm', 'sheet', 'stats', 'score', 'skills',
+        'stow', 'put', 'swap', 'switch', 'use', 'sit', 'stand', 'st', 'lie', 'rest', 'sleep',
+        'turn', 'rotate'
     ];
 
     const [completionState, setCompletionState] = useState<{
@@ -236,14 +244,21 @@ export const Terminal: React.FC = () => {
                             baseString = rawParts.slice(0, 2).join(' ') + ' ';
                         }
                     }
-                } else if (cmd === 'get') {
+                } else if (['get', 'g', 'take'].includes(cmd)) {
                     // Check if we're before or after "from"
                     const fromIndex = parts.indexOf('from');
                     if (fromIndex === -1) {
                         // Completing the item name (before "from")
-                        const candidates = Array.from(new Set([...autocompleteData.room, ...autocompleteData.inventory]));
+                        // Only suggest items in the room for 'get'
+                        const candidates = Array.from(new Set([...autocompleteData.roomItems]));
                         const search = parts.slice(1).join(' ');
                         matches = candidates.filter(s => s.startsWith(search));
+
+                        // Also suggest 'from' if we have containers
+                        if ('from'.startsWith(search) && autocompleteData.containers.length > 0 && search.length > 0) {
+                            matches.push('from');
+                        }
+
                         baseString = rawParts[0] + ' ';
                     } else {
                         // Completing the container name (after "from")
@@ -251,7 +266,7 @@ export const Terminal: React.FC = () => {
                         matches = autocompleteData.containers.filter(s => s.startsWith(search));
                         baseString = rawParts.slice(0, fromIndex + 1).join(' ') + ' ';
                     }
-                } else if (cmd === 'look') {
+                } else if (['look', 'l', 'la'].includes(cmd)) {
                     const inIndex = parts.indexOf('in');
                     if (inIndex !== -1) {
                         // Completing container name after "in"
@@ -260,17 +275,26 @@ export const Terminal: React.FC = () => {
                         baseString = rawParts.slice(0, inIndex + 1).join(' ') + ' ';
                     } else {
                         // Completing item/NPC name or "in"
-                        const candidates = Array.from(new Set(['in', ...autocompleteData.room, ...autocompleteData.inventory]));
+                        const roomTargets = [...autocompleteData.roomObjects, ...autocompleteData.roomItems];
+                        const candidates = Array.from(new Set([...roomTargets, ...autocompleteData.inventory]));
                         const search = parts.slice(1).join(' ');
                         matches = candidates.filter(s => s.startsWith(search));
+
+                        // Only suggest 'in' if it matches and we have containers
+                        if ('in'.startsWith(search) && autocompleteData.containers.length > 0 && search.length > 0) {
+                            matches.push('in');
+                        }
+
                         baseString = rawParts[0] + ' ';
                     }
-                } else if (['la', 'attack', 'kill'].includes(cmd)) {
-                    const candidates = Array.from(new Set([...autocompleteData.room, ...autocompleteData.inventory]));
+                } else if (['attack', 'kill', 'fight', 'read', 'scan', 'turn', 'rotate'].includes(cmd)) {
+                    // These commands usually target NPCs or room objects
+                    const candidates = Array.from(new Set([...autocompleteData.roomObjects, ...autocompleteData.roomItems]));
                     const search = parts.slice(1).join(' ');
                     matches = candidates.filter(s => s.startsWith(search));
                     baseString = rawParts[0] + ' ';
-                } else if (cmd === 'put' || cmd === 'stow') {
+                }
+                else if (cmd === 'put' || cmd === 'stow') {
                     // Check if we're before or after "in"
                     const inIndex = parts.indexOf('in');
                     if (inIndex === -1) {

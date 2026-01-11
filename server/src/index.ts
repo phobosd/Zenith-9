@@ -47,18 +47,22 @@ const engine = new Engine();
 const movementSystem = new MovementSystem(io);
 const interactionSystem = new InteractionSystem(io);
 const npcSystem = new NPCSystem(io);
+const combatSystem = new CombatSystem(engine, io);
 
 engine.addSystem(movementSystem);
 engine.addSystem(interactionSystem);
 engine.addSystem(npcSystem);
+engine.addSystem(combatSystem);
 
 movementSystem.setInteractionSystem(interactionSystem);
 
 // Command Registry Setup
 const commandRegistry = new CommandRegistry();
 
-const moveAndLook = (ctx: any, dir: 'n' | 's' | 'e' | 'w') => {
-    const player = (ctx.engine as any).getEntity(ctx.socketId);
+import { CommandContext } from './commands/CommandRegistry';
+
+const moveAndLook = (ctx: CommandContext, dir: 'n' | 's' | 'e' | 'w') => {
+    const player = ctx.engine.getEntity(ctx.socketId);
     const stance = player?.getComponent(Stance);
 
     if (stance && stance.current !== StanceType.Standing) {
@@ -102,91 +106,91 @@ commandRegistry.register({
     name: 'look',
     aliases: ['l', 'la'],
     description: 'Look at the room, an item, or an NPC',
-    execute: (ctx) => ctx.systems.interaction.handleLook(ctx.socketId, new Set((ctx.engine as any)['entities'].values()), ctx.args.join(' '))
+    execute: (ctx) => ctx.systems.interaction.handleLook(ctx.socketId, new Set(ctx.engine.getEntities().values()), ctx.args.join(' '))
 });
 
 commandRegistry.register({
     name: 'get',
     aliases: ['g', 'take'],
     description: 'Pick up an item',
-    execute: (ctx) => ctx.systems.interaction.handleGet(ctx.socketId, ctx.args.join(' '), new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleGet(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'drop',
     aliases: ['d'],
     description: 'Drop an item',
-    execute: (ctx) => ctx.systems.interaction.handleDrop(ctx.socketId, ctx.args.join(' '), new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleDrop(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'read',
     aliases: ['scan'],
     description: 'Read a terminal or object',
-    execute: (ctx) => ctx.systems.interaction.handleRead(ctx.socketId, new Set((ctx.engine as any)['entities'].values()), ctx.args.join(' '))
+    execute: (ctx) => ctx.systems.interaction.handleRead(ctx.socketId, new Set(ctx.engine.getEntities().values()), ctx.args.join(' '))
 });
 
 commandRegistry.register({
     name: 'inventory',
     aliases: ['inv', 'i'],
     description: 'Check your inventory',
-    execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'glance',
     aliases: ['gl'],
     description: 'Glance at your hands',
-    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'sit',
     aliases: [],
     description: 'Sit down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'stand',
     aliases: ['st'],
     description: 'Stand up',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'lie',
     aliases: ['rest', 'sleep'],
     description: 'Lie down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'stow',
     aliases: ['put'],
     description: 'Put an item in your backpack (Usage: stow <item>)',
-    execute: (ctx) => ctx.systems.interaction.handleStow(ctx.socketId, ctx.args.join(' '), new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleStow(ctx.socketId, ctx.args.join(' '), new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'sheet',
     aliases: ['stats'],
     description: 'View your character attributes',
-    execute: (ctx) => ctx.systems.interaction.handleSheet(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleSheet(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'score',
     aliases: ['skills'],
     description: 'View your character skills',
-    execute: (ctx) => ctx.systems.interaction.handleScore(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleScore(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
     name: 'swap',
     aliases: ['switch'],
     description: 'Swap items between your hands',
-    execute: (ctx) => ctx.systems.interaction.handleSwap(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleSwap(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
@@ -199,7 +203,7 @@ commandRegistry.register({
             ctx.io.to(ctx.socketId).emit('message', 'Attack what?');
             return;
         }
-        ctx.systems.combat.handleAttack(ctx.socketId, targetName, new Set((ctx.engine as any)['entities'].values()));
+        ctx.systems.combat.handleAttack(ctx.socketId, targetName, new Set(ctx.engine.getEntities().values()));
     }
 });
 
@@ -214,8 +218,12 @@ commandRegistry.register({
             return;
         }
         const direction = args.pop(); // Last arg is direction
+        if (!direction) {
+            ctx.io.to(ctx.socketId).emit('message', 'Usage: turn <object> <direction>');
+            return;
+        }
         const targetName = args.join(' '); // Rest is object name
-        ctx.systems.interaction.handleTurn(ctx.socketId, new Set((ctx.engine as any)['entities'].values()), targetName, direction, ctx.engine);
+        ctx.systems.interaction.handleTurn(ctx.socketId, new Set(ctx.engine.getEntities().values()), targetName, direction, ctx.engine);
     }
 });
 
@@ -223,7 +231,7 @@ commandRegistry.register({
     name: 'map',
     aliases: ['m'],
     description: 'Display the world map',
-    execute: (ctx) => ctx.systems.interaction.handleMap(ctx.socketId, new Set((ctx.engine as any)['entities'].values()))
+    execute: (ctx) => ctx.systems.interaction.handleMap(ctx.socketId, new Set(ctx.engine.getEntities().values()))
 });
 
 commandRegistry.register({
@@ -245,7 +253,7 @@ commandRegistry.register({
             }
 
             // Get player position
-            const player = (ctx.engine as any).getEntity(ctx.socketId);
+            const player = ctx.engine.getEntity(ctx.socketId);
             if (!player) return;
             const pos = player.getComponent(Position);
             if (!pos) return;
@@ -276,7 +284,7 @@ commandRegistry.register({
                 return;
             }
 
-            const player = (ctx.engine as any).getEntity(ctx.socketId);
+            const player = ctx.engine.getEntity(ctx.socketId);
             if (!player) return;
 
             if (target === 'skills' || target === 'score') {
@@ -332,7 +340,7 @@ setInterval(() => {
     io.emit('tick', { timestamp: Date.now() });
 
     // Send health updates to all connected players
-    for (const [id, entity] of (engine as any)['entities']) {
+    for (const [id, entity] of engine.getEntities()) {
         const combatStats = entity.getComponent(CombatStats);
         const stance = entity.getComponent(Stance);
         if (combatStats) {
@@ -346,7 +354,7 @@ setInterval(() => {
 
     // Auto-save every 30 seconds
     if (Date.now() - lastSaveTime > 30000) {
-        persistence.saveWorldState(Array.from((engine as any)['entities'].values()));
+        persistence.saveWorldState(Array.from(engine.getEntities().values()));
         console.log('World saved to Redis');
         lastSaveTime = Date.now();
     }
@@ -432,7 +440,6 @@ io.on('connection', (socket) => {
 
     engine.addEntity(player);
 
-    const combatSystem = new CombatSystem(engine, io);
 
     socket.on('command', (cmd: string) => {
         commandRegistry.execute(cmd, {
@@ -450,11 +457,11 @@ io.on('connection', (socket) => {
     });
 
     socket.on('combat-result', (data: { targetId: string, hitType: 'crit' | 'hit' | 'miss' }) => {
-        combatSystem.handleSyncResult(socket.id, data.targetId, data.hitType, new Set((engine as any)['entities'].values()));
+        combatSystem.handleSyncResult(socket.id, data.targetId, data.hitType, new Set(engine.getEntities().values()));
     });
 
     socket.on('terminal-buy', (data: { itemName: string, cost: number }) => {
-        const createdItem = interactionSystem.handleTerminalBuy(socket.id, new Set((engine as any)['entities'].values()), data.itemName, data.cost);
+        const createdItem = interactionSystem.handleTerminalBuy(socket.id, new Set(engine.getEntities().values()), data.itemName, data.cost);
         if (createdItem) {
             engine.addEntity(createdItem);
         }

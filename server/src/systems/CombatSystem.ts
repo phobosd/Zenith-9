@@ -11,6 +11,8 @@ import { Container } from '../components/Container';
 import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 import { Engine } from '../ecs/Engine';
+import { WorldQuery } from '../utils/WorldQuery';
+import { IEngine } from '../commands/CommandRegistry';
 
 interface CriticalEffect {
     name: string;
@@ -20,10 +22,10 @@ interface CriticalEffect {
 }
 
 export class CombatSystem extends System {
-    private engine: Engine;
+    private engine: IEngine;
     private io: Server;
 
-    constructor(engine: Engine, io: Server) {
+    constructor(engine: IEngine, io: Server) {
         super();
         this.engine = engine;
         this.io = io;
@@ -106,7 +108,7 @@ export class CombatSystem extends System {
     }
 
     handleAttack(attackerId: string, targetName: string, entities: Set<Entity>): void {
-        const attacker = this.getEntityById(entities, attackerId);
+        const attacker = WorldQuery.getEntityById(entities, attackerId);
         if (!attacker) return;
 
         const attackerPos = attacker.getComponent(Position);
@@ -157,7 +159,7 @@ export class CombatSystem extends System {
         let weapon: Weapon | undefined;
 
         if (attackerInventory.rightHand) {
-            weaponEntity = this.getEntityById(entities, attackerInventory.rightHand);
+            weaponEntity = WorldQuery.getEntityById(entities, attackerInventory.rightHand);
             weapon = weaponEntity?.getComponent(Weapon);
         }
 
@@ -223,8 +225,8 @@ export class CombatSystem extends System {
     }
 
     handleSyncResult(attackerId: string, targetId: string, hitType: 'crit' | 'hit' | 'miss', entities: Set<Entity>): void {
-        const attacker = this.getEntityById(entities, attackerId);
-        const target = this.getEntityById(entities, targetId);
+        const attacker = WorldQuery.getEntityById(entities, attackerId);
+        const target = WorldQuery.getEntityById(entities, targetId);
 
         if (!attacker || !target) return;
 
@@ -240,7 +242,7 @@ export class CombatSystem extends System {
         let weapon: Weapon | undefined;
 
         if (attackerInventory.rightHand) {
-            weaponEntity = this.getEntityById(entities, attackerInventory.rightHand);
+            weaponEntity = WorldQuery.getEntityById(entities, attackerInventory.rightHand);
             weapon = weaponEntity?.getComponent(Weapon);
         }
 
@@ -319,9 +321,6 @@ export class CombatSystem extends System {
         }
     }
 
-    private getEntityById(entities: Set<Entity>, id: string): Entity | undefined {
-        return Array.from(entities).find(e => e.id === id);
-    }
 
     private findMagazine(attacker: Entity, entities: Set<Entity>, ammoType: string): Entity | null {
         const inventory = attacker.getComponent(Inventory);
@@ -329,12 +328,12 @@ export class CombatSystem extends System {
 
         // Search through all equipment containers
         for (const [slot, equipId] of inventory.equipment) {
-            const equip = this.getEntityById(entities, equipId);
+            const equip = WorldQuery.getEntityById(entities, equipId);
             const container = equip?.getComponent(Container);
 
             if (container) {
                 for (const itemId of container.items) {
-                    const item = this.getEntityById(entities, itemId);
+                    const item = WorldQuery.getEntityById(entities, itemId);
                     const itemComp = item?.getComponent(Item);
 
                     // Check if this is a magazine (contains "Mag" and the ammo type)
@@ -354,14 +353,14 @@ export class CombatSystem extends System {
 
         // Find and remove from container
         for (const [slot, equipId] of inventory.equipment) {
-            const equip = this.getEntityById(entities, equipId);
+            const equip = WorldQuery.getEntityById(entities, equipId);
             const container = equip?.getComponent(Container);
 
             if (container) {
                 const index = container.items.indexOf(itemId);
                 if (index > -1) {
                     container.items.splice(index, 1);
-                    const item = this.getEntityById(entities, itemId)?.getComponent(Item);
+                    const item = WorldQuery.getEntityById(entities, itemId)?.getComponent(Item);
                     if (item) {
                         container.currentWeight -= item.weight;
                     }

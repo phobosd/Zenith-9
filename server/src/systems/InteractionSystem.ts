@@ -18,6 +18,11 @@ import { Engine } from '../ecs/Engine';
 import { Server } from 'socket.io';
 import * as fs from 'fs';
 import * as path from 'path';
+import { WorldQuery } from '../utils/WorldQuery';
+import { IEngine } from '../commands/CommandRegistry';
+import { DescriptionService } from '../services/DescriptionService';
+import { MessageFormatter } from '../utils/MessageFormatter';
+import { AutocompleteAggregator } from '../services/AutocompleteAggregator';
 
 export class InteractionSystem extends System {
     private io: Server;
@@ -27,40 +32,13 @@ export class InteractionSystem extends System {
         this.io = io;
     }
 
-    private getEntityById(entities: Set<Entity>, id: string): Entity | undefined {
-        for (const entity of entities) {
-            if (entity.id === id) return entity;
-        }
-        return undefined;
-    }
-
-    private findRoomAt(entities: Set<Entity>, x: number, y: number): Entity | undefined {
-        return Array.from(entities).find(e => {
-            const pos = e.getComponent(Position);
-            return e.hasComponent(IsRoom) && pos && pos.x === x && pos.y === y;
-        });
-    }
-
-    private findNPCsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
-            const pos = e.getComponent(Position);
-            return e.hasComponent(NPC) && pos && pos.x === x && pos.y === y;
-        });
-    }
-
-    private findItemsAt(entities: Set<Entity>, x: number, y: number): Entity[] {
-        return Array.from(entities).filter(e => {
-            const pos = e.getComponent(Position);
-            return e.hasComponent(Item) && pos && pos.x === x && pos.y === y;
-        });
-    }
 
     update(entities: Set<Entity>, deltaTime: number): void {
         // This system is mostly event-driven for now, but could handle timed interactions later
     }
 
     handleStanceChange(entityId: string, newStance: StanceType, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const stance = player.getComponent(Stance);
@@ -74,22 +52,21 @@ export class InteractionSystem extends System {
         stance.current = newStance;
         let msg = "";
         switch (newStance) {
-            case StanceType.Standing: msg = "<system>You stand up.</system>"; break;
-            case StanceType.Sitting: msg = "<system>You sit down.</system>"; break;
-            case StanceType.Lying: msg = "<system>You lie down.</system>"; break;
+            case StanceType.Standing: msg = MessageFormatter.system("You stand up."); break;
+            case StanceType.Sitting: msg = MessageFormatter.system("You sit down."); break;
+            case StanceType.Lying: msg = MessageFormatter.system("You lie down."); break;
         }
 
         this.io.to(entityId).emit('message', msg);
     }
 
     handleLook(entityId: string, entities: Set<Entity>, targetName?: string) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
         if (!playerPos) return;
 
-        // If looking at a specific target
         if (targetName) {
             // Check if this is "look in <container>"
             if (targetName.startsWith('in ')) {
@@ -97,280 +74,37 @@ export class InteractionSystem extends System {
                 return this.handleLookInContainer(entityId, containerName, entities);
             }
 
-            // Check for plural "busts" or "pedestals"
-            if (targetName.toLowerCase() === 'busts' || targetName.toLowerCase() === 'pedestals') {
-                const puzzleObjects = Array.from(entities).filter(e => {
-                    const pos = e.getComponent(Position);
-                    const p = e.getComponent(PuzzleObject);
-                    return pos && p && pos.x === playerPos.x && pos.y === playerPos.y;
-                });
-
-                if (puzzleObjects.length > 0) {
-                    let message = "<title>[Puzzle Objects]</title>\n";
-                    puzzleObjects.forEach(obj => {
-                        const desc = obj.getComponent(Description);
-                        if (desc) {
-                            message += `<item>- ${desc.title}</item>\n`;
-                        }
-                    });
-                    this.io.to(entityId).emit('message', message);
-                    return;
-                } else {
-                    this.io.to(entityId).emit('message', "You don't see any busts or pedestals here.");
-                    return;
-                }
+            const description = DescriptionService.describeTargetAt(player, entities, playerPos, targetName);
+            if (description) {
+                this.io.to(entityId).emit('message', description);
+            } else {
+                this.io.to(entityId).emit('message', `You don't see ${targetName} here.`);
             }
-
-            // Check for NPCs
-            const npcsInRoom = this.findNPCsAt(entities, playerPos.x, playerPos.y);
-            const targetNPC = npcsInRoom.find(npc => {
-                const npcComp = npc.getComponent(NPC);
-                return npcComp && npcComp.typeName.toLowerCase().includes(targetName.toLowerCase());
-            });
-
-            if (targetNPC) {
-                const npcComp = targetNPC.getComponent(NPC);
-                if (npcComp) {
-                    const message = `
-<title>[${npcComp.typeName}]</title>
-<desc>${npcComp.description}</desc>
-                    `.trim();
-                    this.io.to(entityId).emit('message', message);
-                    return;
-                }
-            }
-
-            // Check for other entities (Terminals, Objects, PuzzleObjects)
-            const targetEntity = Array.from(entities).find(e => {
-                const pos = e.getComponent(Position);
-                const desc = e.getComponent(Description);
-                // Check if name matches directly or if it's a "bust" and the name contains the specific type
-                return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y && (
-                    desc.title.toLowerCase().includes(targetName.toLowerCase()) ||
-                    (targetName.toLowerCase() === 'bust' && desc.title.toLowerCase().includes('bust')) ||
-                    (targetName.toLowerCase() === 'table' && desc.title.toLowerCase().includes('table'))
-                );
-            });
-
-            if (targetEntity) {
-                const desc = targetEntity.getComponent(Description);
-                if (desc) {
-                    this.io.to(entityId).emit('message', desc.description);
-                    return;
-                }
-            }
-
-            // Check inventory
-            const inventory = player.getComponent(Inventory);
-            if (inventory) {
-                const checkItem = (itemId: string): boolean => {
-                    const itemEntity = this.getEntityById(entities, itemId);
-                    if (!itemEntity) return false;
-                    const item = itemEntity.getComponent(Item);
-                    if (item && item.name.toLowerCase().includes(targetName.toLowerCase())) {
-                        const message = `
-<title>[${item.name}]</title>
-<desc>${item.description}</desc>
-<item-stats>Weight: ${item.weight}kg | Size: ${item.size}</item-stats>
-                        `.trim();
-                        this.io.to(entityId).emit('message', message);
-                        return true;
-                    }
-
-                    // Check inside container
-                    const container = itemEntity.getComponent(Container);
-                    if (container) {
-                        for (const subItemId of container.items) {
-                            if (checkItem(subItemId)) return true;
-                        }
-                    }
-                    return false;
-                };
-
-                if (inventory.leftHand && checkItem(inventory.leftHand)) return;
-                if (inventory.rightHand && checkItem(inventory.rightHand)) return;
-
-                for (const [slot, itemId] of inventory.equipment) {
-                    if (checkItem(itemId)) return;
-                }
-            }
-
-            this.io.to(entityId).emit('message', `You don't see ${targetName} here.`);
             return;
         }
 
         // Default Look (Room)
-        // Find the room the player is in
-        const room = this.findRoomAt(entities, playerPos.x, playerPos.y);
-        if (!room) return;
-
-        const roomDesc = room.getComponent(Description);
-        if (!roomDesc) return;
-
-        // Find items in the room
-        const itemsInRoom = this.findItemsAt(entities, playerPos.x, playerPos.y);
-        const itemDescriptions = itemsInRoom.map(item => {
-            const itemComp = item.getComponent(Item);
-            return itemComp ? `<item>There is a ${itemComp.name} here.</item>` : '';
-        }).join('\n');
-
-        // Find NPCs in the room
-        const npcsInRoom = this.findNPCsAt(entities, playerPos.x, playerPos.y);
-        const npcDescriptions = npcsInRoom.map(npc => {
-            const npcComp = npc.getComponent(NPC);
-            const combatStats = npc.getComponent(CombatStats);
-            if (npcComp) {
-                // Enemies (with CombatStats) are red
-                if (combatStats) {
-                    return `<enemy>${npcComp.typeName} is standing here.</enemy>`;
-                } else {
-                    return `<npc>${npcComp.typeName} is standing here.</npc>`;
-                }
-            }
-            return '';
-        }).join('\n');
-
-        // Find Terminals in the room
-        const terminalsInRoom = Array.from(entities).filter(e => {
-            const pos = e.getComponent(Position);
-            return e.hasComponent(Terminal) && pos && pos.x === playerPos.x && pos.y === playerPos.y;
-        });
-        const terminalDescriptions = terminalsInRoom.map(term => {
-            return `<terminal>A Shop Terminal is here.</terminal>`;
-        }).join('\n');
-
-        // Construct Message
-        let message = `<title>${roomDesc.title}</title>`;
-        message += `<room-desc>${roomDesc.description}</room-desc>\n`;
-
-        // Calculate Exits
-        const exits = [];
-        if (this.findRoomAt(entities, playerPos.x, playerPos.y - 1)) exits.push('N');
-        if (this.findRoomAt(entities, playerPos.x, playerPos.y + 1)) exits.push('S');
-        if (this.findRoomAt(entities, playerPos.x + 1, playerPos.y)) exits.push('E');
-        if (this.findRoomAt(entities, playerPos.x - 1, playerPos.y)) exits.push('W');
-
-        // Generate Mini-Map (5x5)
-        let miniMap = "";
-        const range = 2; // +/- 2 tiles
-        for (let y = playerPos.y - range; y <= playerPos.y + range; y++) {
-            let row = "";
-            for (let x = playerPos.x - range; x <= playerPos.x + range; x++) {
-                if (x === playerPos.x && y === playerPos.y) {
-                    row += "<map-player>@</map-player>";
-                } else {
-                    const r = this.findRoomAt(entities, x, y);
-                    if (r) {
-                        const shop = r.getComponent(Shop);
-                        const desc = r.getComponent(Description);
-
-                        if (shop) {
-                            if (shop.name.includes("Clinic")) {
-                                row += "<map-clinic>+</map-clinic>";
-                            } else {
-                                row += "<map-shop>$</map-shop>";
-                            }
-                        } else if (desc?.title.includes("Club")) {
-                            row += "<map-club>♫</map-club>";
-                        } else if (desc?.title.includes("Park")) {
-                            row += "<map-grass>T</map-grass>";
-                        } else if (desc?.title.includes("Plaza")) {
-                            row += "<map-street>#</map-street>";
-                        } else if (desc?.title.includes("Street")) {
-                            row += "<map-street>.</map-street>";
-                        } else {
-                            row += "<map-wall>#</map-wall>";
-                        }
-                    } else {
-                        row += " "; // Empty space
-                    }
-                }
-                row += " "; // Spacing
-            }
-            miniMap += row + "\n";
-        }
-
-        // Append terminal description to room description if present
-        let terminalText = "";
-        if (terminalsInRoom.length > 0) {
-            terminalText = "\n<terminal>A Shop Terminal is here.</terminal>";
-        }
-
-        const fullDescription = `<title>[${roomDesc.title}]</title><desc>${roomDesc.description}</desc>${terminalText}
-<exits>Exits: ${exits.join(', ')}</exits>
-${miniMap}
-${itemDescriptions}
-${npcDescriptions}
-    `.trim();
-
+        const fullDescription = DescriptionService.describeRoom(playerPos, entities);
         this.io.to(entityId).emit('message', fullDescription);
-        this.sendRoomAutocompleteUpdate(entityId, entities);
+
+        const autocompleteData = AutocompleteAggregator.getRoomAutocomplete(playerPos, entities);
+        this.io.to(entityId).emit('autocomplete-update', autocompleteData);
     }
 
     handleMap(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
         if (!playerPos) return;
 
-        let mapOutput = '<title>[Ouroboro City Map]</title>\n';
-
-        // 20x20 grid
-        const width = 20;
-        const height = 20;
-
-        for (let y = 0; y < height; y++) {
-            let row = "";
-            for (let x = 0; x < width; x++) {
-                if (x === playerPos.x && y === playerPos.y) {
-                    row += "<map-player>@</map-player>";
-                } else {
-                    const room = this.findRoomAt(entities, x, y);
-                    if (room) {
-                        const shop = room.getComponent(Shop);
-                        const desc = room.getComponent(Description);
-
-                        if (shop) {
-                            if (shop.name.includes("Clinic")) {
-                                row += "<map-clinic>+</map-clinic>";
-                            } else {
-                                row += "<map-shop>$</map-shop>";
-                            }
-                        } else if (desc?.title.includes("Club")) {
-                            row += "<map-club>♫</map-club>";
-                        } else if (desc?.title.includes("Park")) {
-                            row += "<map-grass>T</map-grass>";
-                        } else if (desc?.title.includes("Plaza")) {
-                            row += "<map-street>#</map-street>";
-                        } else if (desc?.title.includes("Street")) {
-                            row += "<map-street>.</map-street>";
-                        } else {
-                            row += "<map-wall>#</map-wall>";
-                        }
-                    } else {
-                        row += " "; // Empty space
-                    }
-                }
-                row += " "; // Spacing
-            }
-            mapOutput += row + "\n";
-        }
-
-        // Legend
-        mapOutput += '\n<legend>Key:</legend>\n';
-        mapOutput += '<map-player>@</map-player> <legend>You</legend>  ';
-        mapOutput += '<map-shop>$</map-shop> <legend>Shop</legend>  ';
-        mapOutput += '<map-clinic>+</map-clinic> <legend>Clinic</legend>  ';
-        mapOutput += '<map-club>♫</map-club> <legend>Club</legend>  ';
-        mapOutput += '<map-grass>T</map-grass> <legend>Park</legend>  ';
-        mapOutput += '<map-street>.</map-street> <legend>Street</legend>';
-
+        const mapOutput = DescriptionService.generateFullMap(playerPos, entities);
         this.io.to(entityId).emit('message', mapOutput);
     }
 
+
     handleLookInContainer(entityId: string, containerName: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -379,7 +113,7 @@ ${npcDescriptions}
         // Search for the container in equipped items
         let targetContainer: Entity | undefined = undefined;
         for (const itemId of inventory.equipment.values()) {
-            const item = this.getEntityById(entities, itemId);
+            const item = WorldQuery.getEntityById(entities, itemId);
             const itemComp = item?.getComponent(Item);
             if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
                 targetContainer = item;
@@ -401,27 +135,12 @@ ${npcDescriptions}
         const itemComp = targetContainer.getComponent(Item);
         const containerDisplayName = itemComp?.name || containerName;
 
-        if (container.items.length === 0) {
-            this.io.to(entityId).emit('message', `The ${containerDisplayName} is empty.`);
-            return;
-        }
-
-        // List contents
-        let output = `\n<title>Contents of ${containerDisplayName}:</title>\n`;
-        container.items.forEach(id => {
-            const item = this.getEntityById(entities, id);
-            const i = item?.getComponent(Item);
-            if (i) {
-                const displayName = i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name;
-                output += `<item>  - ${displayName}</item>\n`;
-            }
-        });
-
+        const output = DescriptionService.describeContainer(containerDisplayName, container, entities);
         this.io.to(entityId).emit('message', output);
     }
 
     handleGet(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
@@ -445,7 +164,7 @@ ${npcDescriptions}
         // Only if no container was specified
         let targetItem: Entity | undefined = undefined;
         if (!specifiedContainerName) {
-            const itemsInRoom = this.findItemsAt(entities, playerPos.x, playerPos.y);
+            const itemsInRoom = WorldQuery.findItemsAt(entities, playerPos.x, playerPos.y);
             targetItem = itemsInRoom.find(item => {
                 const itemComp = item.getComponent(Item);
                 return itemComp && itemComp.name.toLowerCase().includes(targetName);
@@ -459,7 +178,7 @@ ${npcDescriptions}
         // 2. Search in equipped containers
         if (!targetItem) {
             for (const itemId of inventory.equipment.values()) {
-                const equipEntity = this.getEntityById(entities, itemId);
+                const equipEntity = WorldQuery.getEntityById(entities, itemId);
                 const container = equipEntity?.getComponent(Container);
                 const equipItem = equipEntity?.getComponent(Item);
 
@@ -470,13 +189,13 @@ ${npcDescriptions}
                     }
 
                     const itemIdInContainer = container.items.find(id => {
-                        const item = this.getEntityById(entities, id);
+                        const item = WorldQuery.getEntityById(entities, id);
                         const i = item?.getComponent(Item);
                         return i && i.name.toLowerCase().includes(targetName);
                     });
 
                     if (itemIdInContainer) {
-                        targetItem = this.getEntityById(entities, itemIdInContainer);
+                        targetItem = WorldQuery.getEntityById(entities, itemIdInContainer);
                         fromContainer = true;
                         containerEntity = equipEntity;
                         containerDisplayName = equipItem.name;
@@ -528,7 +247,7 @@ ${npcDescriptions}
     }
 
     handleDrop(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -542,7 +261,7 @@ ${npcDescriptions}
         let fromHand: 'left' | 'right' | null = null;
 
         if (inventory.leftHand) {
-            const item = this.getEntityById(entities, inventory.leftHand);
+            const item = WorldQuery.getEntityById(entities, inventory.leftHand);
             if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
                 itemIdToDrop = inventory.leftHand;
                 fromHand = 'left';
@@ -550,7 +269,7 @@ ${npcDescriptions}
         }
 
         if (!itemIdToDrop && inventory.rightHand) {
-            const item = this.getEntityById(entities, inventory.rightHand);
+            const item = WorldQuery.getEntityById(entities, inventory.rightHand);
             if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
                 itemIdToDrop = inventory.rightHand;
                 fromHand = 'right';
@@ -562,11 +281,11 @@ ${npcDescriptions}
         if (!itemIdToDrop) {
             const backpackId = inventory.equipment.get('back');
             if (backpackId) {
-                const backpack = this.getEntityById(entities, backpackId);
+                const backpack = WorldQuery.getEntityById(entities, backpackId);
                 const container = backpack?.getComponent(Container);
                 if (container) {
                     const foundId = container.items.find(id => {
-                        const item = this.getEntityById(entities, id);
+                        const item = WorldQuery.getEntityById(entities, id);
                         return item?.getComponent(Item)?.name.toLowerCase().includes(targetName);
                     });
                     if (foundId) {
@@ -578,7 +297,7 @@ ${npcDescriptions}
         }
 
         if (itemIdToDrop) {
-            const itemEntity = this.getEntityById(entities, itemIdToDrop);
+            const itemEntity = WorldQuery.getEntityById(entities, itemIdToDrop);
             const itemComp = itemEntity?.getComponent(Item);
 
             if (itemEntity && itemComp) {
@@ -597,7 +316,8 @@ ${npcDescriptions}
                 itemEntity.addComponent(new Position(position.x, position.y));
 
                 this.io.to(entityId).emit('message', `You dropped the ${itemComp.name}.`);
-                this.sendInventoryUpdate(entityId, entities);
+                const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
+                this.io.to(entityId).emit('autocomplete-update', autocompleteData);
             }
         } else {
             this.io.to(entityId).emit('message', `You don't have a ${itemName} to drop.`);
@@ -605,7 +325,7 @@ ${npcDescriptions}
     }
 
     handleInventory(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -613,12 +333,12 @@ ${npcDescriptions}
 
         const getItemName = (id: string | null) => {
             if (!id) return "Empty";
-            const item = this.getEntityById(entities, id);
+            const item = WorldQuery.getEntityById(entities, id);
             return item?.getComponent(Item)?.name || "Unknown";
         };
 
         // Get backpack contents
-        const backpackContents = this.getBackpackContents(inventory, entities);
+        const backpackContents = DescriptionService.getBackpackContents(inventory, entities);
 
         // Send structured data to client for React component
         this.io.to(entityId).emit('inventory-data', {
@@ -631,180 +351,13 @@ ${npcDescriptions}
             backpackContents
         });
 
-        this.sendInventoryUpdate(entityId, entities);
+        const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
+        this.io.to(entityId).emit('autocomplete-update', autocompleteData);
     }
 
-    private getBackpackContents(inventory: Inventory, entities: Set<Entity>): string[] {
-        const backpackId = inventory.equipment.get('back');
-        if (!backpackId) return [];
-
-        const backpack = this.getEntityById(entities, backpackId);
-        const container = backpack?.getComponent(Container);
-        if (!container) return [];
-
-        return container.items.map(id => {
-            const item = this.getEntityById(entities, id);
-            const i = item?.getComponent(Item);
-            if (!i) {
-                // Try to find it in the full entity list if not in the passed set?
-                // The passed 'entities' set should contain everything.
-                // If it's returning Unknown, it means getEntityById returned undefined or Item component is missing.
-                // Debug log:
-                // console.log(`Item ID ${id} not found in entities list of size ${entities.size}`);
-                return "Unknown";
-            }
-            return i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name;
-        });
-    }
-
-    private sendInventoryUpdate(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const inventory = player.getComponent(Inventory);
-        if (!inventory) return;
-
-        const getHandContent = (handId: string | null) => {
-            if (!handId) return "Empty";
-            const item = this.getEntityById(entities, handId);
-            return item?.getComponent(Item)?.name || "Unknown";
-        };
-
-        const shortenName = (name: string): string => {
-            // Shorten common item names for autocomplete
-            if (name.toLowerCase().includes('pistol magazine')) return 'mag';
-            return name;
-        };
-
-        // Send Autocomplete Update for Inventory
-        const invItems: string[] = [];
-        const containers: string[] = [];
-
-        if (inventory.leftHand) {
-            const name = shortenName(getHandContent(inventory.leftHand));
-            invItems.push(name.toLowerCase());
-        }
-        if (inventory.rightHand) {
-            const name = shortenName(getHandContent(inventory.rightHand));
-            invItems.push(name.toLowerCase());
-        }
-
-        inventory.equipment.forEach((itemId) => {
-            const item = this.getEntityById(entities, itemId);
-            const itemComp = item?.getComponent(Item);
-            const container = item?.getComponent(Container);
-
-            // Add equipped containers to the containers list
-            if (container && itemComp) {
-                containers.push(itemComp.name.toLowerCase());
-            }
-
-            if (container) {
-                container.items.forEach(cid => {
-                    const cItem = this.getEntityById(entities, cid);
-                    const name = cItem?.getComponent(Item)?.name;
-                    if (name) {
-                        const shortName = shortenName(name);
-                        invItems.push(shortName.toLowerCase());
-                    }
-                });
-            }
-        });
-
-        this.io.to(entityId).emit('autocomplete-update', {
-            type: 'inventory',
-            items: invItems.filter(n => n !== 'empty' && n !== 'unknown'),
-            containers: containers
-        });
-    }
-
-    sendRoomAutocompleteUpdate(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
-        if (!player) return;
-
-        const playerPos = player.getComponent(Position);
-        if (!playerPos) return;
-
-        const objects: string[] = [];  // NPCs, terminals, puzzle objects (non-item entities)
-        const groundItems: string[] = []; // Items on the ground
-        const groundContainers: string[] = []; // Containers on the ground
-
-        // Find NPCs
-        const npcs = this.findNPCsAt(entities, playerPos.x, playerPos.y);
-        npcs.forEach(npc => {
-            const npcComp = npc.getComponent(NPC);
-            if (npcComp) {
-                objects.push(npcComp.typeName.toLowerCase());
-            }
-        });
-
-        // Find Terminals
-        const terminals = Array.from(entities).filter(e => {
-            const pos = e.getComponent(Position);
-            return e.hasComponent(Terminal) && pos && pos.x === playerPos.x && pos.y === playerPos.y;
-        });
-        terminals.forEach(terminal => {
-            const desc = terminal.getComponent(Description);
-            if (desc) {
-                objects.push(desc.title.toLowerCase());
-            }
-        });
-
-        // Find Puzzle Objects & Other Description entities (busts, tables, etc.)
-        const descEntities = Array.from(entities).filter(e => {
-            const pos = e.getComponent(Position);
-            const desc = e.getComponent(Description);
-            const hasItem = e.hasComponent(Item);
-            return pos && desc && !hasItem && pos.x === playerPos.x && pos.y === playerPos.y;
-        });
-        descEntities.forEach(entity => {
-            const desc = entity.getComponent(Description);
-            if (desc && !objects.includes(desc.title.toLowerCase())) {
-                objects.push(desc.title.toLowerCase());
-                // Also add shortened versions for common names
-                if (desc.title.includes('Bust')) {
-                    const bustType = desc.title.replace(' Bust', '').toLowerCase();
-                    if (!objects.includes(bustType)) {
-                        objects.push(bustType);
-                    }
-                    if (!objects.includes('bust')) {
-                        objects.push('bust');
-                    }
-                }
-                if (desc.title.includes('Table')) {
-                    if (!objects.includes('table')) {
-                        objects.push('table');
-                    }
-                }
-            }
-        });
-
-        // Find Ground Items & Containers
-        const items = this.findItemsAt(entities, playerPos.x, playerPos.y);
-        items.forEach(item => {
-            const itemComp = item.getComponent(Item);
-            const containerComp = item.getComponent(Container);
-
-            if (itemComp) {
-                groundItems.push(itemComp.name.toLowerCase());
-
-                // If it's also a container, add it to groundContainers
-                if (containerComp) {
-                    groundContainers.push(itemComp.name.toLowerCase());
-                }
-            }
-        });
-
-        this.io.to(entityId).emit('autocomplete-update', {
-            type: 'room',
-            objects: objects,
-            items: groundItems,
-            containers: groundContainers
-        });
-    }
 
     handleGlance(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -812,7 +365,7 @@ ${npcDescriptions}
 
         const getHandContent = (handId: string | null) => {
             if (!handId) return "nothing";
-            const item = this.getEntityById(entities, handId);
+            const item = WorldQuery.getEntityById(entities, handId);
             return item?.getComponent(Item)?.name || "something unknown";
         };
 
@@ -830,7 +383,7 @@ ${npcDescriptions}
     }
 
     handleStow(entityId: string, itemName: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
@@ -853,7 +406,7 @@ ${npcDescriptions}
         let fromHand: 'left' | 'right' | null = null;
 
         if (inventory.leftHand) {
-            const item = this.getEntityById(entities, inventory.leftHand);
+            const item = WorldQuery.getEntityById(entities, inventory.leftHand);
             if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
                 itemIdToStow = inventory.leftHand;
                 fromHand = 'left';
@@ -861,7 +414,7 @@ ${npcDescriptions}
         }
 
         if (!itemIdToStow && inventory.rightHand) {
-            const item = this.getEntityById(entities, inventory.rightHand);
+            const item = WorldQuery.getEntityById(entities, inventory.rightHand);
             if (item && item.getComponent(Item)?.name.toLowerCase().includes(targetItemName)) {
                 itemIdToStow = inventory.rightHand;
                 fromHand = 'right';
@@ -878,7 +431,7 @@ ${npcDescriptions}
         let containerName = '';
 
         for (const equipId of inventory.equipment.values()) {
-            const equip = this.getEntityById(entities, equipId);
+            const equip = WorldQuery.getEntityById(entities, equipId);
             const equipItem = equip?.getComponent(Item);
             const equipContainer = equip?.getComponent(Container);
 
@@ -897,7 +450,7 @@ ${npcDescriptions}
         }
 
         const container = targetContainer.getComponent(Container);
-        const itemToStow = this.getEntityById(entities, itemIdToStow);
+        const itemToStow = WorldQuery.getEntityById(entities, itemIdToStow);
         const itemComp = itemToStow?.getComponent(Item);
 
         if (container && itemComp) {
@@ -910,7 +463,8 @@ ${npcDescriptions}
                 if (fromHand === 'right') inventory.rightHand = null;
 
                 this.io.to(entityId).emit('message', `You put the ${itemComp.name} in your ${containerName}.`);
-                this.sendInventoryUpdate(entityId, entities);
+                const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, entities);
+                this.io.to(entityId).emit('autocomplete-update', autocompleteData);
             } else {
                 this.io.to(entityId).emit('message', `Your ${containerName} is too heavy! (${container.currentWeight.toFixed(1)}/${container.maxWeight} lbs)`);
             }
@@ -918,14 +472,14 @@ ${npcDescriptions}
     }
 
     handleSwap(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const inventory = player.getComponent(Inventory);
         if (!inventory) return;
 
-        const leftItem = inventory.leftHand ? this.getEntityById(entities, inventory.leftHand) : null;
-        const rightItem = inventory.rightHand ? this.getEntityById(entities, inventory.rightHand) : null;
+        const leftItem = inventory.leftHand ? WorldQuery.getEntityById(entities, inventory.leftHand) : null;
+        const rightItem = inventory.rightHand ? WorldQuery.getEntityById(entities, inventory.rightHand) : null;
 
         if (!leftItem && !rightItem) {
             this.io.to(entityId).emit('message', "You have nothing in your hands to swap.");
@@ -954,7 +508,7 @@ ${npcDescriptions}
     }
 
     handleSheet(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const stats = player.getComponent(Stats);
@@ -988,7 +542,7 @@ ${npcDescriptions}
     }
 
     handleScore(entityId: string, entities: Set<Entity>) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const stats = player.getComponent(Stats);
@@ -1026,7 +580,7 @@ ${npcDescriptions}
             return;
         }
 
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
@@ -1090,7 +644,7 @@ ${npcDescriptions}
     }
 
     handleTerminalBuy(entityId: string, entities: Set<Entity>, itemName: string, cost: number) {
-        const player = this.getEntityById(entities, entityId);
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         // Check if player has enough credits (assuming credits are stored in Stats or Inventory)
@@ -1116,7 +670,7 @@ ${npcDescriptions}
             let added = false;
 
             if (backpackId) {
-                const backpack = this.getEntityById(entities, backpackId);
+                const backpack = WorldQuery.getEntityById(entities, backpackId);
                 const container = backpack?.getComponent(Container);
                 if (container) {
                     if (container.currentWeight + itemComp.weight <= container.maxWeight) {
@@ -1151,8 +705,8 @@ ${npcDescriptions}
         return null;
     }
 
-    handleTurn(entityId: string, entities: Set<Entity>, targetName: string, direction: string, engine: Engine) {
-        const player = this.getEntityById(entities, entityId);
+    handleTurn(entityId: string, entities: Set<Entity>, targetName: string, direction: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(entities, entityId);
         if (!player) return;
 
         const playerPos = player.getComponent(Position);
@@ -1223,7 +777,7 @@ ${npcDescriptions}
 
     }
 
-    private checkPuzzleCompletion(puzzleId: string, entities: Set<Entity>, pos: Position, engine: Engine, playerId: string) {
+    private checkPuzzleCompletion(puzzleId: string, entities: Set<Entity>, pos: Position, engine: IEngine, playerId: string) {
         // Find all objects with this puzzleId
         const puzzleObjects = Array.from(entities).filter(e => {
             const p = e.getComponent(PuzzleObject);
@@ -1249,24 +803,24 @@ ${npcDescriptions}
             });
 
             // Check if player has the reward
-            const player = this.getEntityById(entities, playerId);
+            const player = WorldQuery.getEntityById(entities, playerId);
             let playerHasReward = false;
             if (player) {
                 const inventory = player.getComponent(Inventory);
                 if (inventory) {
                     // Check hands
                     if (inventory.leftHand) {
-                        const lItem = this.getEntityById(entities, inventory.leftHand);
+                        const lItem = WorldQuery.getEntityById(entities, inventory.leftHand);
                         if (lItem?.getComponent(Item)?.name === "Platinum Hard Disk") playerHasReward = true;
                     }
                     if (inventory.rightHand) {
-                        const rItem = this.getEntityById(entities, inventory.rightHand);
+                        const rItem = WorldQuery.getEntityById(entities, inventory.rightHand);
                         if (rItem?.getComponent(Item)?.name === "Platinum Hard Disk") playerHasReward = true;
                     }
                     // Check backpack/equipment
                     if (!playerHasReward) {
                         for (const [slot, itemId] of inventory.equipment) {
-                            const item = this.getEntityById(entities, itemId);
+                            const item = WorldQuery.getEntityById(entities, itemId);
                             if (item?.getComponent(Item)?.name === "Platinum Hard Disk") {
                                 playerHasReward = true;
                                 break;
@@ -1275,7 +829,7 @@ ${npcDescriptions}
                             const container = item?.getComponent(Container);
                             if (container) {
                                 for (const subId of container.items) {
-                                    const subItem = this.getEntityById(entities, subId);
+                                    const subItem = WorldQuery.getEntityById(entities, subId);
                                     if (subItem?.getComponent(Item)?.name === "Platinum Hard Disk") {
                                         playerHasReward = true;
                                         break;

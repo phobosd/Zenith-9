@@ -1,16 +1,30 @@
 import { Server } from 'socket.io';
+import { MovementSystem } from '../systems/MovementSystem';
+import { InteractionSystem } from '../systems/InteractionSystem';
+import { NPCSystem } from '../systems/NPCSystem';
+import { CombatSystem } from '../systems/CombatSystem';
+import { Entity } from '../ecs/Entity';
+
+export interface SystemRegistry {
+    movement: MovementSystem;
+    interaction: InteractionSystem;
+    npc: NPCSystem;
+    combat: CombatSystem;
+}
+
+export interface IEngine {
+    addEntity(entity: Entity): void;
+    removeEntity(entityId: string): void;
+    getEntity(entityId: string): Entity | undefined;
+    getEntities(): Map<string, Entity>;
+}
 
 export interface CommandContext {
     socketId: string;
     args: string[];
     io: Server;
-    engine: any; // Using any for now to access entities
-    systems: {
-        movement: any;
-        interaction: any;
-        npc: any;
-        combat: any;
-    }
+    engine: IEngine;
+    systems: SystemRegistry;
 }
 
 export interface Command {
@@ -37,7 +51,12 @@ export class CommandRegistry {
         const command = this.commands.get(commandName);
 
         if (command) {
-            command.execute(context);
+            try {
+                command.execute(context);
+            } catch (error) {
+                console.error(`Error executing command '${commandName}':`, error);
+                context.io.to(context.socketId).emit('message', `<error>An internal error occurred while executing the command.</error>`);
+            }
         } else {
             context.io.to(context.socketId).emit('message', "Invalid command. Type '?' for a list of commands.");
         }
