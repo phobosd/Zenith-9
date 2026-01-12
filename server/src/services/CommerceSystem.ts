@@ -104,7 +104,7 @@ export class CommerceSystem {
         Logger.info('CommerceSystem', `Generated itemsData: ${itemsData.length} items successfully resolved.`);
 
         this.io.to(entityId).emit('terminal-data', {
-            title: "CYBERNETICS CATALOG",
+            title: terminal.data.title || "TERMINAL CATALOG",
             items: itemsData
         });
         this.messageService.system(entityId, "You access the terminal...");

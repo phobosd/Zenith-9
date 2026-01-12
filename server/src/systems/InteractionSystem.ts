@@ -128,14 +128,36 @@ export class InteractionSystem extends System {
         const inventory = player.getComponent(Inventory);
         if (!inventory) return;
 
-        // Search for the container in equipped items
+        // Search for the container in hands first
         let targetContainer: Entity | undefined = undefined;
-        for (const itemId of inventory.equipment.values()) {
-            const item = WorldQuery.getEntityById(engine, itemId);
+
+        // Check left hand
+        if (inventory.leftHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.leftHand);
             const itemComp = item?.getComponent(Item);
             if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
                 targetContainer = item;
-                break;
+            }
+        }
+
+        // Check right hand
+        if (!targetContainer && inventory.rightHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.rightHand);
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
+                targetContainer = item;
+            }
+        }
+
+        // Search for the container in equipped items
+        if (!targetContainer) {
+            for (const itemId of inventory.equipment.values()) {
+                const item = WorldQuery.getEntityById(engine, itemId);
+                const itemComp = item?.getComponent(Item);
+                if (itemComp && itemComp.name.toLowerCase().includes(containerName.toLowerCase())) {
+                    targetContainer = item;
+                    break;
+                }
             }
         }
 
@@ -203,6 +225,13 @@ export class InteractionSystem extends System {
             attributes.push({ name: fullName, value: attr.value });
         }
 
+        const inventory = player.getComponent(Inventory);
+        const getItemName = (id: string | null) => {
+            if (!id) return "None";
+            const item = WorldQuery.getEntityById(engine, id);
+            return item?.getComponent(Item)?.name || "Unknown";
+        };
+
         const sheetData = {
             attributes: attributes,
             combat: {
@@ -210,7 +239,14 @@ export class InteractionSystem extends System {
                 maxHp: combatStats.maxHp,
                 defense: combatStats.defense,
                 damage: combatStats.attack
-            }
+            },
+            equipment: inventory ? {
+                head: getItemName(inventory.equipment.get('head') || null),
+                torso: getItemName(inventory.equipment.get('torso') || null),
+                legs: getItemName(inventory.equipment.get('legs') || null),
+                feet: getItemName(inventory.equipment.get('feet') || null),
+                hands: getItemName(inventory.equipment.get('hands') || null) // Adding hands slot too just in case
+            } : null
         };
 
         this.io.to(entityId).emit('sheet-data', sheetData);
@@ -294,6 +330,14 @@ export class InteractionSystem extends System {
 
     handleTurn(entityId: string, engine: IEngine, targetName: string, direction: string) {
         this.puzzleManager.handleTurn(entityId, engine, targetName, direction);
+    }
+
+    handleWear(entityId: string, itemName: string, engine: IEngine) {
+        this.inventoryHandler.handleWear(entityId, itemName, engine);
+    }
+
+    handleRemove(entityId: string, itemName: string, engine: IEngine) {
+        this.inventoryHandler.handleRemove(entityId, itemName, engine);
     }
 }
 

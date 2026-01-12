@@ -20,6 +20,7 @@ import { WoundTable } from '../components/WoundTable';
 import { IsCyberspace } from '../components/IsCyberspace';
 import { IsPersona } from '../components/IsPersona';
 import { Roundtime } from '../components/Roundtime';
+import { CombatBuffer, CombatActionType, CombatAction } from '../components/CombatBuffer';
 
 interface CriticalEffect {
     name: string;
@@ -120,6 +121,55 @@ export class CombatSystem extends System {
         return log;
     }
 
+    private getAttackFlavor(category: string, hitType: 'crushing' | 'solid' | 'marginal' | 'miss'): { hitLabel: string, playerAction: string, npcAction: string, obsLabel: string } {
+        const cat = category.toLowerCase();
+
+        if (cat.includes('pistol') || cat.includes('rifle') || cat.includes('smg') || cat.includes('shotgun') || cat.includes('sweeper')) {
+            switch (hitType) {
+                case 'crushing': return { hitLabel: "[CRITICAL SHOT]", playerAction: "land a perfect shot", npcAction: "lands a perfect shot", obsLabel: "[CRITICAL SHOT]" };
+                case 'solid': return { hitLabel: "[SOLID HIT]", playerAction: "hit the target", npcAction: "hits the target", obsLabel: "[SOLID HIT]" };
+                case 'marginal': return { hitLabel: "[GRAZE]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "[GRAZE]" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "shoot wide", npcAction: "shoots wide", obsLabel: "The shot goes wide!" };
+            }
+        } else if (cat.includes('knife') || cat.includes('blade') || cat.includes('sword') || cat.includes('katana') || cat.includes('machete')) {
+            switch (hitType) {
+                case 'crushing': return { hitLabel: "[DEEP SLASH]", playerAction: "carve a deep wound", npcAction: "carves a deep wound", obsLabel: "[DEEP SLASH]" };
+                case 'solid': return { hitLabel: "[SLASH]", playerAction: "cut into the target", npcAction: "cuts into the target", obsLabel: "[SLASH]" };
+                case 'marginal': return { hitLabel: "[NICK]", playerAction: "nick the target", npcAction: "nicks the target", obsLabel: "[NICK]" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing at air", npcAction: "swings at air", obsLabel: "The swing misses!" };
+            }
+        } else if (cat.includes('whip') || cat.includes('wire')) {
+            switch (hitType) {
+                case 'crushing': return { hitLabel: "[SEVER]", playerAction: "whip bites deep", npcAction: "whip bites deep", obsLabel: "[SEVER]" };
+                case 'solid': return { hitLabel: "[LASH]", playerAction: "lash the target", npcAction: "lashes the target", obsLabel: "[LASH]" };
+                case 'marginal': return { hitLabel: "[SNAG]", playerAction: "snag the target", npcAction: "snags the target", obsLabel: "[SNAG]" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap harmlessly", npcAction: "snaps harmlessly", obsLabel: "The wire snaps harmlessly!" };
+            }
+        } else if (cat.includes('prod') || cat.includes('bat') || cat.includes('club') || cat.includes('knuckles') || cat.includes('hammer')) {
+            switch (hitType) {
+                case 'crushing': return { hitLabel: "[SMASH]", playerAction: "land a bone-jarring blow", npcAction: "lands a bone-jarring blow", obsLabel: "[SMASH]" };
+                case 'solid': return { hitLabel: "[THUMP]", playerAction: "strike the target", npcAction: "strikes the target", obsLabel: "[THUMP]" };
+                case 'marginal': return { hitLabel: "[GLANCE]", playerAction: "glance off", npcAction: "glances off", obsLabel: "[GLANCE]" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing wild", npcAction: "swings wild", obsLabel: "The swing misses!" };
+            }
+        } else if (cat.includes('natural') || cat.includes('rat')) {
+            switch (hitType) {
+                case 'crushing': return { hitLabel: "[SAVAGE BITE]", playerAction: "tear a chunk of flesh", npcAction: "tears a chunk of flesh", obsLabel: "[SAVAGE BITE]" };
+                case 'solid': return { hitLabel: "[BITE]", playerAction: "sink teeth in", npcAction: "sinks teeth in", obsLabel: "[BITE]" };
+                case 'marginal': return { hitLabel: "[SCRATCH]", playerAction: "scratch the target", npcAction: "scratches the target", obsLabel: "[SCRATCH]" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap at air", npcAction: "snaps at air", obsLabel: "The attack misses!" };
+            }
+        }
+
+        // Generic fallback
+        switch (hitType) {
+            case 'crushing': return { hitLabel: "[CRUSHING]", playerAction: "deal massive damage", npcAction: "deals massive damage", obsLabel: "[CRUSHING HIT]" };
+            case 'solid': return { hitLabel: "[SOLID]", playerAction: "hit the target", npcAction: "hits the target", obsLabel: "[SOLID HIT]" };
+            case 'marginal': return { hitLabel: "[MARGINAL]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "[MARGINAL HIT]" };
+            case 'miss': return { hitLabel: "[MISS]", playerAction: "miss", npcAction: "misses", obsLabel: "The attack misses!" };
+        }
+    }
+
     private calculateAttackerPower(attacker: Entity, weapon: Weapon, skillName: string): number {
         const stats = attacker.getComponent(Stats);
         const combatStats = attacker.getComponent(CombatStats);
@@ -130,7 +180,9 @@ export class CombatSystem extends System {
         const balance = combatStats.balance;
 
         // Attacker_Power = (Skill * 0.6) + (Agility * 0.4) + (Current_Balance * 20)
-        return (skill * 0.6) + (agi * 0.4) + (balance * 20);
+        const power = (skill * 0.6) + (agi * 0.4) + (balance * 20);
+        console.log(`[CombatDebug] AttackerPower: Skill(${skillName})=${skill}, AGI=${agi}, Bal=${balance} => Power=${power}`);
+        return power;
     }
 
     private calculateDefenderPower(defender: Entity, attackType: 'MELEE' | 'RANGED' = 'MELEE'): number {
@@ -143,7 +195,19 @@ export class CombatSystem extends System {
 
         // Base skills
         const evasionSkill = stats.skills.get('Evasion')?.level || 1;
-        const parrySkill = stats.skills.get('Melee Combat')?.level || 1; // Using Melee Combat for Parry
+
+        // Determine Parry Skill
+        let parrySkill = stats.skills.get('Melee Combat')?.level || 1;
+        const inventory = defender.getComponent(Inventory);
+        if (inventory && inventory.rightHand) {
+            const weaponEntity = WorldQuery.getEntityById(this.engine, inventory.rightHand);
+            if (weaponEntity) {
+                const weapon = weaponEntity.getComponent(Weapon);
+                if (weapon && weapon.name.toLowerCase().includes('katana')) {
+                    parrySkill = stats.skills.get('Kenjutsu')?.level || 1;
+                }
+            }
+        }
         const shieldSkill = stats.skills.get('Shield Usage')?.level || 1; // Assuming Shield Usage skill exists
 
         // Effective Defense = Weighted sum of defenses based on allocation
@@ -164,7 +228,19 @@ export class CombatSystem extends System {
         effectiveDefense += shieldVal * (combatStats.shield / 100);
 
         // Balance modifier
-        return effectiveDefense + (balance * 20);
+        let power = effectiveDefense + (balance * 20);
+
+        // Physical Stance Penalty
+        const physicalStance = defender.getComponent(Stance);
+        if (physicalStance) {
+            if (physicalStance.current === StanceType.Sitting) {
+                power *= 0.75; // 25% penalty
+            } else if (physicalStance.current === StanceType.Lying) {
+                power *= 0.5; // 50% penalty
+            }
+        }
+
+        return power;
     }
 
     private applyWoundToTarget(target: Entity, part: BodyPart, level: number): string {
@@ -330,7 +406,15 @@ export class CombatSystem extends System {
         // Calculate sync bar parameters based on weapon and skills
         const agiAttr = attackerStats.attributes.get('AGI');
         const agility = agiAttr?.value || 10;
-        const skillLevel = attackerStats.skills.get('Marksmanship (Light)')?.level || 1;
+
+        let skillName = 'Melee Combat';
+        if (weapon.name.toLowerCase().includes('katana')) {
+            skillName = 'Kenjutsu';
+        } else if (weapon.range > 0) {
+            skillName = 'Marksmanship (Light)';
+        }
+
+        const skillLevel = attackerStats.skills.get(skillName)?.level || 1;
 
         // Weapon difficulty modifies the sync bar
         const baseSpeed = weapon.difficulty.speed;
@@ -384,7 +468,7 @@ export class CombatSystem extends System {
         this.applyRoundtime(attackerId, 3, engine);
     }
 
-    handleSyncResult(attackerId: string, targetId: string, hitType: 'crit' | 'hit' | 'miss', engine: IEngine): void {
+    handleSyncResult(attackerId: string, targetId: string, hitType: 'crit' | 'hit' | 'miss', engine: IEngine, damageMultiplier: number = 1.0): void {
         const attacker = WorldQuery.getEntityById(engine, attackerId);
         const target = WorldQuery.getEntityById(engine, targetId);
 
@@ -398,6 +482,14 @@ export class CombatSystem extends System {
 
         if (!targetCombatStats || !attackerCombatStats || !attackerInventory || !attackerStats) return;
 
+        // Ensure target becomes hostile if attacked and sync target IDs
+        if (!attackerCombatStats.targetId) attackerCombatStats.targetId = targetId;
+        if (targetCombatStats && !targetCombatStats.isHostile) {
+            targetCombatStats.isHostile = true;
+            targetCombatStats.targetId = attackerId;
+            this.messageService.combat(attackerId, `<enemy>${targetNPC?.typeName || 'The target'} becomes hostile!</enemy>`);
+        }
+
         // Get weapon
         let weaponEntity: Entity | undefined;
         let weapon: Weapon | undefined;
@@ -409,8 +501,13 @@ export class CombatSystem extends System {
 
         if (!weapon) return;
 
-        // Determine skill name based on weapon (simplified)
-        const skillName = weapon.range > 0 ? 'Marksmanship (Light)' : 'Melee Combat';
+        // Determine skill name based on weapon
+        let skillName = 'Melee Combat';
+        if (weapon.name.toLowerCase().includes('katana')) {
+            skillName = 'Kenjutsu';
+        } else if (weapon.range > 0) {
+            skillName = 'Marksmanship (Light)';
+        }
 
         // Calculate Powers
         const attackType = weapon.range > 0 ? 'RANGED' : 'MELEE';
@@ -419,6 +516,7 @@ export class CombatSystem extends System {
 
         // Result Ladder Logic
         const margin = attackerPower - defenderPower;
+        console.log(`[CombatDebug] Margin=${margin} (Atk=${attackerPower} - Def=${defenderPower})`);
         let combatLog = `\n<combat>You attack ${targetNPC?.typeName || 'the target'} with your ${weapon.name}!\n`;
         let observerLog = `\n<combat>A combatant attacks ${targetNPC?.typeName || 'the target'} with their ${weapon.name}!\n`;
 
@@ -435,15 +533,18 @@ export class CombatSystem extends System {
             }
         }
 
+        const flavor = this.getAttackFlavor(weapon.category, effectiveHitType);
+
         switch (effectiveHitType) {
             case 'crushing':
-                const crushingDamage = Math.floor(weapon.damage * 1.0);
+                const crushingDamage = Math.floor((weapon.damage * 1.5 + (margin * 0.5)) * damageMultiplier);
+                console.log(`[CombatDebug] CrushingDamage: Base=${weapon.damage}, Margin=${margin}, Mult=${damageMultiplier} => ${crushingDamage}`);
                 targetCombatStats.hp -= crushingDamage;
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.1);
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.2);
 
-                combatLog += `<combat-hit>[CRUSHING] You deal ${crushingDamage} damage!</combat-hit>\n`;
-                observerLog += `<combat-hit>[CRUSHING HIT]</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}! You deal ${crushingDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
 
                 // Apply Wound
                 const targetPart = attackerCombatStats.targetLimb || BodyPart.Chest;
@@ -452,28 +553,28 @@ export class CombatSystem extends System {
                 break;
 
             case 'solid':
-                const solidDamage = Math.floor(weapon.damage * 0.5);
+                const solidDamage = Math.floor((weapon.damage * 1.0 + (margin * 0.2)) * damageMultiplier);
                 targetCombatStats.hp -= solidDamage;
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.05);
 
-                combatLog += `<combat-hit>[SOLID] You deal ${solidDamage} damage!</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}! You deal ${solidDamage} damage!</combat-hit>\n`;
                 combatLog += `Target loses balance!`;
-                observerLog += `<combat-hit>[SOLID HIT]</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
 
             case 'marginal':
-                const marginalDamage = Math.floor(weapon.damage * 0.1);
+                const marginalDamage = Math.floor((weapon.damage * 0.5) * damageMultiplier);
                 targetCombatStats.hp -= marginalDamage;
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.05);
 
-                combatLog += `<combat-hit>[MARGINAL] You deal ${marginalDamage} damage.</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}. You deal ${marginalDamage} damage.</combat-hit>\n`;
                 combatLog += `You regain some momentum.`;
-                observerLog += `<combat-hit>[MARGINAL HIT]</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
 
             case 'miss':
-                combatLog += `<combat-miss>You miss!</combat-miss>\n`;
-                observerLog += `<combat-miss>The attack misses!</combat-miss>\n`;
+                combatLog += `<combat-miss>${flavor.hitLabel} You ${flavor.playerAction}!</combat-miss>\n`;
+                observerLog += `<combat-miss>${flavor.obsLabel}</combat-miss>\n`;
                 attackerCombatStats.balance = Math.max(0.0, attackerCombatStats.balance - 0.1);
                 break;
         }
@@ -525,6 +626,11 @@ export class CombatSystem extends System {
             }
 
             this.engine.removeEntity(target.id);
+
+            // Reset attacker's combat state
+            attackerCombatStats.engagementTier = EngagementTier.DISENGAGED;
+            attackerCombatStats.targetId = null;
+            attackerCombatStats.isHostile = false;
         } else {
             combatLog += `\n${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP | Balance: ${Math.floor(targetCombatStats.balance * 100)}%`;
         }
@@ -546,6 +652,184 @@ export class CombatSystem extends System {
             for (const observer of playersInRoom) {
                 this.messageService.combat(observer.id, observerLog);
             }
+        }
+    }
+
+    public executeBuffer(playerId: string, engine: IEngine): void {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        if (!player) return;
+
+        const buffer = player.getComponent(CombatBuffer);
+        if (!buffer || buffer.actions.length === 0 || buffer.isExecuting) return;
+
+        buffer.isExecuting = true;
+        this.messageService.system(playerId, "[BUFFER] Initiating sequence upload...");
+
+        // Check for combos before starting
+        const combo = this.checkCombos(buffer.actions);
+        if (combo) {
+            this.messageService.success(playerId, `\n[!! COMBO DETECTED: ${combo.name} !!]`);
+            // We'll apply the combo effect to the next relevant action
+            (buffer as any).activeCombo = combo;
+        }
+
+        // Process actions one by one
+        this.processNextBufferAction(playerId, engine);
+    }
+
+    private checkCombos(actions: CombatAction[]): { name: string, multiplier: number } | null {
+        const types = actions.map(a => a.type);
+        const sequence = types.join('->');
+
+        if (sequence === 'DASH->DASH->SLASH') return { name: 'CRITICAL EXECUTION', multiplier: 3.0 };
+        if (sequence === 'PARRY->SLASH->THRUST') return { name: 'RIPOSTE', multiplier: 2.5 };
+        if (sequence === 'SLASH->SLASH->SLASH') return { name: 'TRIPLE STRIKE', multiplier: 2.0 };
+
+        return null;
+    }
+
+    private async processNextBufferAction(playerId: string, engine: IEngine): Promise<void> {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        if (!player) return;
+
+        const buffer = player.getComponent(CombatBuffer);
+        if (!buffer || buffer.actions.length === 0) {
+            if (buffer) {
+                buffer.isExecuting = false;
+                (buffer as any).activeCombo = null;
+                const combatStats = player.getComponent(CombatStats);
+                if (combatStats) combatStats.isParrying = false;
+                this.messageService.system(playerId, "[BUFFER] Sequence complete.");
+                this.io.to(playerId).emit('buffer-update', {
+                    actions: buffer.actions,
+                    maxSlots: buffer.maxSlots,
+                    isExecuting: buffer.isExecuting
+                });
+            }
+            return;
+        }
+
+        // Check for malware injection (REBOOT)
+        if (buffer.malware.includes('REBOOT')) {
+            this.messageService.error(playerId, "[MALWARE] REBOOT INJECTED. SYSTEM HALTED.");
+            buffer.actions = [];
+            buffer.malware = buffer.malware.filter(m => m !== 'REBOOT');
+            buffer.isExecuting = false;
+            this.applyRoundtime(playerId, 5, engine); // 5 second stun
+            return;
+        }
+
+        const action = buffer.actions.shift()!;
+        const combatStats = player.getComponent(CombatStats);
+        if (combatStats) combatStats.isParrying = false; // Reset parry window
+
+        // Notify client of current action
+        this.io.to(playerId).emit('buffer-update', {
+            actions: buffer.actions,
+            maxSlots: buffer.maxSlots,
+            isExecuting: buffer.isExecuting,
+            currentAction: action
+        });
+
+        // Execute action
+        await this.executeSingleAction(playerId, action, engine, (buffer as any).activeCombo);
+
+        // Wait for roundtime (simulated)
+        setTimeout(() => {
+            this.processNextBufferAction(playerId, engine);
+        }, 1500); // 1.5s between actions
+    }
+
+    private async executeSingleAction(playerId: string, action: CombatAction, engine: IEngine, combo: any): Promise<void> {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        if (!player) return;
+
+        const combatStats = player.getComponent(CombatStats);
+        if (!combatStats) return;
+
+        // Find a target if not specified
+        let targetId = action.targetId;
+        if (!targetId) {
+            // 1. Check if player already has a target
+            if (combatStats.targetId) {
+                targetId = combatStats.targetId;
+            } else {
+                // 2. Look for NPCs in the room
+                const pos = player.getComponent(Position);
+                if (pos) {
+                    const npcs = WorldQuery.findNPCsAt(engine, pos.x, pos.y);
+                    // Prefer hostile ones
+                    const hostile = npcs.find(n => n.getComponent(CombatStats)?.isHostile);
+                    if (hostile) {
+                        targetId = hostile.id;
+                    } else if (npcs.length > 0) {
+                        // Fallback to any NPC if no hostile ones (e.g. attacking a pacified one)
+                        targetId = npcs[0].id;
+                    }
+                }
+            }
+        }
+
+        if (!targetId) {
+            this.messageService.info(playerId, `[BUFFER] ${action.type} failed: No target.`);
+            return;
+        }
+
+        const target = WorldQuery.getEntityById(engine, targetId);
+        const targetNPC = target?.getComponent(NPC);
+        const targetCombatStats = target?.getComponent(CombatStats);
+        const multiplier = combo ? combo.multiplier : 1.0;
+
+        // Perfect Sync Check
+        if (targetCombatStats && targetCombatStats.currentTelegraph) {
+            let isCountered = false;
+            if (action.type === CombatActionType.PARRY && (targetCombatStats.currentTelegraph === 'SLASH' || targetCombatStats.currentTelegraph === 'THRUST')) {
+                isCountered = true;
+            } else if (action.type === CombatActionType.DASH && targetCombatStats.currentTelegraph === 'DASH') {
+                isCountered = true;
+            }
+
+            if (isCountered) {
+                const buffer = player.getComponent(CombatBuffer);
+                if (buffer) {
+                    this.messageService.success(playerId, `\n[PERFECT SYNC] You countered the ${targetCombatStats.currentTelegraph}!`);
+                    this.gainFlow(playerId, buffer);
+                }
+                targetCombatStats.currentTelegraph = null; // Consume telegraph
+            }
+        }
+
+        switch (action.type) {
+            case CombatActionType.DASH:
+                this.messageService.combat(playerId, `\n[BUFFER] You DASH toward ${targetNPC?.typeName || 'the target'}!`);
+                this.handleManeuver(playerId, 'CLOSE', engine, targetNPC?.typeName);
+                break;
+            case CombatActionType.SLASH:
+                this.messageService.combat(playerId, `\n[BUFFER] You execute a precise SLASH!`);
+                this.handleSyncResult(playerId, targetId, 'hit', engine, 1.2 * multiplier);
+                break;
+            case CombatActionType.PARRY:
+                this.messageService.combat(playerId, `\n[BUFFER] You enter a PARRY stance.`);
+                combatStats.parry = Math.min(100, combatStats.parry + 20);
+                combatStats.isParrying = true; // Open active parry window
+                break;
+            case CombatActionType.THRUST:
+                this.messageService.combat(playerId, `\n[BUFFER] You deliver a powerful THRUST!`);
+                this.handleSyncResult(playerId, targetId, 'hit', engine, 1.5 * multiplier);
+                break;
+            case CombatActionType.STUMBLE:
+                this.messageService.combat(playerId, `\n[BUFFER] You STUMBLE blindly!`);
+                combatStats.balance = Math.max(0, combatStats.balance - 0.2);
+                break;
+        }
+    }
+
+    private gainFlow(playerId: string, buffer: CombatBuffer): void {
+        buffer.flow++;
+        if (buffer.flow >= 3) {
+            buffer.maxSlots = Math.min(6, buffer.maxSlots + 1);
+            buffer.flow = 0;
+            this.messageService.success(playerId, `[FLOW STATE] Buffer capacity increased to ${buffer.maxSlots}!`);
         }
     }
 
@@ -611,7 +895,13 @@ export class CombatSystem extends System {
         }
 
         // Find a magazine
-        const magEntity = this.findMagazine(player, engine, weapon.magazineType || weapon.ammoType || "9mm", true); // true = exclude backpack
+        // Find a magazine
+        let magEntity = this.findMagazine(player, engine, weapon.magazineType || weapon.ammoType || "9mm", true); // true = exclude backpack
+
+        // Fallback: search by ammo type if specific magazine not found
+        if (!magEntity && weapon.magazineType && weapon.ammoType) {
+            magEntity = this.findMagazine(player, engine, weapon.ammoType, true);
+        }
 
         if (!magEntity) {
             const needed = weapon.magazineType || `${weapon.ammoType} magazine`;
@@ -1311,7 +1601,15 @@ export class CombatSystem extends System {
                 this.messageService.error(playerId, "Total defense allocation cannot exceed 100%.");
             }
         } else {
-            this.messageService.info(playerId, "Usage: STANCE <EVASION|PARRY|SHIELD|OFFENSIVE|DEFENSIVE|NEUTRAL|CUSTOM <e> <p> <s>>");
+            const stance = player.getComponent(Stance);
+            let currentStanceMsg = `\n<title>[Current Stance]</title>\n`;
+            currentStanceMsg += `<info>Physical:</info> ${stance?.current || 'standing'}\n`;
+            currentStanceMsg += `<info>Evasion:</info> ${stats.evasion}%\n`;
+            currentStanceMsg += `<info>Parry:</info> ${stats.parry}%\n`;
+            currentStanceMsg += `<info>Shield:</info> ${stats.shield}%\n`;
+            currentStanceMsg += `<info>Aggression:</info> ${Math.floor(stats.aggression * 100)}%`;
+
+            this.messageService.info(playerId, currentStanceMsg);
         }
     }
 
@@ -1398,13 +1696,60 @@ export class CombatSystem extends System {
 
         // 3. Result Ladder
         const margin = attackerPower - defenderPower;
-        let combatLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks you!\n`;
-        let observerLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks another combatant!\n`;
-
         let effectiveHitType: 'marginal' | 'solid' | 'crushing' | 'miss' = 'miss';
         if (margin > 15) effectiveHitType = 'crushing';
         else if (margin > 0) effectiveHitType = 'solid';
         else if (margin > -10) effectiveHitType = 'marginal';
+
+        const targetBuffer = target.getComponent(CombatBuffer);
+
+        // Active Parry Window Reward
+        if (targetStats.isParrying) {
+            if (effectiveHitType === 'crushing') effectiveHitType = 'solid';
+            else if (effectiveHitType === 'solid') effectiveHitType = 'marginal';
+            else if (effectiveHitType === 'marginal') effectiveHitType = 'miss';
+
+            if (targetBuffer) {
+                this.messageService.success(targetId, `\n[ACTIVE PARRY] You deflected the blow!`);
+                this.gainFlow(targetId, targetBuffer);
+            }
+        } else if (targetStats.parry >= 100) {
+            // Passive Parry Stance Reward
+            if (effectiveHitType === 'miss' || effectiveHitType === 'marginal') {
+                if (targetBuffer) {
+                    this.messageService.success(targetId, `\n[STANCE PARRY] You maintain flow through your guard.`);
+                    this.gainFlow(targetId, targetBuffer);
+                }
+            }
+        }
+
+        let combatLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks you!\n`;
+        let observerLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks another combatant!\n`;
+
+        // Determine weapon category
+        let weaponCategory = 'natural';
+        const inventory = npc.getComponent(Inventory);
+        if (inventory && inventory.rightHand) {
+            const weaponEntity = WorldQuery.getEntityById(engine, inventory.rightHand);
+            const weapon = weaponEntity?.getComponent(Weapon);
+            if (weapon) weaponCategory = weapon.category;
+        }
+
+        const flavor = this.getAttackFlavor(weaponCategory, effectiveHitType);
+
+        // Check for System Shock (Interrupt)
+        if (targetBuffer && targetBuffer.isExecuting && (effectiveHitType === 'solid' || effectiveHitType === 'crushing')) {
+            // 30% chance to scramble on solid, 70% on crushing
+            const scrambleChance = effectiveHitType === 'crushing' ? 0.7 : 0.3;
+            if (Math.random() < scrambleChance) {
+                // Scramble remaining actions
+                targetBuffer.actions = targetBuffer.actions.map(a => ({
+                    type: CombatActionType.STUMBLE,
+                    targetId: a.targetId
+                }));
+                combatLog += `\n<error>[SYSTEM SHOCK] Your combat sequence has been SCRAMBLED!</error>`;
+            }
+        }
 
         switch (effectiveHitType) {
             case 'crushing':
@@ -1412,28 +1757,36 @@ export class CombatSystem extends System {
                 targetStats.hp -= crushingDamage;
                 npcStats.balance = Math.min(1.0, npcStats.balance + 0.1);
                 targetStats.balance = Math.max(0.0, targetStats.balance - 0.2);
-                combatLog += `<combat-hit>[CRUSHING] You take ${crushingDamage} damage!</combat-hit>\n`;
-                observerLog += `<combat-hit>[CRUSHING HIT]</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}! You take ${crushingDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 combatLog += this.applyWoundToTarget(target, BodyPart.Chest, 5);
                 break;
             case 'solid':
                 const solidDamage = Math.floor(npcStats.attack * 0.8);
                 targetStats.hp -= solidDamage;
                 targetStats.balance = Math.max(0.0, targetStats.balance - 0.1);
-                combatLog += `<combat-hit>[SOLID] You take ${solidDamage} damage!</combat-hit>\n`;
-                observerLog += `<combat-hit>[SOLID HIT]</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}! You take ${solidDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
             case 'marginal':
                 const marginalDamage = Math.floor(npcStats.attack * 0.3);
                 targetStats.hp -= marginalDamage;
-                combatLog += `<combat-hit>[MARGINAL] You take ${marginalDamage} damage.</combat-hit>\n`;
-                observerLog += `<combat-hit>[MARGINAL HIT]</combat-hit>\n`;
+                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}. You take ${marginalDamage} damage.</combat-hit>\n`;
+                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
             case 'miss':
-                combatLog += `<combat-miss>The attack misses!</combat-miss>\n`;
-                observerLog += `<combat-miss>The attack misses!</combat-miss>\n`;
+                combatLog += `<combat-miss>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}!</combat-miss>\n`;
+                observerLog += `<combat-miss>${flavor.obsLabel}</combat-miss>\n`;
                 npcStats.balance = Math.max(0.0, npcStats.balance - 0.1);
                 break;
+        }
+
+        // Malware Injection (Cyberpunk Twist)
+        if (npcComp?.tag === 'turing' && effectiveHitType !== 'miss' && Math.random() < 0.2) {
+            if (targetBuffer && !targetBuffer.malware.includes('REBOOT')) {
+                targetBuffer.malware.push('REBOOT');
+                combatLog += `\n<error>[MALWARE INJECTED] REBOOT.EXE UPLOADED TO YOUR BUFFER.</error>`;
+            }
         }
 
         combatLog += `</combat>`;
@@ -1469,7 +1822,7 @@ export class CombatSystem extends System {
         return true;
     }
 
-    private applyRoundtime(entityId: string, seconds: number, engine: IEngine): void {
+    public applyRoundtime(entityId: string, seconds: number, engine: IEngine): void {
         const entity = WorldQuery.getEntityById(engine, entityId);
         if (!entity) return;
 

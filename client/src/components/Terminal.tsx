@@ -8,6 +8,7 @@ import { TerminalDisplay } from './TerminalDisplay';
 import { GuideOverlay } from './GuideOverlay';
 import { MapDisplay } from './MapDisplay';
 import { StatusBar, RoundtimeIndicator } from './StatusHUD';
+import { CombatBufferDisplay } from './CombatBufferDisplay';
 import './Terminal.css';
 
 
@@ -30,13 +31,25 @@ export const Terminal: React.FC = () => {
         spawnables: string[];
         roomObjects: string[];
         roomItems: string[];
+        roomNPCs: string[];
         inventory: string[];
         containers: string[];
+        equipped: string[];
         stats: string[];
         skills: string[];
-    }>({ spawnables: [], roomObjects: [], roomItems: [], inventory: [], containers: [], stats: [], skills: [] });
+    }>({ spawnables: [], roomObjects: [], roomItems: [], roomNPCs: [], inventory: [], containers: [], equipped: [], stats: [], skills: [] });
 
-    const [playerStats, setPlayerStats] = useState<{ hp: number; maxHp: number; stance: string } | null>(null);
+    const [playerStats, setPlayerStats] = useState<{
+        hp: number;
+        maxHp: number;
+        stance: string;
+        roundtime?: number;
+        maxRoundtime?: number;
+        balance?: number;
+        fatigue?: number;
+        maxFatigue?: number;
+        engagement?: string;
+    } | null>(null);
 
     const [terminalData, setTerminalData] = useState<any>(null);
     const [guideContent, setGuideContent] = useState<string | null>(null);
@@ -80,23 +93,25 @@ export const Terminal: React.FC = () => {
             }));
         });
 
-        newSocket.on('autocomplete-update', (data: { type: 'room' | 'inventory', items?: string[], objects?: string[], containers?: string[] }) => {
+        newSocket.on('autocomplete-update', (data: { type: 'room' | 'inventory', items?: string[], objects?: string[], containers?: string[], npcs?: string[], equipped?: string[] }) => {
             if (data.type === 'room') {
                 setAutocompleteData(prev => ({
                     ...prev,
                     roomObjects: data.objects || [],
-                    roomItems: data.items || []
+                    roomItems: data.items || [],
+                    roomNPCs: data.npcs || []
                 }));
             } else if (data.type === 'inventory') {
                 setAutocompleteData(prev => ({
                     ...prev,
                     inventory: data.items || [],
-                    containers: data.containers || []
+                    containers: data.containers || [],
+                    equipped: data.equipped || []
                 }));
             }
         });
 
-        newSocket.on('stats-update', (data: { hp: number; maxHp: number; stance: string }) => {
+        newSocket.on('stats-update', (data: any) => {
             setPlayerStats(data);
         });
 
@@ -171,9 +186,11 @@ export const Terminal: React.FC = () => {
         'attack', 'kill', 'fight', 'read', 'scan',
         'god', 'admin', 'help', '?', 'map', 'm', 'sheet', 'stats', 'score', 'skills', 'weather', 'sky',
         'stow', 'put', 'swap', 'switch', 'use', 'sit', 'stand', 'st', 'lie', 'rest', 'sleep',
+        'wear', 'equip', 'remove', 'unequip', 'takeoff',
         'turn', 'rotate', 'jack_in', 'jack_out', 'jackin', 'jackout',
         'maneuver', 'man', 'target', 'stance', 'appraise', 'app',
-        'advance', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess'
+        'advance', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess',
+        'dash', 'slash', 'parry', 'thrust', 'upload', 'execute'
     ];
 
     const [completionState, setCompletionState] = useState<{
@@ -182,6 +199,51 @@ export const Terminal: React.FC = () => {
         matches: string[];
         index: number;
     }>({ active: false, prefix: '', matches: [], index: 0 });
+
+    const getUsage = (input: string): string | null => {
+        const parts = input.trim().split(/\s+/);
+        const cmd = parts[0].toLowerCase();
+
+        if (cmd === 'god') {
+            if (parts.length === 1) return "Usage: god <subcommand>";
+            const sub = parts[1];
+            if (!sub) return "Usage: god <subcommand>";
+
+            if ('spawn'.startsWith(sub)) return "Usage: god spawn <item_name | npc_name>";
+            if ('money'.startsWith(sub)) return "Usage: god money <amount> [target]";
+            if ('set-stat'.startsWith(sub)) return "Usage: god set-stat [target] <stat> <value>";
+            if ('set-skill'.startsWith(sub)) return "Usage: god set-skill [target] <skill> <value>";
+            if ('view'.startsWith(sub)) return "Usage: god view [target]";
+            if ('reset'.startsWith(sub)) return "Usage: god reset <skills|health>";
+            if ('weather'.startsWith(sub)) return "Usage: god weather <clear|rain|storm|fog>";
+            if ('pacify'.startsWith(sub)) return "Usage: god pacify [target]";
+            if ('registry'.startsWith(sub)) return "Usage: god registry";
+        }
+        if (['look', 'l', 'la'].includes(cmd)) return "Usage: look [at <target> | in <container>]";
+        if (['get', 'g', 'take'].includes(cmd)) return "Usage: get <item> [from <container>]";
+        if (['drop', 'd'].includes(cmd)) return "Usage: drop <item>";
+        if (['inventory', 'inv', 'i'].includes(cmd)) return "Usage: inventory";
+        if (['attack', 'kill', 'fight'].includes(cmd)) return "Usage: attack <target>";
+        if (['maneuver', 'man'].includes(cmd)) return "Usage: maneuver <close|withdraw> [target]";
+        if (['put', 'stow'].includes(cmd)) return "Usage: put <item> in <container>";
+        if (cmd === 'target') return "Usage: target <body_part>";
+        if (cmd === 'stance') return "Usage: stance <type>";
+        if (cmd === 'flee') return "Usage: flee <direction>";
+        if (['appraise', 'app'].includes(cmd)) return "Usage: appraise <target>";
+        if (['read', 'scan'].includes(cmd)) return "Usage: read <target>";
+        if (['turn', 'rotate'].includes(cmd)) return "Usage: turn <target>";
+        if (['wear', 'equip'].includes(cmd)) return "Usage: wear <item>";
+        if (['remove', 'unequip', 'takeoff'].includes(cmd)) return "Usage: remove <item>";
+        if (['jack_in', 'jackin'].includes(cmd)) return "Usage: jack_in";
+        if (['jack_out', 'jackout'].includes(cmd)) return "Usage: jack_out";
+        if (cmd === 'dash') return "Usage: dash (Adds DASH to combat buffer)";
+        if (cmd === 'slash') return "Usage: slash (Adds SLASH to combat buffer)";
+        if (cmd === 'parry') return "Usage: parry (Adds PARRY to combat buffer)";
+        if (cmd === 'thrust') return "Usage: thrust (Adds THRUST to combat buffer)";
+        if (['upload', 'execute'].includes(cmd)) return "Usage: upload (Executes combat buffer)";
+
+        return null;
+    };
 
     const getMatches = (input: string): { matches: string[], baseString: string } => {
         const parts = input.toLowerCase().split(' ');
@@ -206,7 +268,7 @@ export const Terminal: React.FC = () => {
 
             if (cmd === 'god') {
                 if (parts.length === 2) {
-                    matches = ['spawn', 'reset', 'set-stat', 'set-skill', 'view', 'weather', 'pacify', 'registry'].filter(s => s.startsWith(lastArg));
+                    matches = ['spawn', 'reset', 'set-stat', 'set-skill', 'view', 'weather', 'pacify', 'registry', 'money'].filter(s => s.startsWith(lastArg));
                 } else if (parts.length >= 3) {
                     if (parts[1] === 'spawn') {
                         const search = parts.slice(2).join(' ');
@@ -278,6 +340,17 @@ export const Terminal: React.FC = () => {
                             matches = targets.filter(s => matchCandidate(s, search));
                             baseString = rawParts.slice(0, 2).join(' ') + ' ';
                         }
+                    } else if (parts[1] === 'pacify') {
+                        const search = parts.slice(2).join(' ');
+                        matches = [...autocompleteData.roomNPCs, 'me', 'self'].filter(s => matchCandidate(s, search));
+                        baseString = rawParts.slice(0, 2).join(' ') + ' ';
+                    } else if (parts[1] === 'money') {
+                        if (parts.length >= 4) {
+                            const search = parts.slice(3).join(' ');
+                            const targets = ['me', ...autocompleteData.roomObjects];
+                            matches = targets.filter(s => matchCandidate(s, search));
+                            baseString = rawParts.slice(0, 3).join(' ') + ' ';
+                        }
                     }
                 }
             } else if (['get', 'g', 'take'].includes(cmd)) {
@@ -324,7 +397,7 @@ export const Terminal: React.FC = () => {
             } else if (cmd === 'maneuver' || cmd === 'man') {
                 if (parts[1] === 'close' || parts[1] === 'withdraw') {
                     const search = parts.slice(2).join(' ');
-                    matches = autocompleteData.roomObjects.filter(s => matchCandidate(s, search));
+                    matches = [...autocompleteData.roomNPCs, 'me', 'self'].filter(s => matchCandidate(s, search));
                     baseString = rawParts.slice(0, 2).join(' ') + ' ';
                 } else {
                     const search = parts.slice(1).join(' ');
@@ -359,6 +432,22 @@ export const Terminal: React.FC = () => {
                     matches = autocompleteData.containers.filter(s => matchCandidate(s, search));
                     baseString = rawParts.slice(0, inIndex + 1).join(' ') + ' ';
                 }
+            } else if (['wear', 'equip'].includes(cmd)) {
+                // Autocomplete with inventory items and items on ground
+                const candidates = Array.from(new Set([...autocompleteData.inventory, ...autocompleteData.roomItems]));
+                const search = parts.slice(1).join(' ');
+                matches = candidates.filter(s => matchCandidate(s, search));
+                baseString = rawParts[0] + ' ';
+            } else if (['remove', 'unequip', 'takeoff'].includes(cmd)) {
+                // Autocomplete with equipped items only
+                const search = parts.slice(1).join(' ');
+                matches = autocompleteData.equipped.filter(s => matchCandidate(s, search));
+                baseString = rawParts[0] + ' ';
+            } else if (['drop', 'd'].includes(cmd)) {
+                // Autocomplete with inventory items only
+                const search = parts.slice(1).join(' ');
+                matches = autocompleteData.inventory.filter(s => matchCandidate(s, search));
+                baseString = rawParts[0] + ' ';
             }
         }
         return { matches, baseString };
@@ -473,6 +562,7 @@ export const Terminal: React.FC = () => {
     return (
         <div className="terminal-container">
             {socket && <CombatOverlay socket={socket} />}
+            {socket && <CombatBufferDisplay socket={socket} />}
             {terminalData && socket && (
                 <TerminalDisplay
                     data={terminalData}
@@ -526,14 +616,21 @@ export const Terminal: React.FC = () => {
                                 }
 
                                 const { matches } = getMatches(inputWithoutQuestion);
+                                const usage = getUsage(inputWithoutQuestion);
+
+                                let helpText = '';
+                                if (usage) {
+                                    helpText += `<info>${usage}</info>\n`;
+                                }
 
                                 // Display the help output
                                 if (matches.length > 0) {
-                                    const helpText = `<title>[Available Options]</title>\n<info>${matches.join(', ')}</info>`;
-                                    addSystemLine(helpText);
-                                } else {
-                                    addSystemLine('No options found.');
+                                    helpText += `<title>[Available Options]</title>\n<info>${matches.join(', ')}</info>`;
+                                } else if (!usage) {
+                                    helpText = 'No options found.';
                                 }
+
+                                if (helpText) addSystemLine(helpText);
 
                                 // Do NOT update input with the '?', just clear completion state
                                 setCompletionState({ active: false, prefix: '', matches: [], index: 0 });

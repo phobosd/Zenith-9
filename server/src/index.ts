@@ -38,6 +38,7 @@ import { AutocompleteAggregator } from './services/AutocompleteAggregator';
 import { MessageService } from './services/MessageService';
 import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/SocketSchemas';
 import { EngagementTier } from './types/CombatTypes';
+import { CombatBuffer, CombatActionType } from './components/CombatBuffer';
 
 const ALL_STATS = ['STR', 'CON', 'AGI', 'CHA', 'HP', 'MAXHP', 'ATTACK', 'DEFENSE'];
 const ALL_SKILLS = [
@@ -63,6 +64,8 @@ const io = new Server(httpServer, {
     }
 });
 
+import { RecoverySystem } from './systems/RecoverySystem';
+
 // ECS Setup
 const engine = new Engine();
 const messageService = new MessageService(io);
@@ -72,6 +75,7 @@ const npcSystem = new NPCSystem(io, messageService);
 const combatSystem = new CombatSystem(engine, io, messageService);
 const cyberspaceSystem = new CyberspaceSystem(io, messageService);
 const atmosphereSystem = new AtmosphereSystem(messageService);
+const recoverySystem = new RecoverySystem();
 
 engine.addSystem(movementSystem);
 engine.addSystem(interactionSystem);
@@ -79,6 +83,7 @@ engine.addSystem(npcSystem);
 engine.addSystem(combatSystem);
 engine.addSystem(cyberspaceSystem);
 engine.addSystem(atmosphereSystem);
+engine.addSystem(recoverySystem);
 
 movementSystem.setInteractionSystem(interactionSystem);
 npcSystem.setCombatSystem(combatSystem);
@@ -294,6 +299,20 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'wear',
+    aliases: ['equip'],
+    description: 'Wear a piece of clothing or equipment (Usage: wear <item>)',
+    execute: (ctx) => ctx.systems.interaction.handleWear(ctx.socketId, ctx.args.join(' '), ctx.engine)
+});
+
+commandRegistry.register({
+    name: 'remove',
+    aliases: ['unequip', 'takeoff'],
+    description: 'Remove a piece of clothing or equipment (Usage: remove <item>)',
+    execute: (ctx) => ctx.systems.interaction.handleRemove(ctx.socketId, ctx.args.join(' '), ctx.engine)
+});
+
+commandRegistry.register({
     name: 'attack',
     aliases: ['kill', 'fight'],
     description: 'Attack a target',
@@ -319,6 +338,88 @@ commandRegistry.register({
     aliases: ['checkammo'],
     description: 'Check ammunition in your weapon',
     execute: (ctx) => ctx.systems.combat.handleCheckAmmo(ctx.socketId, ctx.engine)
+});
+
+const handleBufferAction = (ctx: CommandContext, type: CombatActionType) => {
+    const player = ctx.engine.getEntity(ctx.socketId);
+    if (!player) return;
+
+    const buffer = player.getComponent(CombatBuffer);
+    if (!buffer) {
+        ctx.messageService.error(ctx.socketId, "You don't have a combat buffer.");
+        return;
+    }
+
+    if (buffer.isExecuting) {
+        ctx.messageService.error(ctx.socketId, "Buffer is currently executing. Wait for completion.");
+        return;
+    }
+
+    if (buffer.actions.length >= buffer.maxSlots) {
+        ctx.messageService.error(ctx.socketId, "Buffer is full. Use 'upload' to execute or wait.");
+        return;
+    }
+
+    buffer.actions.push({ type });
+    ctx.messageService.info(ctx.socketId, `[BUFFER] Added ${type}. (${buffer.actions.length}/${buffer.maxSlots})`);
+
+    // Notify client to update UI
+    ctx.io.to(ctx.socketId).emit('buffer-update', {
+        actions: buffer.actions,
+        maxSlots: buffer.maxSlots,
+        isExecuting: buffer.isExecuting
+    });
+};
+
+commandRegistry.register({
+    name: 'dash',
+    aliases: [],
+    description: 'Add DASH to combat buffer',
+    execute: (ctx) => handleBufferAction(ctx, CombatActionType.DASH)
+});
+
+commandRegistry.register({
+    name: 'slash',
+    aliases: [],
+    description: 'Add SLASH to combat buffer',
+    execute: (ctx) => handleBufferAction(ctx, CombatActionType.SLASH)
+});
+
+commandRegistry.register({
+    name: 'parry',
+    aliases: [],
+    description: 'Add PARRY to combat buffer',
+    execute: (ctx) => handleBufferAction(ctx, CombatActionType.PARRY)
+});
+
+commandRegistry.register({
+    name: 'thrust',
+    aliases: [],
+    description: 'Add THRUST to combat buffer',
+    execute: (ctx) => handleBufferAction(ctx, CombatActionType.THRUST)
+});
+
+commandRegistry.register({
+    name: 'upload',
+    aliases: ['execute', 'run'],
+    description: 'Execute the combat buffer',
+    execute: (ctx) => {
+        const player = ctx.engine.getEntity(ctx.socketId);
+        if (!player) return;
+
+        const buffer = player.getComponent(CombatBuffer);
+        if (!buffer || buffer.actions.length === 0) {
+            ctx.messageService.error(ctx.socketId, "Buffer is empty.");
+            return;
+        }
+
+        if (buffer.isExecuting) {
+            ctx.messageService.error(ctx.socketId, "Buffer is already executing.");
+            return;
+        }
+
+        ctx.systems.combat.executeBuffer(ctx.socketId, ctx.engine);
+    }
 });
 
 commandRegistry.register({
@@ -541,6 +642,34 @@ commandRegistry.register({
             }
 
             ctx.messageService.error(ctx.socketId, `Unknown entity: ${name}`);
+        } else if (subCommand === 'money' || subCommand === 'credits') {
+            if (ctx.args.length < 2) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god money <amount> [target]');
+                return;
+            }
+
+            const amount = parseInt(ctx.args[1]);
+            if (isNaN(amount)) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god money <amount> [target]');
+                return;
+            }
+
+            const targetName = ctx.args.slice(2).join(' ') || 'me';
+            const target = findTarget(ctx, targetName);
+
+            if (!target) {
+                ctx.messageService.error(ctx.socketId, `Target not found: ${targetName}`);
+                return;
+            }
+
+            const creditsComp = target.getComponent(Credits);
+            if (creditsComp) {
+                creditsComp.credits += amount;
+                ctx.messageService.success(ctx.socketId, `Added ${amount} credits to ${targetName}. New balance: ${creditsComp.credits}`);
+            } else {
+                target.addComponent(new Credits(0, amount));
+                ctx.messageService.success(ctx.socketId, `Added Credits component and ${amount} credits to ${targetName}.`);
+            }
         } else if (subCommand === 'set-stat') {
             if (ctx.args.length < 3) {
                 ctx.messageService.info(ctx.socketId, 'Usage: god set-stat [target] <stat> <value>');
@@ -848,6 +977,14 @@ io.on('connection', (socket) => {
 
     inventory.equipment.set('back', backpack.id);
 
+    // Add Samurai Sword (Katana) to backpack
+    const katana = PrefabFactory.createItem("katana");
+    if (katana) {
+        engine.addEntity(katana);
+        backpack.getComponent(Container)?.items.push(katana.id);
+        backpack.getComponent(Container)!.currentWeight += 1.5;
+    }
+
     // Initialize Stats (Street Thug Archetype)
     const stats = new Stats();
     stats.attributes.set('STR', { name: 'STR', value: 12 });
@@ -864,26 +1001,27 @@ io.on('connection', (socket) => {
 
     player.addComponent(stats);
     player.addComponent(new CombatStats(100, 10, 5, false));
+    player.addComponent(new CombatBuffer(3));
     player.addComponent(new Stance(StanceType.Standing));
-    player.addComponent(new Credits(500, 1000)); // 500 New Yen, 1000 Credits
+    player.addComponent(new Credits(500, 1000000)); // 500 New Yen, 1,000,000 Credits
 
     // Create Shirt with pockets
     const shirt = new Entity();
-    shirt.addComponent(new Item("Tactical Shirt", "A shirt with reinforced pockets.", 0.8));
+    shirt.addComponent(new Item("Tactical Shirt", "A shirt with reinforced pockets.", 0.8, 1, "Medium", "Legal", "", "shirt", "torso"));
     shirt.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(shirt);
     inventory.equipment.set('torso', shirt.id);
 
     // Create Pants with pockets
     const pants = new Entity();
-    pants.addComponent(new Item("Cargo Pants", "Durable tactical pants with many pockets.", 1.5));
+    pants.addComponent(new Item("Cargo Pants", "Durable tactical pants with many pockets.", 1.5, 1, "Medium", "Legal", "", "pants", "legs"));
     pants.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(pants);
     inventory.equipment.set('legs', pants.id);
 
     // Create Belt
     const belt = new Entity();
-    belt.addComponent(new Item("Utility Belt", "A leather belt with pouches.", 0.5));
+    belt.addComponent(new Item("Utility Belt", "A leather belt with pouches.", 0.5, 1, "Small", "Legal", "", "belt", "waist"));
     belt.addComponent(new Container(1.0)); // 1lb max
     engine.addEntity(belt);
     inventory.equipment.set('waist', belt.id);
@@ -891,8 +1029,8 @@ io.on('connection', (socket) => {
     // Create 3 Individual Magazines (in Belt)
     for (let i = 0; i < 3; i++) {
         const mag = new Entity();
-        mag.addComponent(new Item("9mm Mag", "A standard 10-round magazine.", 0.2));
-        mag.addComponent(new Magazine("9mm Mag", 10, 10, "9mm"));
+        mag.addComponent(new Item("9mm Pistol Magazine", "A standard 10-round magazine.", 0.2));
+        mag.addComponent(new Magazine("9mm Pistol Magazine", 10, 10, "9mm"));
         engine.addEntity(mag);
         belt.getComponent(Container)?.items.push(mag.id);
         belt.getComponent(Container)!.currentWeight += 0.2;
@@ -903,6 +1041,7 @@ io.on('connection', (socket) => {
     pistol.addComponent(new Item("9mm Pistol", "A reliable semi-automatic sidearm.", 2.0));
     pistol.addComponent(new Weapon(
         "9mm Pistol",
+        "pistol",
         15,
         10,
         "9mm",

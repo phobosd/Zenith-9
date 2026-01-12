@@ -1,5 +1,5 @@
 import React from 'react';
-import './InventoryDisplay.css'; // Reusing the same CSS for consistency
+import './InventoryDisplay.css';
 
 interface ScoreData {
     skills: { name: string; level: number; progress: number }[];
@@ -18,30 +18,28 @@ export const ScoreDisplay: React.FC<Props> = ({ data }) => {
     };
 
     return (
-        <div className="inv">
-            <div className="inv-title">CHARACTER SKILLS</div>
-            <div className="inv-border"></div>
-            <div className="inv-body">
-                <div className="inv-right" style={{ flex: 1 }}>
-                    <div className="inv-section">SKILL PROGRESS:</div>
-                    <div className="inv-list">
+        <div className="inventory-display">
+            <div className="inventory-header">CHARACTER SKILLS</div>
+            <div className="inventory-grid">
+                <div className="inventory-section" style={{ gridColumn: '1 / -1' }}>
+                    <div className="section-title">SKILL PROGRESS:</div>
+                    <div className="backpack-list">
                         {data.skills.length > 0 ? (
                             data.skills.map((skill, idx) => (
-                                <div key={idx} className="inv-slot" style={{ justifyContent: 'space-between' }}>
-                                    <span className="slot-label" style={{ minWidth: '200px' }}>{skill.name}</span>
-                                    <span className="slot-item">Lvl {skill.level}</span>
-                                    <span className="slot-item wide" style={{ fontFamily: 'monospace' }}>
+                                <div key={idx} className="inventory-item skill-row">
+                                    <span className="skill-name">{skill.name}</span>
+                                    <span className="skill-level">Lvl {skill.level}</span>
+                                    <span className="skill-progress">
                                         {renderProgressBar(skill.progress)}
                                     </span>
                                 </div>
                             ))
                         ) : (
-                            <div className="inv-empty">(No Skills Learned)</div>
+                            <div className="inventory-item">(No Skills Learned)</div>
                         )}
                     </div>
                 </div>
             </div>
-            <div className="inv-border"></div>
         </div>
     );
 };

@@ -16,11 +16,22 @@ import { EngagementTier } from '../types/CombatTypes';
 
 import { Inventory } from '../components/Inventory';
 import { IEngine } from '../commands/CommandRegistry';
+import { CombatBuffer } from '../components/CombatBuffer';
 
 export class PrefabFactory {
     static equipNPC(npc: Entity, engine: IEngine) {
         const npcComp = npc.getComponent(NPC);
         if (!npcComp) return;
+
+        if (npcComp.typeName === 'Street Samurai') {
+            const inventory = new Inventory();
+            npc.addComponent(inventory);
+            const katana = PrefabFactory.createItem("katana");
+            if (katana) {
+                engine.addEntity(katana);
+                inventory.rightHand = katana.id;
+            }
+        }
 
         if (npcComp.tag === 'turing') {
             const spawnItem = (name: string, equip: boolean = false) => {
@@ -56,7 +67,7 @@ export class PrefabFactory {
 
         if (def) {
             // Use shortName as the display name, and name as the internal slug/alias
-            entity.addComponent(new Item(def.shortName, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.name));
+            entity.addComponent(new Item(def.shortName, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.name, def.slot || null));
 
             if (def.type === 'container') {
                 const capacity = def.extraData.capacity || 10;
@@ -68,6 +79,7 @@ export class PrefabFactory {
                 const momentumImpact = data.momentumImpact || 0.1;
                 entity.addComponent(new Weapon(
                     def.shortName,
+                    def.description,
                     data.damage || 10,
                     data.range !== undefined ? data.range : 10,
                     data.ammoType || '9mm',
@@ -104,16 +116,16 @@ export class PrefabFactory {
                 entity.addComponent(new Item("Beer Can", "An empty, crushed beer can.", 0.5));
                 break;
             case 'backpack':
-                entity.addComponent(new Item("Backpack", "A sturdy canvas backpack.", 1.0));
+                entity.addComponent(new Item("Backpack", "A sturdy canvas backpack.", 1.0, 1, "Medium", "Legal", "Container", "backpack", "back"));
                 entity.addComponent(new Container(20.0));
                 break;
             case 'ceska_scorpion':
                 entity.addComponent(new Item("Ceska Scorpion", "A matte-black submachine gun.", 2.0));
-                entity.addComponent(new Weapon("Ceska Scorpion", 15, 20, "9mm", "Ceska Scorpion Magazine", 20, { speed: 1.2, zoneSize: 4, jitter: 0.2 }, EngagementTier.MISSILE, EngagementTier.MELEE, 0.3));
+                entity.addComponent(new Weapon("Ceska Scorpion", "smg", 15, 20, "9mm", "Ceska Scorpion Magazine", 20, { speed: 1.2, zoneSize: 4, jitter: 0.2 }, EngagementTier.MISSILE, EngagementTier.MELEE, 0.3));
                 break;
             case 'compliance_derm':
                 entity.addComponent(new Item("Compliance Derm", "A dermal patch that induces paralysis.", 0.01));
-                entity.addComponent(new Weapon("Compliance Derm", 1, 1, "none", "none", 1, { speed: 1.0, zoneSize: 5, jitter: 0.0 }, EngagementTier.CLOSE_QUARTERS, EngagementTier.CLOSE_QUARTERS, 0.0));
+                entity.addComponent(new Weapon("Compliance Derm", "derm", 1, 1, "none", "none", 1, { speed: 1.0, zoneSize: 5, jitter: 0.0 }, EngagementTier.CLOSE_QUARTERS, EngagementTier.CLOSE_QUARTERS, 0.0));
                 break;
             default:
                 return null;
@@ -246,6 +258,9 @@ export class PrefabFactory {
         // All NPCs get a WoundTable and Stats
         entity.addComponent(new WoundTable());
         entity.addComponent(new Stats());
+        if (entity.hasComponent(CombatStats)) {
+            entity.addComponent(new CombatBuffer(3));
+        }
 
         return entity;
     }

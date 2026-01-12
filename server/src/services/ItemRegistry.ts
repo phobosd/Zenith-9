@@ -15,6 +15,7 @@ export interface ItemDefinition {
     attributes: string;
     cost: number;
     type: 'item' | 'weapon' | 'container' | 'cyberware';
+    slot?: string | null;
     extraData: any;
 }
 

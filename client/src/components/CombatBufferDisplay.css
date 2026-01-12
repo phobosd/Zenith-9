@@ -1,0 +1,136 @@
+.combat-buffer-container {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 200px;
+    background: rgba(0, 10, 0, 0.9);
+    border: 1px solid #00ff41;
+    box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+    padding: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    color: #00ff41;
+    z-index: 1000;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.buffer-header {
+    font-weight: bold;
+    font-size: 0.9rem;
+    border-bottom: 1px solid #00ff41;
+    padding-bottom: 5px;
+    text-shadow: 0 0 5px #00ff41;
+}
+
+.buffer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 0.75rem;
+    background: rgba(0, 30, 0, 0.6);
+    padding: 5px;
+    border: 1px dashed rgba(0, 255, 65, 0.3);
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+}
+
+.info-item.malware {
+    color: #ff00ff;
+    text-shadow: 0 0 5px #ff00ff;
+}
+
+.buffer-slots {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.buffer-slot {
+    display: flex;
+    gap: 10px;
+    padding: 5px;
+    background: rgba(0, 40, 0, 0.5);
+    border: 1px solid rgba(0, 255, 65, 0.2);
+    transition: all 0.3s ease;
+}
+
+.buffer-slot.filled {
+    border-color: #00ff41;
+    background: rgba(0, 60, 0, 0.7);
+}
+
+.buffer-slot.active {
+    background: #00ff41;
+    color: #000;
+    box-shadow: 0 0 10px #00ff41;
+    animation: pulse 1s infinite;
+}
+
+.slot-index {
+    opacity: 0.6;
+}
+
+.slot-content {
+    font-weight: bold;
+}
+
+.buffer-status {
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 5px;
+    background: rgba(0, 20, 0, 0.8);
+}
+
+.status-executing {
+    color: #ff00ff;
+    text-shadow: 0 0 5px #ff00ff;
+}
+
+.buffer-logs {
+    font-size: 0.7rem;
+    height: 60px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column-reverse;
+    opacity: 0.8;
+}
+
+.log-entry {
+    margin-top: 2px;
+}
+
+.blink {
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0;
+    }
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.02);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}

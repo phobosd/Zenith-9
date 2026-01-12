@@ -18,15 +18,12 @@ interface StatusProps {
 export const RoundtimeIndicator: React.FC<StatusProps> = ({ stats }) => {
     if (!stats || !stats.roundtime || stats.roundtime <= 0) return null;
 
-    const maxRt = stats.maxRoundtime || stats.roundtime;
-    const percent = Math.min(100, Math.max(0, (stats.roundtime / maxRt) * 100));
-
     return (
         <div className="rt-indicator">
             <div className="rt-bar-bg">
                 <div
                     className="rt-bar-fill"
-                    style={{ width: `${percent}%` }}
+                    style={{ width: `${Math.min(100, (stats.roundtime / (stats.maxRoundtime || stats.roundtime)) * 100)}%` }}
                 />
                 <div className="rt-text">WAIT {Math.ceil(stats.roundtime)}S</div>
             </div>

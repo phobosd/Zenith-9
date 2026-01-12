@@ -11,6 +11,7 @@ export class Weapon extends Component {
     static type = 'Weapon';
 
     name: string;
+    category: string;
     damage: number;
     range: number; // 0 = melee, >0 = ranged
     ammoType: string | null;
@@ -26,6 +27,7 @@ export class Weapon extends Component {
 
     constructor(
         name: string,
+        category: string,
         damage: number,
         range: number = 0,
         ammoType: string | null = null,
@@ -38,6 +40,7 @@ export class Weapon extends Component {
     ) {
         super();
         this.name = name;
+        this.category = category;
         this.damage = damage;
         this.range = range;
         this.ammoType = ammoType;

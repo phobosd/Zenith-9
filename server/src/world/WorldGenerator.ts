@@ -145,7 +145,10 @@ export class WorldGenerator {
                     'optical_hud',
                     'signal_jammer',
                     'ext_drive',
-                    'exoskeleton_frame'
+                    'exoskeleton_frame',
+                    'ono_sendai_cyberspace7',
+                    'microsoft_hacking',
+                    'reflex_boost'
                 ];
             } else if (flavor.shopData.name === "The Armory") {
                 items = [
@@ -167,7 +170,13 @@ export class WorldGenerator {
                     'mag_smart_pistol',
                     'street_sweeper',
                     'mag_street_sweeper',
-                    'vibro_blade'
+                    'vibro_blade',
+                    'ceska_scorpion',
+                    'mag_scorpion',
+                    'modular_firearm',
+                    'monofilament_whip',
+                    'taser_prod',
+                    'compliance_derm'
                 ];
             } else if (flavor.shopData.name === "Bits & Bytes") {
                 items = [
@@ -184,16 +193,14 @@ export class WorldGenerator {
                     'stimpack',
                     'bandage',
                     'painkillers',
-                    'reflex_boost',
                     'flatline_heal'
                 ];
             }
 
-            // FOR TESTING: Every shop has everything in stock
-            const allItemNames = ItemRegistry.getInstance().getUniqueItemNames();
-            items = Array.from(new Set([...items, ...allItemNames]));
-
-            terminal.addComponent(new Terminal("shop-catalog", { items }));
+            terminal.addComponent(new Terminal("shop-catalog", {
+                items,
+                title: flavor.shopData.name.toUpperCase() + " CATALOG"
+            }));
             this.engine.addEntity(terminal);
         }
 

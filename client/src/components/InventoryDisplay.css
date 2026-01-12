@@ -1,112 +1,108 @@
-.inv {
-    font-family: 'Courier New', monospace;
-    color: #0f0;
-    background: #000;
+.inventory-display {
     padding: 15px;
+    border: 1px solid #333;
+    background: rgba(0, 0, 0, 0.3);
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
     margin: 10px 0;
-    border: 2px solid #0f0;
-    display: inline-block;
-    min-width: 800px;
-    max-width: 900px;
+    max-width: 800px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
 }
 
-.inv-title {
-    text-align: center;
+.inventory-header {
     font-weight: bold;
+    color: #0ff;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #0ff;
+    padding-bottom: 5px;
+    text-align: center;
     letter-spacing: 2px;
-    margin-bottom: 8px;
+    text-shadow: 0 0 5px #0ff;
 }
 
-.inv-border {
-    border-top: 1px solid #0f0;
-    margin: 8px 0;
+.inventory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
 }
 
-.inv-body {
-    display: flex;
-    gap: 30px;
-}
-
-.inv-left {
-    flex: 0 0 480px;
-    min-width: 480px;
-}
-
-.inv-divider {
-    width: 1px;
-    background: #0f0;
-}
-
-.inv-right {
-    flex: 1;
-}
-
-.inv-section {
-    font-weight: bold;
+.inventory-section {
     margin-bottom: 10px;
-    text-transform: uppercase;
 }
 
-.inv-slot {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+.section-title {
+    font-weight: bold;
+    color: #0ff;
     margin-bottom: 8px;
-    flex-wrap: nowrap;
+    text-decoration: underline;
+    font-size: 12px;
+    letter-spacing: 1px;
 }
 
-.slot-label {
-    font-weight: bold;
-    min-width: 70px;
-    flex-shrink: 0;
-}
-
-.slot-item {
-    border: 1px solid #0f0;
-    padding: 3px 8px;
-    background: rgba(0, 255, 0, 0.1);
-    flex-shrink: 0;
-}
-
-.slot-item.wide {
-    flex: 1;
-}
-
-.inv-list {
+.inventory-item {
+    margin-bottom: 4px;
+    font-size: 14px;
     display: flex;
-    flex-direction: column;
-    gap: 5px;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.05);
+    padding: 2px 0;
 }
 
-.inv-item {
-    padding: 3px 8px;
-    border: 1px solid rgba(0, 255, 0, 0.3);
-    background: rgba(0, 255, 0, 0.05);
+/* Skill Row Grid - Ensures perfect alignment */
+.skill-row {
+    display: grid !important;
+    grid-template-columns: 220px 80px 1fr;
+    gap: 15px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1) !important;
 }
 
-.inv-empty {
-    color: #666;
-    font-style: italic;
-    text-align: center;
-    padding: 30px 10px;
+.skill-name,
+.skill-level {
+    color: #0f0;
 }
 
-.inv-footer {
-    margin-top: 8px;
+.skill-progress {
+    font-family: 'Courier New', Courier, monospace;
+    color: #0ff;
+    white-space: nowrap;
+}
+
+/* Stat Row Grid - For Sheet and Inventory */
+.stat-row {
+    display: grid !important;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1) !important;
+}
+
+.stat-label {
+    color: #0ff;
     font-weight: bold;
 }
 
-/* Map Specific Styles */
+.stat-value {
+    color: #0f0;
+}
+
+.backpack-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Map specific styles */
 .map-grid {
     display: flex;
     flex-direction: column;
+    gap: 2px;
     background: #000;
-    border: 1px solid #0f0;
-    padding: 5px;
+    padding: 10px;
+    border: 1px solid #333;
 }
 
 .map-row {
     display: flex;
+    gap: 2px;
 }
 
 .map-cell {
@@ -115,55 +111,54 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-family: 'Courier New', monospace;
-    font-size: 16px;
+    font-size: 14px;
+    font-weight: bold;
 }
 
 .map-player {
     color: #fff;
-    background: #0f0;
-    font-weight: bold;
-    animation: blink 1s infinite;
+    text-shadow: 0 0 5px #fff;
 }
 
 .map-clinic {
-    color: #ff0000;
+    color: #f0f;
 }
 
 .map-shop {
-    color: #ffff00;
+    color: #ff0;
 }
 
 .map-club {
-    color: #ff00ff;
+    color: #0ff;
 }
 
 .map-park {
-    color: #00ff00;
+    color: #0f0;
 }
 
 .map-plaza {
-    color: #0088ff;
+    color: #888;
 }
 
 .map-street {
     color: #444;
 }
 
-.map-empty {
-    color: #111;
+/* Scrollbar styling */
+.backpack-list::-webkit-scrollbar {
+    width: 4px;
 }
 
-@keyframes blink {
-    0% {
-        opacity: 1;
-    }
+.backpack-list::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+}
 
-    50% {
-        opacity: 0.3;
-    }
+.backpack-list::-webkit-scrollbar-thumb {
+    background: #0ff;
+}
 
-    100% {
-        opacity: 1;
+@media (max-width: 600px) {
+    .inventory-grid {
+        grid-template-columns: 1fr;
     }
 }

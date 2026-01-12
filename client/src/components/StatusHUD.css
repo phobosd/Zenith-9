@@ -74,12 +74,18 @@
 }
 
 /* Roundtime Indicator (Above Prompt) */
+.rt-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+
 .rt-indicator {
     width: 27%;
     /* Matches roughly the health bar width (1/3.8 flex ratio) */
     min-width: 200px;
     height: 20px;
-    margin-bottom: 4px;
     background: #000;
 }
 
@@ -92,12 +98,21 @@
     position: relative;
 }
 
+.rt-indicator.target .rt-bar-bg {
+    border-color: #ffaa00;
+    background: #111100;
+}
+
 .rt-bar-fill {
     height: 100%;
     background: #aa0000;
     /* The actual red bar */
     transition: width 0.1s linear;
     /* Smooth draining */
+}
+
+.rt-indicator.target .rt-bar-fill {
+    background: #aa8800;
 }
 
 .rt-text {
@@ -114,4 +129,8 @@
     text-transform: uppercase;
     text-shadow: 0 0 2px #000;
     z-index: 2;
+}
+
+.rt-indicator.target .rt-text {
+    color: #ffaa00;
 }

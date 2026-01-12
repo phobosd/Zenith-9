@@ -24,6 +24,8 @@ export class CombatStats extends Component {
     targetLimb: BodyPart | null = null;
     isHangingBack: boolean = false;
     targetId: string | null = null;
+    currentTelegraph: string | null = null;
+    isParrying: boolean = false;
 
     constructor(maxHp: number = 100, attack: number = 10, defense: number = 0, isHostile: boolean = false) {
         super();

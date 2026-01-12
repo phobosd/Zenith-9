@@ -192,6 +192,10 @@ export class NPCSystem extends System {
                     }
                 } else {
                     console.log(`[NPC AI] ${npcComp.typeName} (${npc.id}) advance failed`);
+
+                    // Apply Roundtime for failed advance (3 seconds) - prevents spamming
+                    this.combatSystem.applyRoundtime(npc.id, 3, engine);
+
                     if (targetCombatStats.isHangingBack) {
                         this.messageService.combat(target.id, `<info>You successfully keep ${npcComp.typeName} at bay.</info>`);
                     } else if (Math.random() < 0.1) { // 10% chance to show stalking message if check failed
@@ -210,6 +214,13 @@ export class NPCSystem extends System {
         }
 
         if (combatStats.engagementTier === EngagementTier.MELEE || combatStats.engagementTier === EngagementTier.CLOSE_QUARTERS) {
+            // Telegraphing logic
+            if (!combatStats.currentTelegraph && Math.random() < 0.5) {
+                const moves = ['SLASH', 'THRUST', 'DASH'];
+                combatStats.currentTelegraph = moves[Math.floor(Math.random() * moves.length)];
+                this.messageService.combat(target.id, `<enemy>${npcComp.typeName} prepares a ${combatStats.currentTelegraph}!</enemy>`);
+            }
+
             this.combatSystem.handleNPCAttack(npc.id, target.id, engine);
         }
     }

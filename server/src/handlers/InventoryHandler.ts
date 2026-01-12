@@ -51,31 +51,84 @@ export class InventoryHandler {
         let containerEntity: Entity | undefined;
         let containerDisplayName = "";
 
-        // 2. Search in equipped containers
+        // 2. Search in containers (hands first, then equipped)
         if (!targetItem) {
-            for (const itemId of inventory.equipment.values()) {
-                const equipEntity = WorldQuery.getEntityById(engine, itemId);
-                const container = equipEntity?.getComponent(Container);
-                const equipItem = equipEntity?.getComponent(Item);
+            // Check left hand for container
+            if (inventory.leftHand) {
+                const handEntity = WorldQuery.getEntityById(engine, inventory.leftHand);
+                const container = handEntity?.getComponent(Container);
+                const handItem = handEntity?.getComponent(Item);
 
-                if (container && equipItem) {
+                if (container && handItem) {
                     // If a container was specified, check if this is it
-                    if (specifiedContainerName && !equipItem.name.toLowerCase().includes(specifiedContainerName)) {
-                        continue;
+                    if (!specifiedContainerName || handItem.name.toLowerCase().includes(specifiedContainerName)) {
+                        const itemIdInContainer = container.items.find(id => {
+                            const item = WorldQuery.getEntityById(engine, id);
+                            const i = item?.getComponent(Item);
+                            return i && i.name.toLowerCase().includes(targetName);
+                        });
+
+                        if (itemIdInContainer) {
+                            targetItem = WorldQuery.getEntityById(engine, itemIdInContainer);
+                            fromContainer = true;
+                            containerEntity = handEntity;
+                            containerDisplayName = handItem.name;
+                        }
                     }
+                }
+            }
 
-                    const itemIdInContainer = container.items.find(id => {
-                        const item = WorldQuery.getEntityById(engine, id);
-                        const i = item?.getComponent(Item);
-                        return i && i.name.toLowerCase().includes(targetName);
-                    });
+            // Check right hand for container
+            if (!targetItem && inventory.rightHand) {
+                const handEntity = WorldQuery.getEntityById(engine, inventory.rightHand);
+                const container = handEntity?.getComponent(Container);
+                const handItem = handEntity?.getComponent(Item);
 
-                    if (itemIdInContainer) {
-                        targetItem = WorldQuery.getEntityById(engine, itemIdInContainer);
-                        fromContainer = true;
-                        containerEntity = equipEntity;
-                        containerDisplayName = equipItem.name;
-                        break;
+                if (container && handItem) {
+                    // If a container was specified, check if this is it
+                    if (!specifiedContainerName || handItem.name.toLowerCase().includes(specifiedContainerName)) {
+                        const itemIdInContainer = container.items.find(id => {
+                            const item = WorldQuery.getEntityById(engine, id);
+                            const i = item?.getComponent(Item);
+                            return i && i.name.toLowerCase().includes(targetName);
+                        });
+
+                        if (itemIdInContainer) {
+                            targetItem = WorldQuery.getEntityById(engine, itemIdInContainer);
+                            fromContainer = true;
+                            containerEntity = handEntity;
+                            containerDisplayName = handItem.name;
+                        }
+                    }
+                }
+            }
+
+            // Search in equipped containers
+            if (!targetItem) {
+                for (const itemId of inventory.equipment.values()) {
+                    const equipEntity = WorldQuery.getEntityById(engine, itemId);
+                    const container = equipEntity?.getComponent(Container);
+                    const equipItem = equipEntity?.getComponent(Item);
+
+                    if (container && equipItem) {
+                        // If a container was specified, check if this is it
+                        if (specifiedContainerName && !equipItem.name.toLowerCase().includes(specifiedContainerName)) {
+                            continue;
+                        }
+
+                        const itemIdInContainer = container.items.find(id => {
+                            const item = WorldQuery.getEntityById(engine, id);
+                            const i = item?.getComponent(Item);
+                            return i && i.name.toLowerCase().includes(targetName);
+                        });
+
+                        if (itemIdInContainer) {
+                            targetItem = WorldQuery.getEntityById(engine, itemIdInContainer);
+                            fromContainer = true;
+                            containerEntity = equipEntity;
+                            containerDisplayName = equipItem.name;
+                            break;
+                        }
                     }
                 }
             }
@@ -249,20 +302,45 @@ export class InventoryHandler {
             return;
         }
 
-        // Find the target container
+        // Find the target container - check hands first, then equipped items
         let targetContainer: Entity | undefined = undefined;
         let containerName = '';
 
-        for (const equipId of inventory.equipment.values()) {
-            const equip = WorldQuery.getEntityById(engine, equipId);
-            const equipItem = equip?.getComponent(Item);
-            const equipContainer = equip?.getComponent(Container);
+        // Check left hand
+        if (inventory.leftHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.leftHand);
+            const itemComp = item?.getComponent(Item);
+            const container = item?.getComponent(Container);
+            if (container && itemComp && itemComp.name.toLowerCase().includes(targetContainerName)) {
+                targetContainer = item;
+                containerName = itemComp.name;
+            }
+        }
 
-            if (equipContainer && equipItem) {
-                if (equipItem.name.toLowerCase().includes(targetContainerName)) {
-                    targetContainer = equip;
-                    containerName = equipItem.name;
-                    break;
+        // Check right hand
+        if (!targetContainer && inventory.rightHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.rightHand);
+            const itemComp = item?.getComponent(Item);
+            const container = item?.getComponent(Container);
+            if (container && itemComp && itemComp.name.toLowerCase().includes(targetContainerName)) {
+                targetContainer = item;
+                containerName = itemComp.name;
+            }
+        }
+
+        // Check equipped items
+        if (!targetContainer) {
+            for (const equipId of inventory.equipment.values()) {
+                const equip = WorldQuery.getEntityById(engine, equipId);
+                const equipItem = equip?.getComponent(Item);
+                const equipContainer = equip?.getComponent(Container);
+
+                if (equipContainer && equipItem) {
+                    if (equipItem.name.toLowerCase().includes(targetContainerName)) {
+                        targetContainer = equip;
+                        containerName = equipItem.name;
+                        break;
+                    }
                 }
             }
         }
@@ -351,8 +429,10 @@ export class InventoryHandler {
             leftHand: getItemName(inventory.leftHand),
             rightHand: getItemName(inventory.rightHand),
             backpack: getItemName(inventory.equipment.get('back') || null),
+            head: getItemName(inventory.equipment.get('head') || null),
             torso: getItemName(inventory.equipment.get('torso') || null),
             legs: getItemName(inventory.equipment.get('legs') || null),
+            feet: getItemName(inventory.equipment.get('feet') || null),
             waist: getItemName(inventory.equipment.get('waist') || null),
             backpackContents,
             currency: {
@@ -389,5 +469,176 @@ export class InventoryHandler {
         }
 
         this.messageService.info(entityId, message);
+    }
+
+    handleWear(entityId: string, itemName: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        if (!inventory) return;
+
+        const targetName = itemName.toLowerCase();
+
+        // Find item in hands or on ground
+        let itemToWear: Entity | null = null;
+        let fromHand: 'left' | 'right' | null = null;
+        let fromGround = false;
+
+        // Check left hand
+        if (inventory.leftHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.leftHand);
+            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                itemToWear = item;
+                fromHand = 'left';
+            }
+        }
+
+        // Check right hand
+        if (!itemToWear && inventory.rightHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.rightHand);
+            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                itemToWear = item;
+                fromHand = 'right';
+            }
+        }
+
+        // Check ground
+        if (!itemToWear) {
+            const playerPos = player.getComponent(Position);
+            if (playerPos) {
+                const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
+                itemToWear = itemsInRoom.find(item => {
+                    const itemComp = item.getComponent(Item);
+                    return itemComp && itemComp.name.toLowerCase().includes(targetName);
+                }) || null;
+                if (itemToWear) fromGround = true;
+            }
+        }
+
+        if (!itemToWear) {
+            this.messageService.info(entityId, `You don't have a ${itemName} to wear.`);
+            return;
+        }
+
+        const itemComp = itemToWear.getComponent(Item);
+        if (!itemComp) return;
+
+        // Check if item has a slot, or assign a default based on item type
+        let slot = itemComp.slot;
+        if (!slot) {
+            // Fallback slot assignment for legacy items
+            const itemNameLower = itemComp.name.toLowerCase();
+            if (itemNameLower.includes('backpack')) {
+                slot = 'back';
+                itemComp.slot = 'back'; // Update the component
+            } else if (itemNameLower.includes('shirt') || itemNameLower.includes('jacket') || itemNameLower.includes('vest')) {
+                slot = 'torso';
+                itemComp.slot = 'torso';
+            } else if (itemNameLower.includes('pants') || itemNameLower.includes('trousers') || itemNameLower.includes('jeans')) {
+                slot = 'legs';
+                itemComp.slot = 'legs';
+            } else if (itemNameLower.includes('belt')) {
+                slot = 'waist';
+                itemComp.slot = 'waist';
+            } else if (itemNameLower.includes('helmet') || itemNameLower.includes('hat') || itemNameLower.includes('cap')) {
+                slot = 'head';
+                itemComp.slot = 'head';
+            } else if (itemNameLower.includes('boots') || itemNameLower.includes('shoes')) {
+                slot = 'feet';
+                itemComp.slot = 'feet';
+            } else if (itemNameLower.includes('gloves')) {
+                slot = 'hands';
+                itemComp.slot = 'hands';
+            } else {
+                this.messageService.info(entityId, `You can't wear the ${itemComp.name}.`);
+                return;
+            }
+        }
+
+        // Check if this exact item is already equipped
+        const alreadyEquipped = Array.from(inventory.equipment.values()).includes(itemToWear.id);
+        if (alreadyEquipped) {
+            this.messageService.info(entityId, `You're already wearing the ${itemComp.name}.`);
+            return;
+        }
+
+        // Check if slot is already occupied
+        const currentlyEquipped = inventory.equipment.get(slot);
+        if (currentlyEquipped) {
+            const currentItem = WorldQuery.getEntityById(engine, currentlyEquipped);
+            const currentItemComp = currentItem?.getComponent(Item);
+            this.messageService.info(entityId, `You're already wearing ${currentItemComp?.name} on your ${slot}. Remove it first.`);
+            return;
+        }
+
+        // Remove from source
+        if (fromHand === 'left') inventory.leftHand = null;
+        else if (fromHand === 'right') inventory.rightHand = null;
+        else if (fromGround) itemToWear.removeComponent(Position);
+
+        // Equip the item
+        inventory.equipment.set(slot, itemToWear.id);
+
+        this.messageService.success(entityId, `You wear the ${itemComp.name} on your ${slot}.`);
+
+        // Update autocomplete
+        const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, engine);
+        this.io.to(entityId).emit('autocomplete-update', autocompleteData);
+    }
+
+    handleRemove(entityId: string, itemName: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
+        if (!player) return;
+
+        const inventory = player.getComponent(Inventory);
+        if (!inventory) return;
+
+        const targetName = itemName.toLowerCase();
+
+        // Find equipped item
+        let itemToRemove: Entity | null = null;
+        let slot: string | null = null;
+
+        for (const [equipSlot, equipId] of inventory.equipment) {
+            const item = WorldQuery.getEntityById(engine, equipId);
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.name.toLowerCase().includes(targetName)) {
+                itemToRemove = item || null;
+                slot = equipSlot;
+                break;
+            }
+        }
+
+        if (!itemToRemove || !slot) {
+            this.messageService.info(entityId, `You aren't wearing a ${itemName}.`);
+            return;
+        }
+
+        const itemComp = itemToRemove.getComponent(Item);
+        if (!itemComp) return;
+
+        // Remove from equipment
+        inventory.equipment.delete(slot);
+
+        // Try to put in hands
+        if (!inventory.leftHand) {
+            inventory.leftHand = itemToRemove.id;
+            this.messageService.success(entityId, `You remove the ${itemComp.name} and hold it in your left hand.`);
+        } else if (!inventory.rightHand) {
+            inventory.rightHand = itemToRemove.id;
+            this.messageService.success(entityId, `You remove the ${itemComp.name} and hold it in your right hand.`);
+        } else {
+            // Hands full, drop to ground
+            const playerPos = player.getComponent(Position);
+            if (playerPos) {
+                itemToRemove.addComponent(new Position(playerPos.x, playerPos.y));
+                this.messageService.success(entityId, `You remove the ${itemComp.name} and drop it on the ground (hands full).`);
+            }
+        }
+
+        // Update autocomplete
+        const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, engine);
+        this.io.to(entityId).emit('autocomplete-update', autocompleteData);
     }
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import './InventoryDisplay.css'; // Reusing consistency
+import './InventoryDisplay.css';
 
 interface MapCell {
     x: number;
@@ -38,10 +38,9 @@ export const MapDisplay: React.FC<Props> = ({ data }) => {
     };
 
     return (
-        <div className="inv map-display">
-            <div className="inv-title">CITY NAVIGATION GRID</div>
-            <div className="inv-border"></div>
-            <div className="inv-body" style={{ justifyContent: 'center', padding: '10px' }}>
+        <div className="inventory-display">
+            <div className="inventory-header">CITY NAVIGATION GRID</div>
+            <div className="inventory-grid" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                 <div className="map-grid">
                     {data.grid.map((row, y) => (
                         <div key={y} className="map-row">
@@ -58,8 +57,7 @@ export const MapDisplay: React.FC<Props> = ({ data }) => {
                     ))}
                 </div>
             </div>
-            <div className="inv-border"></div>
-            <div className="inv-footer" style={{ textAlign: 'center', fontSize: '0.8em' }}>
+            <div className="inventory-footer" style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px', color: '#0ff', borderTop: '1px solid rgba(0, 255, 255, 0.3)', paddingTop: '5px' }}>
                 LOCATION: ({data.playerPos.x}, {data.playerPos.y}) | SECTOR: {data.playerPos.x < 7 ? 'CHIBA' : data.playerPos.x < 14 ? 'SPRAWL' : 'STRAYLIGHT'}
             </div>
         </div>

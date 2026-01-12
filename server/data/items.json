@@ -353,7 +353,8 @@
         "type": "container",
         "extraData": {
             "capacity": 20
-        }
+        },
+        "slot": "back"
     },
     {
         "id": "25",

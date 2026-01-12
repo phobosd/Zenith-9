@@ -15,6 +15,8 @@ export interface AutocompleteData {
     objects?: string[];
     items?: string[];
     containers?: string[];
+    npcs?: string[];
+    equipped?: string[];
 }
 
 export class AutocompleteAggregator {
@@ -40,20 +42,22 @@ export class AutocompleteAggregator {
             }
         });
 
+        const npcs_list: string[] = [];
         npcs.forEach(npc => {
             const npcComp = npc.getComponent(NPC);
             if (npcComp) {
                 const name = npcComp.typeName.toLowerCase();
                 const total = typeTotals.get(name) || 0;
 
+                let finalName = name;
                 if (total > 1) {
                     const count = (typeCounts.get(name) || 0) + 1;
                     typeCounts.set(name, count);
                     const ordinal = ordinalNames[count - 1] || count.toString();
-                    objects.push(`${ordinal} ${name}`);
-                } else {
-                    objects.push(name);
+                    finalName = `${ordinal} ${name}`;
                 }
+                objects.push(finalName);
+                npcs_list.push(finalName);
             }
         });
 
@@ -107,7 +111,8 @@ export class AutocompleteAggregator {
             type: 'room',
             objects: objects,
             items: groundItems,
-            containers: groundContainers
+            containers: groundContainers,
+            npcs: npcs_list
         };
     }
 
@@ -120,6 +125,7 @@ export class AutocompleteAggregator {
 
         const invItems: string[] = [];
         const containers: string[] = [];
+        const equipped: string[] = [];
 
         const getHandContent = (handId: string | null) => {
             if (!handId) return null;
@@ -147,10 +153,33 @@ export class AutocompleteAggregator {
             if (name) addSuggestions(name);
         }
 
+        // Check hands for containers
+        if (inventory.leftHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.leftHand);
+            const itemComp = item?.getComponent(Item);
+            const container = item?.getComponent(Container);
+            if (container && itemComp) {
+                containers.push(itemComp.name.toLowerCase());
+            }
+        }
+        if (inventory.rightHand) {
+            const item = WorldQuery.getEntityById(engine, inventory.rightHand);
+            const itemComp = item?.getComponent(Item);
+            const container = item?.getComponent(Container);
+            if (container && itemComp) {
+                containers.push(itemComp.name.toLowerCase());
+            }
+        }
+
         inventory.equipment.forEach((itemId) => {
             const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
             const container = item?.getComponent(Container);
+
+            // Add to equipped list
+            if (itemComp) {
+                equipped.push(itemComp.name.toLowerCase());
+            }
 
             if (container && itemComp) {
                 containers.push(itemComp.name.toLowerCase());
@@ -168,7 +197,8 @@ export class AutocompleteAggregator {
         return {
             type: 'inventory',
             items: invItems.filter(n => n !== 'empty' && n !== 'unknown'),
-            containers: containers
+            containers: Array.from(new Set(containers)), // Remove duplicates
+            equipped: equipped
         };
     }
 }

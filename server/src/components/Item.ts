@@ -11,7 +11,8 @@ export class Item extends Component {
         public size: string = "Small",
         public legality: string = "Legal",
         public attributes: string = "",
-        public shortName: string = ""
+        public shortName: string = "",
+        public slot: string | null = null // Body slot: head, torso, legs, waist, back, feet, hands, etc.
     ) {
         super();
         if (!this.shortName) {
