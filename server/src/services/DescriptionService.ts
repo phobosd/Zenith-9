@@ -227,14 +227,49 @@ ${npcDescriptions}`.trim();
     /**
      * Generates a description for an NPC.
      */
-    static describeNPC(npc: Entity): string {
+    static describeNPC(npc: Entity, engine: IEngine): string {
         const npcComp = npc.getComponent(NPC);
         if (!npcComp) return "You see nothing special.";
 
-        return `
+        let desc = `
 ${MessageFormatter.title(`[${npcComp.typeName}]`)}
 <desc>${npcComp.description}</desc>
-        `.trim();
+`.trim();
+
+        // Show Equipment
+        const inventory = npc.getComponent(Inventory);
+        if (inventory) {
+            const equipmentList: string[] = [];
+
+            const getItemName = (id: string | null) => {
+                if (!id) return null;
+                const item = WorldQuery.getEntityById(engine, id);
+                return item?.getComponent(Item)?.name;
+            };
+
+            const rightHand = getItemName(inventory.rightHand);
+            if (rightHand) equipmentList.push(`<cyan>Right Hand:</cyan> <item>${rightHand}</item>`);
+
+            const leftHand = getItemName(inventory.leftHand);
+            if (leftHand) equipmentList.push(`<cyan>Left Hand:</cyan> <item>${leftHand}</item>`);
+
+            inventory.equipment.forEach((itemId, slot) => {
+                const name = getItemName(itemId);
+                if (name) {
+                    // Format slot name nicely (e.g. "pocket_123" -> "Pocket")
+                    let slotName = slot;
+                    if (slot.startsWith('pocket')) slotName = 'Pocket';
+                    else slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+
+                    equipmentList.push(`<cyan>${slotName}:</cyan> <item>${name}</item>`);
+                }
+            });
+
+            if (equipmentList.length > 0) {
+                desc += `\n\n<title>Equipment:</title>\n${equipmentList.map(e => `- ${e}`).join('\n')}`;
+            }
+        }
+        return desc;
     }
 
     /**
@@ -325,7 +360,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         });
 
         if (targetNPC) {
-            return this.describeNPC(targetNPC);
+            return this.describeNPC(targetNPC, engine);
         }
 
         // 3. Check for other entities (Terminals, Objects, PuzzleObjects)

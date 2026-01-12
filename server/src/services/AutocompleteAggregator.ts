@@ -31,7 +31,18 @@ export class AutocompleteAggregator {
         npcs.forEach(npc => {
             const npcComp = npc.getComponent(NPC);
             if (npcComp) {
-                objects.push(npcComp.typeName.toLowerCase());
+                const fullName = npcComp.typeName.toLowerCase();
+                objects.push(fullName);
+
+                // Add individual words for multi-word names
+                const parts = fullName.split(' ');
+                if (parts.length > 1) {
+                    parts.forEach(part => {
+                        if (!objects.includes(part) && part.length > 2) { // Avoid very short words
+                            objects.push(part);
+                        }
+                    });
+                }
             }
         });
 
@@ -40,7 +51,15 @@ export class AutocompleteAggregator {
         terminals.forEach(terminal => {
             const desc = terminal.getComponent(Description);
             if (desc) {
-                objects.push(desc.title.toLowerCase());
+                const title = desc.title.toLowerCase();
+                objects.push(title);
+                // Add parts
+                const parts = title.split(' ');
+                if (parts.length > 1) {
+                    parts.forEach(part => {
+                        if (!objects.includes(part) && part.length > 2) objects.push(part);
+                    });
+                }
             }
         });
 
@@ -55,21 +74,25 @@ export class AutocompleteAggregator {
 
         descEntities.forEach(entity => {
             const desc = entity.getComponent(Description);
-            if (desc && !objects.includes(desc.title.toLowerCase())) {
-                objects.push(desc.title.toLowerCase());
-                // Also add shortened versions for common names
-                if (desc.title.includes('Bust')) {
-                    const bustType = desc.title.replace(' Bust', '').toLowerCase();
-                    if (!objects.includes(bustType)) {
-                        objects.push(bustType);
-                    }
-                    if (!objects.includes('bust')) {
-                        objects.push('bust');
-                    }
+            if (desc) {
+                const title = desc.title.toLowerCase();
+                if (!objects.includes(title)) {
+                    objects.push(title);
                 }
-                if (desc.title.includes('Table')) {
-                    if (!objects.includes('table')) {
-                        objects.push('table');
+
+                // Add parts
+                const parts = title.split(' ');
+                if (parts.length > 1) {
+                    parts.forEach(part => {
+                        if (!objects.includes(part) && part.length > 2) objects.push(part);
+                    });
+                }
+
+                // Also add shortened versions for common names (Legacy/Specific support)
+                if (title.includes('bust')) {
+                    const bustType = title.replace(' bust', '').trim();
+                    if (!objects.includes(bustType) && bustType.length > 0) {
+                        objects.push(bustType);
                     }
                 }
             }
@@ -115,18 +138,31 @@ export class AutocompleteAggregator {
             return item?.getComponent(Item)?.name || null;
         };
 
-        const shortenName = (name: string): string => {
-            if (name.toLowerCase().includes('pistol magazine')) return 'mag';
-            return name;
+        const addSuggestions = (name: string) => {
+            const lowerName = name.toLowerCase();
+            if (!invItems.includes(lowerName)) invItems.push(lowerName);
+
+            // Add individual words
+            const parts = lowerName.split(' ');
+            if (parts.length > 1) {
+                parts.forEach(part => {
+                    if (!invItems.includes(part) && part.length > 2) invItems.push(part);
+                });
+            }
+
+            // Specific aliases
+            if (lowerName.includes('pistol magazine')) {
+                if (!invItems.includes('mag')) invItems.push('mag');
+            }
         };
 
         if (inventory.leftHand) {
             const name = getHandContent(inventory.leftHand);
-            if (name) invItems.push(shortenName(name).toLowerCase());
+            if (name) addSuggestions(name);
         }
         if (inventory.rightHand) {
             const name = getHandContent(inventory.rightHand);
-            if (name) invItems.push(shortenName(name).toLowerCase());
+            if (name) addSuggestions(name);
         }
 
         inventory.equipment.forEach((itemId) => {
@@ -136,15 +172,18 @@ export class AutocompleteAggregator {
 
             if (container && itemComp) {
                 containers.push(itemComp.name.toLowerCase());
+                // Also add container parts to suggestions (so you can 'put X in back')
+                const parts = itemComp.name.toLowerCase().split(' ');
+                parts.forEach(part => {
+                    if (!containers.includes(part) && part.length > 2) containers.push(part);
+                });
             }
 
             if (container) {
                 container.items.forEach(cid => {
                     const cItem = WorldQuery.getEntityById(engine, cid);
                     const name = cItem?.getComponent(Item)?.name;
-                    if (name) {
-                        invItems.push(shortenName(name).toLowerCase());
-                    }
+                    if (name) addSuggestions(name);
                 });
             }
         });

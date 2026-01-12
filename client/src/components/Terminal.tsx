@@ -7,6 +7,7 @@ import { SheetDisplay } from './SheetDisplay';
 import { TerminalDisplay } from './TerminalDisplay';
 import { GuideOverlay } from './GuideOverlay';
 import { MapDisplay } from './MapDisplay';
+import { StatusBar, RoundtimeIndicator } from './StatusHUD';
 import './Terminal.css';
 
 
@@ -15,7 +16,7 @@ const SOCKET_URL = 'http://localhost:3000';
 interface TerminalLine {
     id: string;
     text: string;
-    type: 'output' | 'input' | 'system' | 'inventory' | 'score' | 'sheet' | 'terminal' | 'map';
+    type: 'output' | 'input' | 'system' | 'inventory' | 'score' | 'sheet' | 'terminal' | 'map' | 'info' | 'error' | 'success' | 'action' | 'combat' | 'room_desc';
     data?: any;
 }
 
@@ -163,7 +164,9 @@ export const Terminal: React.FC = () => {
         'attack', 'kill', 'fight', 'read', 'scan',
         'god', 'admin', 'help', '?', 'map', 'm', 'sheet', 'stats', 'score', 'skills',
         'stow', 'put', 'swap', 'switch', 'use', 'sit', 'stand', 'st', 'lie', 'rest', 'sleep',
-        'turn', 'rotate', 'jack_in', 'jack_out', 'jackin', 'jackout'
+        'turn', 'rotate', 'jack_in', 'jack_out', 'jackin', 'jackout',
+        'maneuver', 'man', 'target', 'stance', 'appraise', 'app',
+        'advance', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess'
     ];
 
     const [completionState, setCompletionState] = useState<{
@@ -285,24 +288,65 @@ export const Terminal: React.FC = () => {
                         matches = autocompleteData.containers.filter(s => s.startsWith(search));
                         baseString = rawParts.slice(0, inIndex + 1).join(' ') + ' ';
                     } else {
-                        // Completing item/NPC name or "in"
+                        // Handle "look at"
+                        let searchStartIndex = 1;
+                        if (cmd === 'look' && parts[1] === 'at') {
+                            searchStartIndex = 2;
+                        }
+
                         const roomTargets = [...autocompleteData.roomObjects, ...autocompleteData.roomItems];
                         const candidates = Array.from(new Set([...roomTargets, ...autocompleteData.inventory]));
-                        const search = parts.slice(1).join(' ');
+
+                        const search = parts.slice(searchStartIndex).join(' ');
                         matches = candidates.filter(s => s.startsWith(search));
 
-                        // Only suggest 'in' if it matches and we have containers
-                        if ('in'.startsWith(search) && autocompleteData.containers.length > 0 && search.length > 0) {
+                        // Only suggest 'in' if it matches and we have containers (and we aren't already using 'at')
+                        if (searchStartIndex === 1 && 'in'.startsWith(search) && autocompleteData.containers.length > 0 && search.length > 0) {
                             matches.push('in');
                         }
 
-                        baseString = rawParts[0] + ' ';
+                        // Suggest 'at' if typing 'look a...'
+                        if (cmd === 'look' && searchStartIndex === 1 && 'at'.startsWith(search) && search.length > 0) {
+                            matches.push('at');
+                        }
+
+                        baseString = rawParts.slice(0, searchStartIndex).join(' ') + ' ';
                     }
-                } else if (['attack', 'kill', 'fight', 'read', 'scan', 'turn', 'rotate'].includes(cmd)) {
+                } else if (['attack', 'kill', 'fight', 'read', 'scan', 'turn', 'rotate', 'appraise', 'app', 'advance', 'retreat'].includes(cmd)) {
                     // These commands usually target NPCs or room objects
                     const candidates = Array.from(new Set([...autocompleteData.roomObjects, ...autocompleteData.roomItems]));
                     const search = parts.slice(1).join(' ');
                     matches = candidates.filter(s => s.startsWith(search));
+                    baseString = rawParts[0] + ' ';
+                }
+                else if (cmd === 'maneuver' || cmd === 'man') {
+                    if (parts[1] === 'close' || parts[1] === 'withdraw') {
+                        // maneuver close/withdraw <target>
+                        const search = parts.slice(2).join(' ');
+                        matches = autocompleteData.roomObjects.filter(s => s.startsWith(search));
+                        baseString = rawParts.slice(0, 2).join(' ') + ' ';
+                    } else {
+                        // maneuver <close|withdraw>
+                        const search = parts.slice(1).join(' ');
+                        matches = ['close', 'withdraw'].filter(s => s.startsWith(search));
+                        baseString = rawParts[0] + ' ';
+                    }
+                }
+                else if (cmd === 'flee') {
+                    const search = parts.slice(1).join(' ');
+                    const directions = ['north', 'south', 'east', 'west', 'n', 's', 'e', 'w'];
+                    matches = directions.filter(s => s.startsWith(search));
+                    baseString = rawParts[0] + ' ';
+                }
+                else if (cmd === 'target') {
+                    const search = parts.slice(1).join(' ');
+                    const bodyParts = ['head', 'neck', 'chest', 'abdomen', 'back', 'r_arm', 'l_arm', 'r_leg', 'l_leg', 'eyes'];
+                    matches = bodyParts.filter(s => s.startsWith(search));
+                    baseString = rawParts[0] + ' ';
+                }
+                else if (cmd === 'stance') {
+                    const search = parts.slice(1).join(' ');
+                    matches = ['offensive', 'defensive', 'neutral', 'evasion', 'parry', 'shield', 'custom'].filter(s => s.startsWith(search));
                     baseString = rawParts[0] + ' ';
                 }
                 else if (cmd === 'put' || cmd === 'stow') {
@@ -312,6 +356,12 @@ export const Terminal: React.FC = () => {
                         // Completing the item name (before "in")
                         const search = parts.slice(1).join(' ');
                         matches = autocompleteData.inventory.filter(s => s.startsWith(search));
+
+                        // Suggest 'in' if we have containers
+                        if ('in'.startsWith(search) && autocompleteData.containers.length > 0 && search.length > 0) {
+                            matches.push('in');
+                        }
+
                         baseString = rawParts[0] + ' ';
                     } else {
                         // Completing the container name (after "in")
@@ -384,10 +434,10 @@ export const Terminal: React.FC = () => {
                 ))}
             </div>
             <div className="terminal-input-area">
-
+                {playerStats && <RoundtimeIndicator stats={playerStats} />}
                 <div className="terminal-input-row">
                     <span className="prompt">
-                        {playerStats ? `[HP: ${playerStats.hp}/${playerStats.maxHp}]${playerStats.stance !== 'standing' ? ` (${playerStats.stance})` : ''} >` : '>'}
+                        {'>'}
                     </span>
                     <input
                         type="text"
@@ -402,6 +452,7 @@ export const Terminal: React.FC = () => {
                     />
                 </div>
             </div>
+            {playerStats && <StatusBar stats={playerStats} />}
         </div>
     );
 };

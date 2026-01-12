@@ -32,6 +32,22 @@
   color: #ffff00;
 }
 
+.terminal-line.info {
+  color: #e0e0e0;
+}
+
+.terminal-line.error {
+  color: #ff3333;
+}
+
+.terminal-line.success {
+  color: #33ff33;
+}
+
+.terminal-line.combat {
+  color: #ffaa00;
+}
+
 .terminal-line.input {
   color: #888;
 }
@@ -244,4 +260,12 @@
 .text-currency {
   color: #ffff00;
   font-weight: bold;
+}
+
+.text-speech {
+  color: #ffffff;
+}
+
+.text-cyan {
+  color: #00ffff;
 }

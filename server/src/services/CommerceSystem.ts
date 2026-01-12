@@ -11,6 +11,8 @@ import { Entity } from '../ecs/Entity';
 import { Terminal } from '../components/Terminal';
 
 import { MessageService } from '../services/MessageService';
+import { Logger } from '../utils/Logger';
+import { ItemRegistry } from './ItemRegistry';
 
 export class CommerceSystem {
     constructor(private io: Server, private messageService: MessageService) { }
@@ -28,7 +30,7 @@ export class CommerceSystem {
         // Create the item
         const itemEntity = PrefabFactory.createItem(itemName);
         if (!itemEntity) {
-            this.messageService.system(entityId, "Error: Item out of stock.");
+            this.messageService.system(entityId, `Error: Item '${itemName}' out of stock (not found in registry).`);
             return;
         }
 
@@ -76,6 +78,8 @@ export class CommerceSystem {
         if (!terminal) return;
 
         const itemNames = terminal.data.items as string[];
+        Logger.info('CommerceSystem', `Reading terminal. Items requested: ${JSON.stringify(itemNames)}`);
+
         const itemsData = itemNames.map(name => {
             const tempEntity = PrefabFactory.createItem(name);
             if (tempEntity) {
@@ -87,12 +91,17 @@ export class CommerceSystem {
                         size: item.size,
                         legality: item.legality,
                         attributes: item.attributes,
-                        description: item.description
+                        description: item.description,
+                        cost: ItemRegistry.getInstance().getItem(name)?.cost || 100
                     };
                 }
+            } else {
+                Logger.warn('CommerceSystem', `Failed to create item for shop: ${name}. Check ItemRegistry/PrefabFactory.`);
             }
             return null;
         }).filter(i => i !== null);
+
+        Logger.info('CommerceSystem', `Generated itemsData: ${itemsData.length} items successfully resolved.`);
 
         this.io.to(entityId).emit('terminal-data', {
             title: "CYBERNETICS CATALOG",

@@ -38,6 +38,10 @@ export class MessageFormatter {
         return this.wrap('combat', content);
     }
 
+    static speech(name: string, content: string): string {
+        return `<speech>[${name}] says: "${content}"</speech>`;
+    }
+
     static currency(newYen: number, credits: number): string {
         return `<currency>¥${newYen} | ${credits} Credits</currency>`;
     }

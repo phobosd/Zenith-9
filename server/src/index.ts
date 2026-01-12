@@ -16,6 +16,7 @@ import { NPCSystem } from './systems/NPCSystem';
 import { NPC } from './components/NPC';
 import { CombatSystem } from './systems/CombatSystem';
 import { CyberspaceSystem } from './systems/CyberspaceSystem';
+import { AtmosphereSystem } from './systems/AtmosphereSystem';
 import { Inventory } from './components/Inventory';
 import { Item } from './components/Item';
 import { Container } from './components/Container';
@@ -26,13 +27,16 @@ import { Magazine } from './components/Magazine';
 import { PersistenceManager } from './persistence/PersistenceManager';
 import { CommandRegistry } from './commands/CommandRegistry';
 import { Stance, StanceType } from './components/Stance';
+import { Roundtime } from './components/Roundtime';
 import { PrefabFactory } from './factories/PrefabFactory';
 import { ItemRegistry } from './services/ItemRegistry';
 import { Logger } from './utils/Logger';
 import { Credits } from './components/Credits';
 import { WorldStateService } from './services/WorldStateService';
+import { AutocompleteAggregator } from './services/AutocompleteAggregator';
 import { MessageService } from './services/MessageService';
 import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/SocketSchemas';
+import { EngagementTier } from './types/CombatTypes';
 
 // Initialize ItemRegistry
 ItemRegistry.getInstance();
@@ -56,12 +60,14 @@ const interactionSystem = new InteractionSystem(io);
 const npcSystem = new NPCSystem(io, messageService);
 const combatSystem = new CombatSystem(engine, io, messageService);
 const cyberspaceSystem = new CyberspaceSystem(io, messageService);
+const atmosphereSystem = new AtmosphereSystem(messageService);
 
 engine.addSystem(movementSystem);
 engine.addSystem(interactionSystem);
 engine.addSystem(npcSystem);
 engine.addSystem(combatSystem);
 engine.addSystem(cyberspaceSystem);
+engine.addSystem(atmosphereSystem);
 
 movementSystem.setInteractionSystem(interactionSystem);
 
@@ -115,7 +121,13 @@ commandRegistry.register({
     name: 'look',
     aliases: ['l', 'la'],
     description: 'Look at the room, an item, or an NPC',
-    execute: (ctx) => ctx.systems.interaction.handleLook(ctx.socketId, ctx.engine, ctx.args.join(' '))
+    execute: (ctx) => {
+        let target = ctx.args.join(' ');
+        if (target.toLowerCase().startsWith('at ')) {
+            target = target.substring(3).trim();
+        }
+        ctx.systems.interaction.handleLook(ctx.socketId, ctx.engine, target);
+    }
 });
 
 commandRegistry.register({
@@ -217,6 +229,20 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'reload',
+    aliases: ['rel'],
+    description: 'Reload your weapon',
+    execute: (ctx) => ctx.systems.combat.handleReload(ctx.socketId, ctx.engine)
+});
+
+commandRegistry.register({
+    name: 'ammo',
+    aliases: ['checkammo'],
+    description: 'Check ammunition in your weapon',
+    execute: (ctx) => ctx.systems.combat.handleCheckAmmo(ctx.socketId, ctx.engine)
+});
+
+commandRegistry.register({
     name: 'turn',
     aliases: ['rotate'],
     description: 'Turn an object (Usage: turn <object> <direction>)',
@@ -233,6 +259,117 @@ commandRegistry.register({
         }
         const targetName = args.join(' '); // Rest is object name
         ctx.systems.interaction.handleTurn(ctx.socketId, ctx.engine, targetName, direction);
+    }
+});
+
+commandRegistry.register({
+    name: 'maneuver',
+    aliases: ['man'],
+    description: 'Change engagement tier (Usage: maneuver close/withdraw)',
+    execute: (ctx) => {
+        const dir = ctx.args[0]?.toUpperCase();
+        const target = ctx.args.slice(1).join(' '); // Get target name if present
+        if (dir === 'CLOSE' || dir === 'WITHDRAW') {
+            ctx.systems.combat.handleManeuver(ctx.socketId, dir, ctx.engine, target);
+        } else {
+            ctx.messageService.info(ctx.socketId, 'Usage: maneuver close/withdraw [target]');
+        }
+    }
+});
+
+
+
+commandRegistry.register({
+    name: 'advance',
+    aliases: ['approach'],
+    description: 'Automatically advance on a target until close range',
+    execute: (ctx) => {
+        const target = ctx.args.join(' ');
+        ctx.systems.combat.handleAdvance(ctx.socketId, target, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'retreat',
+    aliases: [],
+    description: 'Automatically retreat from a target',
+    execute: (ctx) => {
+        const target = ctx.args.join(' ');
+        ctx.systems.combat.handleRetreat(ctx.socketId, target, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'stop',
+    aliases: [],
+    description: 'Stop any automated actions',
+    execute: (ctx) => {
+        ctx.systems.combat.handleStop(ctx.socketId, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'hangback',
+    aliases: [],
+    description: 'Toggle hangback mode to counter enemy advances',
+    execute: (ctx) => {
+        ctx.systems.combat.handleHangback(ctx.socketId, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'flee',
+    aliases: [],
+    description: 'Attempt to flee from combat (Usage: flee [direction])',
+    execute: (ctx) => {
+        const direction = ctx.args[0]?.toUpperCase();
+        ctx.systems.combat.handleFlee(ctx.socketId, direction, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'assess',
+    aliases: [],
+    description: 'Assess the combat situation',
+    execute: (ctx) => {
+        ctx.systems.combat.handleAssess(ctx.socketId, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'target',
+    aliases: [],
+    description: 'Set targeting bias (Usage: target <body_part>)',
+    execute: (ctx) => {
+        const part = ctx.args[0];
+        if (part) {
+            ctx.systems.combat.handleTarget(ctx.socketId, part, ctx.engine);
+        } else {
+            ctx.messageService.info(ctx.socketId, 'Usage: target <body_part>');
+        }
+    }
+});
+
+commandRegistry.register({
+    name: 'stance',
+    aliases: [],
+    description: 'Set combat stance (Usage: stance <evasion|parry|shield|offensive|defensive|neutral|custom>)',
+    execute: (ctx) => {
+        ctx.systems.combat.handleStance(ctx.socketId, ctx.args, ctx.engine);
+    }
+});
+
+commandRegistry.register({
+    name: 'appraise',
+    aliases: ['app'],
+    description: 'Appraise a target\'s condition (Usage: appraise <target>)',
+    execute: (ctx) => {
+        const target = ctx.args.join(' ');
+        if (target) {
+            ctx.systems.combat.handleAppraise(ctx.socketId, target, ctx.engine);
+        } else {
+            ctx.messageService.info(ctx.socketId, 'Usage: appraise <target>');
+        }
     }
 });
 
@@ -286,6 +423,7 @@ commandRegistry.register({
             if (entity) {
                 entity.addComponent(new Position(pos.x, pos.y));
                 ctx.engine.addEntity(entity);
+                PrefabFactory.equipNPC(entity, ctx.engine);
                 ctx.messageService.success(ctx.socketId, `Spawned NPC: ${name}`);
                 return;
             }
@@ -329,6 +467,17 @@ commandRegistry.register({
             } else {
                 ctx.messageService.error(ctx.socketId, `Unknown reset target: ${target}`);
             }
+        } else if (subCommand === 'weather') {
+            ctx.systems.atmosphere.triggerWeatherChange(ctx.engine);
+            ctx.messageService.success(ctx.socketId, 'Weather change triggered.');
+        } else if (subCommand === 'registry') {
+            const items = ItemRegistry.getInstance().getAllItems();
+            const uniqueItems = Array.from(new Set(items));
+            let msg = `<title>[Item Registry - ${uniqueItems.length} unique items]</title>\n`;
+            uniqueItems.slice(0, 50).forEach(item => {
+                msg += `<info>${item.id}</info>: <cmd>${item.name}</cmd> | <success>${item.shortName}</success>\n`;
+            });
+            ctx.messageService.info(ctx.socketId, msg);
         }
     }
 });
@@ -368,10 +517,20 @@ setInterval(() => {
         const combatStats = entity.getComponent(CombatStats);
         const stance = entity.getComponent(Stance);
         if (combatStats) {
+            const rt = entity.getComponent(Roundtime) as Roundtime | undefined;
+            const stats = entity.getComponent(Stats);
+            const con = stats?.attributes.get('CON')?.value || 10;
+
             io.to(id).emit('stats-update', {
                 hp: combatStats.hp,
                 maxHp: combatStats.maxHp,
-                stance: stance?.current || 'standing'
+                stance: stance?.current || 'standing',
+                roundtime: rt?.secondsRemaining || 0,
+                maxRoundtime: rt?.totalSeconds || 0,
+                balance: combatStats.balance,
+                fatigue: combatStats.fatigue,
+                maxFatigue: con * 10,
+                engagement: combatStats.engagementTier
             });
         }
     }
@@ -450,7 +609,7 @@ io.on('connection', (socket) => {
     for (let i = 0; i < 3; i++) {
         const mag = new Entity();
         mag.addComponent(new Item("9mm Mag", "A standard 10-round magazine.", 0.2));
-        mag.addComponent(new Magazine(10, 10, "9mm"));
+        mag.addComponent(new Magazine("9mm Mag", 10, 10, "9mm"));
         engine.addEntity(mag);
         belt.getComponent(Container)?.items.push(mag.id);
         belt.getComponent(Container)!.currentWeight += 0.2;
@@ -459,11 +618,31 @@ io.on('connection', (socket) => {
     // Create Pistol (in Right Hand)
     const pistol = new Entity();
     pistol.addComponent(new Item("9mm Pistol", "A reliable semi-automatic sidearm.", 2.0));
-    pistol.addComponent(new Weapon("9mm Pistol", 15, 10, "9mm", 12, { speed: 1.2, zoneSize: 2, jitter: 0.1 }));
+    pistol.addComponent(new Weapon(
+        "9mm Pistol",
+        15,
+        10,
+        "9mm",
+        "9mm Pistol Magazine",
+        12,
+        { speed: 1.2, zoneSize: 2, jitter: 0.1 },
+        EngagementTier.MISSILE,
+        EngagementTier.MELEE,
+        0.2
+    ));
     engine.addEntity(pistol);
     inventory.rightHand = pistol.id;
 
     engine.addEntity(player);
+
+    // Send initial autocomplete data
+    const roomAuto = AutocompleteAggregator.getRoomAutocomplete(player.getComponent(Position)!, engine);
+    socket.emit('autocomplete-update', roomAuto);
+    const invAuto = AutocompleteAggregator.getInventoryAutocomplete(player, engine);
+    socket.emit('autocomplete-update', invAuto);
+
+    // Initial Look
+    interactionSystem.handleLook(socket.id, engine);
 
 
     socket.on('command', (cmd: string) => {
@@ -483,7 +662,8 @@ io.on('connection', (socket) => {
                 interaction: interactionSystem,
                 npc: npcSystem,
                 combat: combatSystem,
-                cyberspace: cyberspaceSystem
+                cyberspace: cyberspaceSystem,
+                atmosphere: atmosphereSystem
             },
             messageService: messageService
         });

@@ -8,10 +8,42 @@ import { CombatStats } from '../components/CombatStats';
 import { Position } from '../components/Position';
 import { Cyberware } from '../components/Cyberware';
 import { IsICE } from '../components/IsICE';
+import { WoundTable } from '../components/WoundTable';
 
 import { ItemRegistry } from '../services/ItemRegistry';
+import { EngagementTier } from '../types/CombatTypes';
+
+import { Inventory } from '../components/Inventory';
+import { IEngine } from '../commands/CommandRegistry';
 
 export class PrefabFactory {
+    static equipNPC(npc: Entity, engine: IEngine) {
+        const npcComp = npc.getComponent(NPC);
+        if (!npcComp) return;
+
+        if (npcComp.tag === 'turing') {
+            const spawnItem = (name: string, equip: boolean = false) => {
+                const item = PrefabFactory.createItem(name);
+                if (item) {
+                    engine.addEntity(item);
+                    const inventory = npc.getComponent(Inventory) || new Inventory();
+                    if (!npc.hasComponent(Inventory)) {
+                        npc.addComponent(inventory);
+                    }
+
+                    if (equip) {
+                        inventory.rightHand = item.id;
+                    } else {
+                        inventory.equipment.set(`pocket_${item.id}`, item.id);
+                    }
+                }
+            };
+
+            spawnItem('ceska_scorpion', true);
+            spawnItem('compliance_derm');
+        }
+    }
+
     static createItem(name: string): Entity | null {
         const entity = new Entity();
         const registry = ItemRegistry.getInstance();
@@ -22,17 +54,43 @@ export class PrefabFactory {
         // If not found by ID, try to find by name in the registry (ItemRegistry handles this via its map)
 
         if (def) {
-            entity.addComponent(new Item(def.name, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.shortName));
+            // Use shortName as the display name, and name as the internal slug/alias
+            entity.addComponent(new Item(def.shortName, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.name));
 
             if (def.type === 'container') {
                 const capacity = def.extraData.capacity || 10;
                 entity.addComponent(new Container(capacity));
             } else if (def.type === 'weapon') {
                 const data = def.extraData;
-                entity.addComponent(new Weapon(def.name, data.damage || 10, data.range || 10, data.ammoType || '9mm', data.magSize || 10, { speed: 1.0, zoneSize: 1, jitter: 0.1 }));
+                const minTier = data.minTier || EngagementTier.MELEE;
+                const maxTier = data.maxTier || EngagementTier.MELEE;
+                const momentumImpact = data.momentumImpact || 0.1;
+                entity.addComponent(new Weapon(
+                    def.shortName,
+                    data.damage || 10,
+                    data.range !== undefined ? data.range : 10,
+                    data.ammoType || '9mm',
+                    data.magazineType || null,
+                    data.magSize || 10,
+                    data.difficulty || { speed: 1.0, zoneSize: 1, jitter: 0.1 },
+                    minTier as any,
+                    maxTier as any,
+                    momentumImpact
+                ));
             } else if (def.type === 'cyberware') {
                 const data = def.extraData;
                 entity.addComponent(new Cyberware(data.slot || 'neural', new Map(Object.entries(data.modifiers || {}))));
+            }
+
+            // Add Magazine component if it's a magazine item
+            if (def.extraData && def.extraData.isMagazine) {
+                const data = def.extraData;
+                entity.addComponent(new Magazine(
+                    def.shortName,
+                    data.capacity || 10,
+                    data.currentAmmo !== undefined ? data.currentAmmo : (data.capacity || 10),
+                    data.ammoType || '9mm'
+                ));
             }
 
             return entity;
@@ -47,6 +105,14 @@ export class PrefabFactory {
             case 'backpack':
                 entity.addComponent(new Item("Backpack", "A sturdy canvas backpack.", 1.0));
                 entity.addComponent(new Container(20.0));
+                break;
+            case 'ceska_scorpion':
+                entity.addComponent(new Item("Ceska Scorpion", "A matte-black submachine gun.", 2.0));
+                entity.addComponent(new Weapon("Ceska Scorpion", 15, 20, "9mm", "Ceska Scorpion Magazine", 20, { speed: 1.2, zoneSize: 4, jitter: 0.2 }, EngagementTier.MISSILE, EngagementTier.MELEE, 0.3));
+                break;
+            case 'compliance_derm':
+                entity.addComponent(new Item("Compliance Derm", "A dermal patch that induces paralysis.", 0.01));
+                entity.addComponent(new Weapon("Compliance Derm", 1, 1, "none", "none", 1, { speed: 1.0, zoneSize: 5, jitter: 0.0 }, EngagementTier.CLOSE_QUARTERS, EngagementTier.CLOSE_QUARTERS, 0.0));
                 break;
             default:
                 return null;
@@ -124,9 +190,23 @@ export class PrefabFactory {
                 entity.addComponent(new NPC(
                     "Turing Police",
                     ["AI breakthrough detected.", "Cease and desist.", "By order of the Turing Registry."],
-                    "A stern agent in a grey polycarbon suit, wearing a badge that signifies their authority over artificial intelligences. They carry a heavy taser-prod and a specialized scanner for detecting rogue code."
+                    "A stern agent in a grey polycarbon suit, wearing a badge that signifies their authority over artificial intelligences. They carry a heavy taser-prod and a specialized scanner for detecting rogue code.",
+                    true, // canMove
+                    'turing' // tag
                 ));
                 entity.addComponent(new CombatStats(120, 20, 10));
+                // Loadout is handled in WorldGenerator based on 'turing' tag.
+
+                // We need to handle inventory assignment. 
+                // Since PrefabFactory returns an Entity, we can't easily add components to child entities here without an engine reference or a more complex return type.
+                // However, we can add an Inventory component to the NPC and pre-populate it?
+                // The Inventory component stores IDs, which requires the items to be in the engine.
+                // This is a limitation of the current factory. 
+                // For now, we will mark them to be spawned by the caller (WorldGenerator) or handle it differently.
+                // Actually, let's just add a 'Loadout' component or similar, or handle it in WorldGenerator.
+                // BETTER: Let's just return the NPC and let WorldGenerator handle the loadout based on the tag?
+                // OR: We can't add entities to the engine here.
+                // Let's modify WorldGenerator to check for 'turing' tag and spawn items.
                 break;
             case 'white ice':
                 entity.addComponent(new NPC(
@@ -151,13 +231,20 @@ export class PrefabFactory {
             default:
                 return null;
         }
+
+        // All NPCs get a WoundTable
+        entity.addComponent(new WoundTable());
+
         return entity;
     }
 
     static getSpawnableItems(): string[] {
         return [
-            'beer can', '9mm pistol', '9mm mag', 'backpack',
-            'tactical shirt', 'cargo pants', 'utility belt'
+            'beer can', 'pistol_9mm', 'mag_pistol_9mm', 'backpack',
+            'tactical shirt', 'cargo pants', 'utility belt',
+            'ceska_scorpion', 'mag_scorpion', 'shotgun_12g', 'shells_12g',
+            'rifle_556', 'mag_rifle_556', 'ammo_9mm_loose', 'ammo_556_loose',
+            'katana', 'dagger', 'machete', 'brass_knuckles'
         ];
     }
 

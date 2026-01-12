@@ -2,6 +2,8 @@ import { System } from '../ecs/System';
 import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
 import { Stance, StanceType } from '../components/Stance';
+import { CombatStats } from '../components/CombatStats';
+import { EngagementTier } from '../types/CombatTypes';
 import { Server } from 'socket.io';
 import { InteractionSystem } from './InteractionSystem';
 import { WorldQuery } from '../utils/WorldQuery';
@@ -56,6 +58,29 @@ export class MovementSystem extends System {
                 continue;
             }
 
+            const combatStats = entity.getComponent(CombatStats);
+            if (combatStats) {
+                if ([EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(combatStats.engagementTier)) {
+                    // Check if there are actually any hostile entities in the room
+                    const roomEntities = engine.getEntitiesWithComponent(Position);
+                    const hostilePresent = roomEntities.some(e => {
+                        if (e.id === entityId) return false;
+                        const ePos = e.getComponent(Position);
+                        const eStats = e.getComponent(CombatStats);
+                        return ePos?.x === pos.x && ePos?.y === pos.y && eStats?.isHostile;
+                    });
+
+                    if (hostilePresent) {
+                        this.messageService.info(entityId, "You are too closely engaged to move away! Retreat first.");
+                        continue;
+                    } else {
+                        // Auto-disengage if no hostiles
+                        combatStats.engagementTier = EngagementTier.DISENGAGED;
+                        this.messageService.info(entityId, "You are no longer engaged.");
+                    }
+                }
+            }
+
             const targetX = pos.x + move.x;
             const targetY = pos.y + move.y;
 
@@ -65,6 +90,12 @@ export class MovementSystem extends System {
             if (targetRoom) {
                 pos.x = targetX;
                 pos.y = targetY;
+
+                // Reset engagement tier on room change
+                if (combatStats) {
+                    combatStats.engagementTier = EngagementTier.DISENGAGED;
+                }
+
                 // Trigger look
                 if (this.interactionSystem) {
                     this.interactionSystem.handleLook(entityId, engine);

@@ -2,12 +2,15 @@ import { System } from '../ecs/System';
 import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
 import { NPC } from '../components/NPC';
+import { CombatStats } from '../components/CombatStats';
+import { EngagementTier } from '../types/CombatTypes';
 import { Server } from 'socket.io';
 import { WorldQuery } from '../utils/WorldQuery';
 import { IsRoom } from '../components/IsRoom';
 import { IEngine } from '../commands/CommandRegistry';
 
 import { MessageService } from '../services/MessageService';
+import { MessageFormatter } from '../utils/MessageFormatter';
 
 export class NPCSystem extends System {
     private io: Server;
@@ -36,9 +39,9 @@ export class NPCSystem extends System {
 
         if (!npcComp || !pos) return;
 
-        // 1. Random Movement (every 5-10 seconds)
+        // 1. Random Movement (every 15-30 seconds)
         if (!this.lastMoveTime.has(npc.id)) this.lastMoveTime.set(npc.id, now);
-        if (now - this.lastMoveTime.get(npc.id)! > 5000 + Math.random() * 5000) {
+        if (now - this.lastMoveTime.get(npc.id)! > 15000 + Math.random() * 15000) {
             this.moveRandomly(npc, pos, engine);
             this.lastMoveTime.set(npc.id, now);
         }
@@ -57,6 +60,14 @@ export class NPCSystem extends System {
         // Check if NPC is allowed to move
         if (npcComp && !npcComp.canMove) {
             return;
+        }
+
+        // Check if NPC is engaged in combat
+        const combatStats = npc.getComponent(CombatStats);
+        if (combatStats) {
+            if ([EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(combatStats.engagementTier)) {
+                return; // Cannot move while engaged
+            }
         }
 
         const directions = [
@@ -82,11 +93,19 @@ export class NPCSystem extends System {
             pos.x = newX;
             pos.y = newY;
 
+            // Reset engagement tier on room change
+            if (combatStats) {
+                combatStats.engagementTier = EngagementTier.DISENGAGED;
+            }
+
             // Broadcast entering message to new room
-            this.broadcastToRoom(engine, pos.x, pos.y, `<movement>${name} has entered from the ${move.reverse}.</movement>`);
+            if (npcComp && npcComp.tag === 'turing') {
+                this.broadcastToRoom(engine, pos.x, pos.y, `<movement>The air grows cold as a man in a sharp charcoal suit enters, his eyes shielded by mirrored Steiner-Optics.</movement>`);
+            } else {
+                this.broadcastToRoom(engine, pos.x, pos.y, `<movement>${name} has entered from the ${move.reverse}.</movement>`);
+            }
         }
     }
-
 
     private broadcastToRoom(engine: IEngine, x: number, y: number, message: string) {
         for (const entity of engine.getEntities().values()) {
@@ -101,7 +120,7 @@ export class NPCSystem extends System {
 
     private bark(npc: Entity, npcComp: NPC, pos: Position, engine: IEngine) {
         const bark = npcComp.barks[Math.floor(Math.random() * npcComp.barks.length)];
-        const message = `<speech>[${npcComp.typeName}] says: "${bark}"</speech>`;
+        const message = MessageFormatter.speech(npcComp.typeName, bark);
 
         // Broadcast to players in the same room
         for (const entity of engine.getEntities().values()) {

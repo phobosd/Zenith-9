@@ -112,7 +112,12 @@ export class InventoryHandler {
                 }
             } else {
                 this.messageService.info(entityId, `Your hands are full!`);
+                return;
             }
+
+            // Update autocomplete
+            const autocompleteData = AutocompleteAggregator.getInventoryAutocomplete(player, engine);
+            this.io.to(entityId).emit('autocomplete-update', autocompleteData);
         } else {
             if (specifiedContainerName) {
                 this.messageService.info(entityId, `You don't see a ${targetName} in your ${specifiedContainerName}.`);

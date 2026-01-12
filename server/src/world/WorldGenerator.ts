@@ -6,12 +6,14 @@ import { IsRoom } from '../components/IsRoom';
 import { Item } from '../components/Item';
 import { NPC } from '../components/NPC';
 import { Shop } from '../components/Shop';
+import { Inventory } from '../components/Inventory';
 import { CombatStats } from '../components/CombatStats';
 import { Terminal } from '../components/Terminal';
 import { PuzzleObject } from '../components/PuzzleObject';
 import { Atmosphere } from '../components/Atmosphere';
 import { IsCyberspace } from '../components/IsCyberspace';
 import { PrefabFactory } from '../factories/PrefabFactory';
+import { ItemRegistry } from '../services/ItemRegistry';
 
 export class WorldGenerator {
     private engine: Engine;
@@ -162,15 +164,23 @@ export class WorldGenerator {
             } else if (flavor.shopData.name === "The Armory") {
                 items = [
                     'combat_knife',
+                    'katana',
+                    'dagger',
+                    'machete',
+                    'brass_knuckles',
                     'pistol_9mm',
+                    'mag_pistol_9mm',
                     'shotgun_12g',
+                    'shells_12g',
                     'rifle_556',
-                    'ammo_9mm',
-                    'ammo_12g',
-                    'ammo_556',
+                    'mag_rifle_556',
+                    'ammo_9mm_loose',
+                    'ammo_556_loose',
                     'monofilament_wire',
                     'smart_pistol',
+                    'mag_smart_pistol',
                     'street_sweeper',
+                    'mag_street_sweeper',
                     'vibro_blade'
                 ];
             } else if (flavor.shopData.name === "Bits & Bytes") {
@@ -192,6 +202,10 @@ export class WorldGenerator {
                     'flatline_heal'
                 ];
             }
+
+            // FOR TESTING: Every shop has everything in stock
+            const allItemNames = ItemRegistry.getInstance().getUniqueItemNames();
+            items = Array.from(new Set([...items, ...allItemNames]));
 
             terminal.addComponent(new Terminal("shop-catalog", { items }));
             this.engine.addEntity(terminal);
@@ -276,6 +290,11 @@ export class WorldGenerator {
         if (npc) {
             npc.addComponent(new Position(x, y));
             this.engine.addEntity(npc);
+
+            const npcComp = npc.getComponent(NPC);
+            if (npcComp) {
+                PrefabFactory.equipNPC(npc, this.engine);
+            }
         }
     }
 

@@ -45,4 +45,13 @@ export class MessageService {
     map(targetId: string, content: string, payload?: any) {
         this.send(targetId, MessageType.MAP, content, payload);
     }
+
+    broadcast(content: string, type: MessageType = MessageType.INFO) {
+        const message: GameMessage = {
+            type,
+            content,
+            timestamp: Date.now()
+        };
+        this.io.emit('message', message);
+    }
 }

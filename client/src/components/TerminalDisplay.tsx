@@ -8,6 +8,7 @@ interface ItemData {
     legality: string;
     attributes: string;
     description: string;
+    cost: number;
 }
 
 interface TerminalData {
@@ -35,7 +36,7 @@ export const TerminalDisplay: React.FC<Props> = ({ data, socket, onClose }) => {
             } else if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 const item = data.items[selectedIndex];
-                socket.emit('terminal-buy', { itemName: item.name, cost: 100 });
+                socket.emit('terminal-buy', { itemName: item.name, cost: item.cost });
             } else if (e.key === 'Escape') {
                 e.preventDefault();
                 onClose();
@@ -76,7 +77,7 @@ export const TerminalDisplay: React.FC<Props> = ({ data, socket, onClose }) => {
                                     <td>{item.size}</td>
                                     <td className={`term-legality ${item.legality.toLowerCase()}`}>{item.legality}</td>
                                     <td className="term-attr">{item.attributes}</td>
-                                    <td className="term-cost">100 CR</td>
+                                    <td className="term-cost">{item.cost} CR</td>
                                 </tr>
                             ))}
                         </tbody>
