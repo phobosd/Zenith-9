@@ -95,6 +95,16 @@ export class InteractionSystem extends System {
         const fullDescription = DescriptionService.describeRoom(playerPos, engine);
         this.messageService.roomDesc(entityId, fullDescription);
 
+        this.refreshAutocomplete(entityId, engine);
+    }
+
+    refreshAutocomplete(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
+        if (!player) return;
+
+        const playerPos = player.getComponent(Position);
+        if (!playerPos) return;
+
         const autocompleteData = AutocompleteAggregator.getRoomAutocomplete(playerPos, engine);
         this.io.to(entityId).emit('autocomplete-update', autocompleteData);
     }

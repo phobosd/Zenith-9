@@ -14,6 +14,7 @@ import { MovementSystem } from './systems/MovementSystem';
 import { InteractionSystem } from './systems/InteractionSystem';
 import { NPCSystem } from './systems/NPCSystem';
 import { NPC } from './components/NPC';
+import { WorldQuery } from './utils/WorldQuery';
 import { CombatSystem } from './systems/CombatSystem';
 import { CyberspaceSystem } from './systems/CyberspaceSystem';
 import { AtmosphereSystem } from './systems/AtmosphereSystem';
@@ -37,6 +38,16 @@ import { AutocompleteAggregator } from './services/AutocompleteAggregator';
 import { MessageService } from './services/MessageService';
 import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/SocketSchemas';
 import { EngagementTier } from './types/CombatTypes';
+
+const ALL_STATS = ['STR', 'CON', 'AGI', 'CHA', 'HP', 'MAXHP', 'ATTACK', 'DEFENSE'];
+const ALL_SKILLS = [
+    'Hacking',
+    'Stealth',
+    'Marksmanship (Light)',
+    'Marksmanship (Medium)',
+    'Marksmanship (Heavy)'
+];
+
 
 // Initialize ItemRegistry
 ItemRegistry.getInstance();
@@ -70,11 +81,79 @@ engine.addSystem(cyberspaceSystem);
 engine.addSystem(atmosphereSystem);
 
 movementSystem.setInteractionSystem(interactionSystem);
+npcSystem.setCombatSystem(combatSystem);
 
 // Command Registry Setup
 const commandRegistry = new CommandRegistry();
 
 import { CommandContext } from './commands/CommandRegistry';
+
+const findTarget = (ctx: CommandContext, targetName: string): Entity | undefined => {
+    if (!targetName || targetName.toLowerCase() === 'me' || targetName.toLowerCase() === 'self') {
+        return ctx.engine.getEntity(ctx.socketId);
+    }
+
+    // Get player position
+    const player = ctx.engine.getEntity(ctx.socketId);
+    if (!player) return undefined;
+    const pos = player.getComponent(Position);
+    if (!pos) return undefined;
+
+    const ordinalNames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
+    const parts = targetName.toLowerCase().split(' ');
+    let ordinal = 1;
+    let searchName = targetName;
+
+    if (parts.length > 1) {
+        const firstPart = parts[0];
+        const index = ordinalNames.indexOf(firstPart);
+        if (index !== -1) {
+            ordinal = index + 1;
+            searchName = parts.slice(1).join(' ');
+        } else {
+            const lastPart = parts[parts.length - 1];
+            const num = parseInt(lastPart);
+            if (!isNaN(num)) {
+                ordinal = num;
+                searchName = parts.slice(0, -1).join(' ');
+            }
+        }
+    }
+
+    // Search for NPCs in the same room
+    const npcs = WorldQuery.findNPCsAt(ctx.engine, pos.x, pos.y);
+    const matchingNPCs = npcs.filter((n: Entity) => {
+        const npcComp = n.getComponent(NPC);
+        return npcComp && npcComp.typeName.toLowerCase().includes(searchName.toLowerCase());
+    });
+
+    if (matchingNPCs.length >= ordinal) {
+        return matchingNPCs[ordinal - 1];
+    }
+
+    // Search for other players in the same room
+    const entities = ctx.engine.getEntities();
+    let playerMatchCount = 0;
+    for (const [id, entity] of entities) {
+        if (id === ctx.socketId) continue;
+        const ePos = entity.getComponent(Position);
+        if (ePos && ePos.x === pos.x && ePos.y === pos.y) {
+            // Check if it's a player (has Stats but not NPC)
+            if (entity.hasComponent(Stats) && !entity.hasComponent(NPC)) {
+                if (id.toLowerCase().includes(searchName.toLowerCase())) {
+                    playerMatchCount++;
+                    if (playerMatchCount === ordinal) return entity;
+                }
+            }
+        }
+    }
+
+    // Search globally by ID
+    const globalEntity = ctx.engine.getEntity(targetName);
+    if (globalEntity) return globalEntity;
+
+    return undefined;
+};
 
 const moveAndLook = (ctx: CommandContext, dir: 'n' | 's' | 'e' | 'w') => {
     const player = ctx.engine.getEntity(ctx.socketId);
@@ -381,6 +460,20 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'weather',
+    aliases: ['sky'],
+    description: 'Scan the sky for current weather conditions',
+    execute: (ctx) => {
+        const weather = ctx.systems.atmosphere.getCurrentWeather();
+        let msg = `<title>[Weather Scan]</title>\n`;
+        msg += `<info>Sky:</info> <atmosphere>${weather.sky}</atmosphere>\n`;
+        msg += `<info>Lighting:</info> ${weather.lighting}\n`;
+        msg += `<info>Contrast:</info> ${weather.contrast}`;
+        ctx.messageService.info(ctx.socketId, msg);
+    }
+});
+
+commandRegistry.register({
     name: 'jack_in',
     aliases: ['jackin', 'connect'],
     description: 'Jack into the Matrix',
@@ -397,7 +490,7 @@ commandRegistry.register({
 commandRegistry.register({
     name: 'god',
     aliases: ['admin'],
-    description: 'Admin commands (Usage: god spawn <rat|thug>)',
+    description: 'Admin commands (Usage: god <spawn|set-stat|set-skill|view|reset|weather|pacify|registry>)',
     execute: (ctx) => {
         const subCommand = ctx.args[0];
         if (!subCommand) {
@@ -424,7 +517,14 @@ commandRegistry.register({
                 entity.addComponent(new Position(pos.x, pos.y));
                 ctx.engine.addEntity(entity);
                 PrefabFactory.equipNPC(entity, ctx.engine);
+
+                // Immediately detect nearby players for aggressive NPCs
+                ctx.systems.npc.onNPCSpawned(entity, ctx.engine);
+
                 ctx.messageService.success(ctx.socketId, `Spawned NPC: ${name}`);
+
+                // Refresh autocomplete for the player
+                ctx.systems.interaction.refreshAutocomplete(ctx.socketId, ctx.engine);
                 return;
             }
 
@@ -434,10 +534,163 @@ commandRegistry.register({
                 entity.addComponent(new Position(pos.x, pos.y));
                 ctx.engine.addEntity(entity);
                 ctx.messageService.success(ctx.socketId, `Spawned Item: ${name}`);
+
+                // Refresh autocomplete for the player
+                ctx.systems.interaction.refreshAutocomplete(ctx.socketId, ctx.engine);
                 return;
             }
 
             ctx.messageService.error(ctx.socketId, `Unknown entity: ${name}`);
+        } else if (subCommand === 'set-stat') {
+            if (ctx.args.length < 3) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god set-stat [target] <stat> <value>');
+                return;
+            }
+
+            const value = parseInt(ctx.args[ctx.args.length - 1]);
+            const statName = ctx.args[ctx.args.length - 2].toUpperCase();
+            let targetName = ctx.args.slice(1, ctx.args.length - 2).join(' ');
+
+            if (!targetName) targetName = 'me';
+
+            if (isNaN(value)) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god set-stat [target] <stat> <value>');
+                return;
+            }
+
+            const target = findTarget(ctx, targetName);
+            if (!target) {
+                ctx.messageService.error(ctx.socketId, `Target not found: ${targetName}`);
+                return;
+            }
+
+            if (statName === 'HP' || statName === 'MAXHP' || statName === 'ATTACK' || statName === 'DEFENSE') {
+                const combatStats = target.getComponent(CombatStats);
+                if (combatStats) {
+                    if (statName === 'HP') combatStats.hp = value;
+                    else if (statName === 'MAXHP') combatStats.maxHp = value;
+                    else if (statName === 'ATTACK') {
+                        if (!target.hasComponent(NPC)) {
+                            ctx.messageService.error(ctx.socketId, "ATTACK can only be set on NPCs.");
+                            return;
+                        }
+                        combatStats.attack = value;
+                    }
+                    else if (statName === 'DEFENSE') {
+                        if (!target.hasComponent(NPC)) {
+                            ctx.messageService.error(ctx.socketId, "DEFENSE can only be set on NPCs.");
+                            return;
+                        }
+                        combatStats.defense = value;
+                    }
+                    ctx.messageService.success(ctx.socketId, `Set ${statName} of ${targetName} to ${value}.`);
+                } else {
+                    ctx.messageService.error(ctx.socketId, `Target ${targetName} has no combat stats.`);
+                }
+            } else {
+                const stats = target.getComponent(Stats);
+                if (stats) {
+                    const attr = stats.attributes.get(statName);
+                    if (attr) {
+                        attr.value = value;
+                        ctx.messageService.success(ctx.socketId, `Set ${statName} of ${targetName} to ${value}.`);
+                    } else {
+                        ctx.messageService.error(ctx.socketId, `Stat not found: ${statName}. Available: ${Array.from(stats.attributes.keys()).join(', ')}`);
+                    }
+                } else {
+                    ctx.messageService.error(ctx.socketId, `Target ${targetName} has no stats.`);
+                }
+            }
+        } else if (subCommand === 'set-skill') {
+            if (ctx.args.length < 3) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god set-skill [target] <skill> <value>');
+                return;
+            }
+
+            const value = parseInt(ctx.args[ctx.args.length - 1]);
+            if (isNaN(value)) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god set-skill [target] <skill> <value>');
+                return;
+            }
+
+            let targetEntity: Entity | undefined = undefined;
+            let targetName = 'me';
+            let skillName = '';
+
+            // Try to find a target from the first few words
+            for (let i = 1; i < ctx.args.length - 1; i++) {
+                const potentialTargetName = ctx.args.slice(1, i + 1).join(' ');
+                const found = findTarget(ctx, potentialTargetName);
+                if (found) {
+                    targetEntity = found;
+                    targetName = potentialTargetName;
+                    skillName = ctx.args.slice(i + 1, ctx.args.length - 1).join(' ');
+                }
+            }
+
+            if (!targetEntity) {
+                targetEntity = ctx.engine.getEntity(ctx.socketId);
+                targetName = 'me';
+                skillName = ctx.args.slice(1, ctx.args.length - 1).join(' ');
+            }
+
+            if (!targetEntity) {
+                ctx.messageService.error(ctx.socketId, `Target not found: ${targetName}`);
+                return;
+            }
+
+            const stats = targetEntity.getComponent(Stats);
+            if (stats) {
+                // Try exact match first
+                let skill = stats.skills.get(skillName);
+                if (!skill) {
+                    // Try case-insensitive match
+                    const key = Array.from(stats.skills.keys()).find(k => k.toLowerCase() === skillName.toLowerCase());
+                    if (key) skill = stats.skills.get(key);
+                }
+
+                if (skill) {
+                    skill.level = value;
+                    skill.uses = 0;
+                    skill.maxUses = value * 10;
+                    ctx.messageService.success(ctx.socketId, `Set skill ${skill.name} of ${targetName} to level ${value}.`);
+                } else {
+                    ctx.messageService.error(ctx.socketId, `Skill not found: ${skillName}. Available: ${Array.from(stats.skills.keys()).join(', ')}`);
+                }
+            } else {
+                ctx.messageService.error(ctx.socketId, `Target ${targetName} has no stats.`);
+            }
+        } else if (subCommand === 'view') {
+            const targetName = ctx.args[1] || 'me';
+            const target = findTarget(ctx, targetName);
+            if (!target) {
+                ctx.messageService.error(ctx.socketId, `Target not found: ${targetName}`);
+                return;
+            }
+
+            const stats = target.getComponent(Stats);
+            const combatStats = target.getComponent(CombatStats);
+            const npc = target.getComponent(NPC);
+
+            let msg = `<title>[God View: ${npc ? npc.typeName : (target.id === ctx.socketId ? 'You' : 'Player ' + target.id)}]</title>\n`;
+
+            if (combatStats) {
+                msg += `<info>HP:</info> <success>${combatStats.hp}/${combatStats.maxHp}</success>\n`;
+                msg += `<info>Attack:</info> ${combatStats.attack} | <info>Defense:</info> ${combatStats.defense}\n`;
+            }
+
+            if (stats) {
+                msg += `<title>-- Attributes --</title>\n`;
+                for (const [name, attr] of stats.attributes) {
+                    msg += `<info>${name}:</info> ${attr.value}  `;
+                }
+                msg += `\n<title>-- Skills --</title>\n`;
+                for (const [name, skill] of stats.skills) {
+                    msg += `<info>${name}:</info> Lvl ${skill.level} (${skill.uses}/${skill.maxUses})\n`;
+                }
+            }
+
+            ctx.messageService.info(ctx.socketId, msg);
         } else if (subCommand === 'reset') {
             const target = ctx.args[1];
             if (!target) {
@@ -470,6 +723,34 @@ commandRegistry.register({
         } else if (subCommand === 'weather') {
             ctx.systems.atmosphere.triggerWeatherChange(ctx.engine);
             ctx.messageService.success(ctx.socketId, 'Weather change triggered.');
+        } else if (subCommand === 'pacify') {
+            const targetName = ctx.args.slice(1).join(' ');
+            const player = ctx.engine.getEntity(ctx.socketId);
+            const pos = player?.getComponent(Position);
+            if (!pos) return;
+
+            if (targetName) {
+                const target = findTarget(ctx, targetName);
+                const combatStats = target?.getComponent(CombatStats);
+                if (combatStats) {
+                    combatStats.isHostile = false;
+                    combatStats.engagementTier = EngagementTier.DISENGAGED;
+                    ctx.messageService.success(ctx.socketId, `Pacified ${targetName}.`);
+                } else {
+                    ctx.messageService.error(ctx.socketId, `Target ${targetName} not found or has no combat stats.`);
+                }
+            } else {
+                // Pacify all in room
+                const npcs = WorldQuery.findNPCsAt(ctx.engine, pos.x, pos.y);
+                npcs.forEach(npc => {
+                    const combatStats = npc.getComponent(CombatStats);
+                    if (combatStats) {
+                        combatStats.isHostile = false;
+                        combatStats.engagementTier = EngagementTier.DISENGAGED;
+                    }
+                });
+                ctx.messageService.success(ctx.socketId, `Pacified all NPCs in the room.`);
+            }
         } else if (subCommand === 'registry') {
             const items = ItemRegistry.getInstance().getAllItems();
             const uniqueItems = Array.from(new Set(items));
@@ -548,7 +829,9 @@ io.on('connection', (socket) => {
 
     // Send Autocomplete Data
     socket.emit('autocomplete-data', {
-        spawnables: [...PrefabFactory.getSpawnableItems(), ...PrefabFactory.getSpawnableNPCs()]
+        spawnables: [...PrefabFactory.getSpawnableItems(), ...PrefabFactory.getSpawnableNPCs()],
+        stats: ALL_STATS,
+        skills: ALL_SKILLS
     });
 
     // Create player entity
@@ -634,6 +917,23 @@ io.on('connection', (socket) => {
     inventory.rightHand = pistol.id;
 
     engine.addEntity(player);
+
+    // Check for aggressive NPCs in the spawn room
+    const spawnPos = player.getComponent(Position)!;
+    const npcsInRoom = WorldQuery.findNPCsAt(engine, spawnPos.x, spawnPos.y);
+    for (const npc of npcsInRoom) {
+        const npcComp = npc.getComponent(NPC);
+        const npcCombat = npc.getComponent(CombatStats);
+
+        // If NPC is aggressive and doesn't have a target, make it detect the player
+        if (npcComp?.isAggressive && npcCombat && !npcCombat.targetId) {
+            npcCombat.isHostile = true;
+            npcCombat.targetId = socket.id;
+            npcCombat.engagementTier = EngagementTier.DISENGAGED; // Start at disengaged
+            console.log(`[Connection] ${npcComp.typeName} (${npc.id}) detected new player ${socket.id} on spawn`);
+            messageService.combat(socket.id, `<enemy>${npcComp.typeName} notices you and prepares to attack!</enemy>`);
+        }
+    }
 
     // Send initial autocomplete data
     const roomAuto = AutocompleteAggregator.getRoomAutocomplete(player.getComponent(Position)!, engine);

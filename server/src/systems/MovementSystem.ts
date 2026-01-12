@@ -8,6 +8,7 @@ import { Server } from 'socket.io';
 import { InteractionSystem } from './InteractionSystem';
 import { WorldQuery } from '../utils/WorldQuery';
 import { IEngine } from '../commands/CommandRegistry';
+import { NPC } from '../components/NPC';
 
 import { MessageService } from '../services/MessageService';
 
@@ -60,24 +61,28 @@ export class MovementSystem extends System {
 
             const combatStats = entity.getComponent(CombatStats);
             if (combatStats) {
-                if ([EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(combatStats.engagementTier)) {
-                    // Check if there are actually any hostile entities in the room
-                    const roomEntities = engine.getEntitiesWithComponent(Position);
-                    const hostilePresent = roomEntities.some(e => {
-                        if (e.id === entityId) return false;
-                        const ePos = e.getComponent(Position);
-                        const eStats = e.getComponent(CombatStats);
-                        return ePos?.x === pos.x && ePos?.y === pos.y && eStats?.isHostile;
-                    });
+                const roomEntities = engine.getEntitiesWithComponent(Position);
 
-                    if (hostilePresent) {
-                        this.messageService.info(entityId, "You are too closely engaged to move away! Retreat first.");
-                        continue;
-                    } else {
-                        // Auto-disengage if no hostiles
-                        combatStats.engagementTier = EngagementTier.DISENGAGED;
-                        this.messageService.info(entityId, "You are no longer engaged.");
+                // Check if any hostile entity in the room is engaged with us at close range
+                const hostileEngaged = roomEntities.some(e => {
+                    if (e.id === entityId) return false;
+                    const ePos = e.getComponent(Position);
+                    const eStats = e.getComponent(CombatStats);
+                    if (ePos?.x === pos.x && ePos?.y === pos.y && eStats?.isHostile) {
+                        // If they are at polearm or closer, they are pinning us
+                        return [EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(eStats.engagementTier);
                     }
+                    return false;
+                });
+
+                const playerIsEngaged = [EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(combatStats.engagementTier);
+
+                if (hostileEngaged) {
+                    this.messageService.info(entityId, "You are too closely engaged to move away! Retreat first.");
+                    continue;
+                } else if (playerIsEngaged) {
+                    // Auto-disengage if no hostiles are pinning us
+                    combatStats.engagementTier = EngagementTier.DISENGAGED;
                 }
             }
 
@@ -94,6 +99,30 @@ export class MovementSystem extends System {
                 // Reset engagement tier on room change
                 if (combatStats) {
                     combatStats.engagementTier = EngagementTier.DISENGAGED;
+                }
+
+                // Check for aggressive NPCs in the new room
+                const npcsInRoom = WorldQuery.findNPCsAt(engine, targetX, targetY);
+                for (const npc of npcsInRoom) {
+                    const npcComp = npc.getComponent(NPC);
+                    const npcCombat = npc.getComponent(CombatStats);
+
+                    if (!npcComp || !npcCombat) continue;
+
+                    // Reset engagement tier for ALL NPCs when player enters (ensures fresh encounters)
+                    if (npcCombat.targetId === entityId) {
+                        console.log(`[Movement] Resetting ${npcComp.typeName} (${npc.id}) engagement tier for returning player`);
+                        npcCombat.engagementTier = EngagementTier.DISENGAGED;
+                    }
+
+                    // If NPC is aggressive and doesn't have a target, make it detect the player
+                    if (npcComp.isAggressive && !npcCombat.targetId) {
+                        npcCombat.isHostile = true;
+                        npcCombat.targetId = entityId;
+                        npcCombat.engagementTier = EngagementTier.DISENGAGED; // Start at disengaged
+                        console.log(`[Movement] ${npcComp.typeName} (${npc.id}) detected player ${entityId} entering room`);
+                        this.messageService.combat(entityId, `<enemy>${npcComp.typeName} notices you and prepares to attack!</enemy>`);
+                    }
                 }
 
                 // Trigger look

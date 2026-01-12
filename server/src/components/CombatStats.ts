@@ -23,6 +23,7 @@ export class CombatStats extends Component {
     aggression: number = 0.5;
     targetLimb: BodyPart | null = null;
     isHangingBack: boolean = false;
+    targetId: string | null = null;
 
     constructor(maxHp: number = 100, attack: number = 10, defense: number = 0, isHostile: boolean = false) {
         super();

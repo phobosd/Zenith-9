@@ -53,7 +53,7 @@ const WEATHER_STATES: WeatherState[] = [
 
 export class AtmosphereSystem extends System {
     private timer: number = 0;
-    private readonly CHANGE_INTERVAL = 300000; // Change every 5 minutes (300,000 ms)
+    private readonly CHANGE_INTERVAL = 60000; // Change every 1 minute (60,000 ms)
     private currentStateIndex: number = 0;
 
     constructor(private messageService: MessageService) {
@@ -62,6 +62,11 @@ export class AtmosphereSystem extends System {
 
     update(engine: IEngine, deltaTime: number): void {
         this.timer += deltaTime;
+
+        // Log every 10 seconds to verify it's ticking
+        if (Math.floor(this.timer / 100) % 100 === 0) {
+            // Logger.info('Atmosphere', `Timer: ${this.timer}/${this.CHANGE_INTERVAL}`);
+        }
 
         if (this.timer >= this.CHANGE_INTERVAL) {
             this.timer = 0;
@@ -95,6 +100,10 @@ export class AtmosphereSystem extends System {
         });
 
         // Broadcast the change to all players
-        this.messageService.broadcast(`<atmosphere>${newState.message}</atmosphere>`);
+        this.messageService.broadcast(`<atmosphere>The sky shifts: ${newState.message} (${newState.sky})</atmosphere>`);
+    }
+
+    getCurrentWeather() {
+        return WEATHER_STATES[this.currentStateIndex];
     }
 }

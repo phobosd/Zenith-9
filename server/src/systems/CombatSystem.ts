@@ -35,6 +35,7 @@ export class CombatSystem extends System {
     private engine: IEngine;
     private io: Server;
     private messageService: MessageService;
+    private ordinalNames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
 
     constructor(engine: IEngine, io: Server, messageService: MessageService) {
         super();
@@ -243,17 +244,25 @@ export class CombatSystem extends System {
             return;
         }
 
-        // Find target NPC in the same room
-        const target = engine.getEntitiesWithComponent(NPC).find(e => {
+        const { name: parsedName, ordinal } = this.parseTargetName(targetName);
+
+        // Find target NPC in the same room with ordinal support
+        const roomNPCs = engine.getEntitiesWithComponent(NPC).filter(e => {
             const npc = e.getComponent(NPC);
             const pos = e.getComponent(Position);
-            if (!npc || !pos) return false;
-            return npc.typeName.toLowerCase().includes(targetName.toLowerCase()) &&
+            return npc && pos && npc.typeName.toLowerCase().includes(parsedName.toLowerCase()) &&
                 pos.x === attackerPos.x && pos.y === attackerPos.y;
         });
 
-        if (!target) {
+        if (roomNPCs.length === 0) {
             this.messageService.info(attackerId, `You don't see "${targetName}" here.`);
+            return;
+        }
+
+        const target = roomNPCs[ordinal - 1];
+
+        if (!target) {
+            this.messageService.info(attackerId, `There is no ${ordinal > 1 ? this.ordinalNames[ordinal - 1] || ordinal : ''} "${parsedName}" here.`);
             return;
         }
 
@@ -336,13 +345,26 @@ export class CombatSystem extends System {
 
         // Check Engagement Tier compatibility
         const tiers = Object.values(EngagementTier);
-        const currentTierIndex = tiers.indexOf(attackerCombatStats.engagementTier);
+
+        // Use the target's engagement tier if it's closer (higher index) than the attacker's
+        // This allows players who are "disengaged" to attack someone who has advanced on them.
+        const targetTierIndex = tiers.indexOf(targetCombatStats.engagementTier);
+        const attackerTierIndex = tiers.indexOf(attackerCombatStats.engagementTier);
+        const effectiveTierIndex = Math.max(attackerTierIndex, targetTierIndex);
+        const effectiveTier = tiers[effectiveTierIndex];
+
         const minTierIndex = tiers.indexOf(weapon.minTier);
         const maxTierIndex = tiers.indexOf(weapon.maxTier);
 
-        if (currentTierIndex < minTierIndex || currentTierIndex > maxTierIndex) {
-            this.messageService.info(attackerId, `Your ${weapon.name} is not effective at ${attackerCombatStats.engagementTier} range! You need to MANEUVER.`);
+        if (effectiveTierIndex < minTierIndex || effectiveTierIndex > maxTierIndex) {
+            this.messageService.info(attackerId, `Your ${weapon.name} is not effective at ${effectiveTier} range! You need to advance.`);
             return;
+        }
+
+        // If we are attacking at a closer range than our current engagement, update our engagement
+        if (effectiveTierIndex > attackerTierIndex) {
+            attackerCombatStats.engagementTier = effectiveTier;
+            this.messageService.info(attackerId, `You engage the ${targetNPC?.typeName} at ${effectiveTier} range.`);
         }
 
         // Send sync bar challenge to client
@@ -397,7 +419,8 @@ export class CombatSystem extends System {
 
         // Result Ladder Logic
         const margin = attackerPower - defenderPower;
-        let combatLog = `\n<combat>You attack ${targetNPC?.typeName || 'the target'} with your ${weapon.name}!</combat>\n`;
+        let combatLog = `\n<combat>You attack ${targetNPC?.typeName || 'the target'} with your ${weapon.name}!\n`;
+        let observerLog = `\n<combat>A combatant attacks ${targetNPC?.typeName || 'the target'} with their ${weapon.name}!\n`;
 
         // Adjust hitType based on margin if it wasn't a mechanical miss
         let effectiveHitType: 'marginal' | 'solid' | 'crushing' | 'miss' = 'miss';
@@ -419,7 +442,8 @@ export class CombatSystem extends System {
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.1);
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.2);
 
-                combatLog += `<combat-hit>[CRUSHING] You deal ${crushingDamage} damage!</combat-hit>`;
+                combatLog += `<combat-hit>[CRUSHING] You deal ${crushingDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>[CRUSHING HIT]</combat-hit>\n`;
 
                 // Apply Wound
                 const targetPart = attackerCombatStats.targetLimb || BodyPart.Chest;
@@ -432,8 +456,9 @@ export class CombatSystem extends System {
                 targetCombatStats.hp -= solidDamage;
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.05);
 
-                combatLog += `<combat-hit>[SOLID] You deal ${solidDamage} damage!</combat-hit>`;
-                combatLog += `\nTarget loses balance!`;
+                combatLog += `<combat-hit>[SOLID] You deal ${solidDamage} damage!</combat-hit>\n`;
+                combatLog += `Target loses balance!`;
+                observerLog += `<combat-hit>[SOLID HIT]</combat-hit>\n`;
                 break;
 
             case 'marginal':
@@ -441,12 +466,14 @@ export class CombatSystem extends System {
                 targetCombatStats.hp -= marginalDamage;
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.05);
 
-                combatLog += `<combat-hit>[MARGINAL] You deal ${marginalDamage} damage.</combat-hit>`;
-                combatLog += `\nYou regain some momentum.`;
+                combatLog += `<combat-hit>[MARGINAL] You deal ${marginalDamage} damage.</combat-hit>\n`;
+                combatLog += `You regain some momentum.`;
+                observerLog += `<combat-hit>[MARGINAL HIT]</combat-hit>\n`;
                 break;
 
             case 'miss':
-                combatLog += `<combat-miss>You miss!</combat-miss>`;
+                combatLog += `<combat-miss>You miss!</combat-miss>\n`;
+                observerLog += `<combat-miss>The attack misses!</combat-miss>\n`;
                 attackerCombatStats.balance = Math.max(0.0, attackerCombatStats.balance - 0.1);
                 break;
         }
@@ -464,11 +491,10 @@ export class CombatSystem extends System {
             this.checkSkillLevelUp(attackerId, skill);
         }
 
-        combatLog += `\n</combat>`;
-
         // Check if target is dead
         if (targetCombatStats.hp <= 0) {
             combatLog += `\n<combat-death>${targetNPC?.typeName || 'Target'} has been eliminated!</combat-death>`;
+            observerLog += `\n<combat-death>${targetNPC?.typeName || 'Target'} has been eliminated!</combat-death>`;
 
             // Loot Drop Logic
             const inventory = target.getComponent(Inventory);
@@ -500,10 +526,27 @@ export class CombatSystem extends System {
 
             this.engine.removeEntity(target.id);
         } else {
-            combatLog += `\n<combat>${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP | Balance: ${Math.floor(targetCombatStats.balance * 100)}%</combat>`;
+            combatLog += `\n${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP | Balance: ${Math.floor(targetCombatStats.balance * 100)}%`;
         }
 
+        combatLog += `\n</combat>`;
+        observerLog += `\n</combat>`;
+
         this.messageService.combat(attackerId, combatLog);
+
+        // Notify observers
+        const attackerPos = attacker.getComponent(Position);
+        if (attackerPos) {
+            const playersInRoom = engine.getEntitiesWithComponent(Position).filter(e => {
+                const ePos = e.getComponent(Position);
+                return e.hasComponent(CombatStats) && !e.hasComponent(NPC) &&
+                    ePos?.x === attackerPos.x && ePos?.y === attackerPos.y && e.id !== attackerId;
+            });
+
+            for (const observer of playersInRoom) {
+                this.messageService.combat(observer.id, observerLog);
+            }
+        }
     }
 
     private checkSkillLevelUp(entityId: string, skill: { name: string, level: number, uses: number, maxUses: number }) {
@@ -842,31 +885,39 @@ export class CombatSystem extends System {
         let target: Entity | undefined;
 
         if (targetName) {
-            target = roomEntities.find(e => {
+            const { name: parsedName, ordinal } = this.parseTargetName(targetName);
+            const matchingNPCs = roomEntities.filter(e => {
                 const pos = e.getComponent(Position);
                 const pPos = player.getComponent(Position);
                 const npc = e.getComponent(NPC);
                 return pos?.x === pPos?.x && pos?.y === pPos?.y &&
-                    npc?.typeName.toLowerCase().includes(targetName.toLowerCase());
+                    npc?.typeName.toLowerCase().includes(parsedName.toLowerCase());
             });
+            target = matchingNPCs[ordinal - 1];
         } else {
             // Default: Assume engaged target or closest hostile
             const stats = player.getComponent(CombatStats);
-            target = roomEntities.find(e => {
+            const tiers = Object.values(EngagementTier);
+
+            // Sort enemies by engagement tier (closest first)
+            const nearbyEnemies = roomEntities.filter(e => {
                 const pos = e.getComponent(Position);
                 const pPos = player.getComponent(Position);
-                const tStats = e.getComponent(CombatStats);
-                // Prefer target we are engaged with
-                return pos?.x === pPos?.x && pos?.y === pPos?.y && tStats?.engagementTier === stats?.engagementTier && stats?.engagementTier !== EngagementTier.DISENGAGED;
+                return pos?.x === pPos?.x && pos?.y === pPos?.y;
+            }).sort((a, b) => {
+                const aTier = a.getComponent(CombatStats)?.engagementTier || EngagementTier.DISENGAGED;
+                const bTier = b.getComponent(CombatStats)?.engagementTier || EngagementTier.DISENGAGED;
+                return tiers.indexOf(bTier) - tiers.indexOf(aTier);
             });
 
-            if (!target) {
-                // Fallback to any NPC
-                target = roomEntities.find(e => {
-                    const pos = e.getComponent(Position);
-                    const pPos = player.getComponent(Position);
-                    return pos?.x === pPos?.x && pos?.y === pPos?.y;
-                });
+            if (type === 'RETREAT') {
+                target = nearbyEnemies[0]; // Retreat from closest
+            } else {
+                // For ADVANCE, prefer engaged target
+                target = nearbyEnemies.find(e => {
+                    const tStats = e.getComponent(CombatStats);
+                    return tStats?.engagementTier === stats?.engagementTier && stats?.engagementTier !== EngagementTier.DISENGAGED;
+                }) || nearbyEnemies[0];
             }
         }
 
@@ -949,16 +1000,21 @@ export class CombatSystem extends System {
         }
 
         const tiers = Object.values(EngagementTier);
-        const currentIndex = tiers.indexOf(stats.engagementTier);
+
+        // Use the closer of player's global tier and target's tier
+        const targetCombatStats = target.getComponent(CombatStats);
+        const playerTierIndex = tiers.indexOf(stats.engagementTier);
+        const targetTierIndex = targetCombatStats ? tiers.indexOf(targetCombatStats.engagementTier) : 0;
+        const effectiveTierIndex = Math.max(playerTierIndex, targetTierIndex);
 
         // Check Range Limits BEFORE rolling
         if (direction === 'CLOSE') {
-            if (currentIndex >= tiers.length - 1) {
+            if (effectiveTierIndex >= tiers.length - 1) {
                 this.messageService.info(playerId, "You are already as close as possible!");
                 return 'MAX_RANGE';
             }
         } else {
-            if (currentIndex <= 1) { // 0 is NULL, 1 is MISSILE (farthest)
+            if (effectiveTierIndex <= 0) { // 0 is DISENGAGED
                 this.messageService.info(playerId, "You cannot withdraw any further!");
                 return 'MAX_RANGE';
             }
@@ -967,13 +1023,22 @@ export class CombatSystem extends System {
         stats.fatigue -= 5;
 
         const targetStats = target.getComponent(Stats);
-        const targetCombatStats = target.getComponent(CombatStats);
 
         const playerAgility = playerStats.attributes.get('AGI')?.value || 10;
-        const targetAgility = targetStats?.attributes.get('AGI')?.value || 10;
+        const targetAgility = targetStats?.attributes?.get('AGI')?.value || 10;
+
+        // Difficulty increases with more enemies in the room
+        const roomEntities = engine.getEntitiesWithComponent(NPC);
+        const enemyCount = roomEntities.filter(e => {
+            const ePos = e.getComponent(Position);
+            const pPos = player.getComponent(Position);
+            return ePos?.x === pPos?.x && ePos?.y === pPos?.y;
+        }).length;
+
+        const multiEnemyPenalty = Math.max(0, (enemyCount - 1) * 15);
 
         // Random factor (1-100)
-        const playerRoll = playerAgility + Math.random() * 100;
+        const playerRoll = playerAgility + Math.random() * 100 - multiEnemyPenalty;
         const targetRoll = targetAgility + Math.random() * 100;
 
         // Check for Hangback
@@ -984,28 +1049,56 @@ export class CombatSystem extends System {
         if (playerRoll > targetRoll) {
             // SUCCESS
             if (direction === 'CLOSE') {
-                if (currentIndex < tiers.length - 1) {
-                    stats.engagementTier = tiers[currentIndex + 1];
+                if (effectiveTierIndex < tiers.length - 1) {
+                    stats.engagementTier = tiers[effectiveTierIndex + 1];
                     if (targetCombatStats) targetCombatStats.engagementTier = stats.engagementTier; // Sync engagement
                     this.messageService.info(playerId, `You rush forward, weaving past ${target.getComponent(NPC)?.typeName}'s guard! Engagement: ${stats.engagementTier}`);
                     this.messageService.combat(target.id, `${player.id} rushes at you! Engagement: ${stats.engagementTier}`);
 
-                    this.applyRoundtime(playerId, 5, engine);
+                    // Notify observers
+                    const playerPos = player.getComponent(Position);
+                    if (playerPos) {
+                        const playersInRoom = engine.getEntitiesWithComponent(Position).filter(e => {
+                            const ePos = e.getComponent(Position);
+                            return e.hasComponent(CombatStats) && !e.hasComponent(NPC) &&
+                                ePos?.x === playerPos.x && ePos?.y === playerPos.y && e.id !== playerId && e.id !== target.id;
+                        });
+
+                        for (const observer of playersInRoom) {
+                            this.messageService.combat(observer.id, `<advance>A combatant rushes at ${target.getComponent(NPC)?.typeName}! (Range: <range>${stats.engagementTier}</range>)</advance>`);
+                        }
+                    }
+
+                    this.applyRoundtime(playerId, 1, engine);
 
                     // Check if we reached max range
-                    if (currentIndex + 1 === tiers.length - 1) return 'MAX_RANGE';
+                    if (effectiveTierIndex + 1 === tiers.length - 1) return 'MAX_RANGE';
                     return 'SUCCESS';
                 }
             } else {
-                if (currentIndex > 1) {
-                    stats.engagementTier = tiers[currentIndex - 1];
+                if (effectiveTierIndex > 0) {
+                    stats.engagementTier = tiers[effectiveTierIndex - 1];
                     if (targetCombatStats) targetCombatStats.engagementTier = stats.engagementTier; // Sync engagement
                     this.messageService.info(playerId, `You scramble back, putting distance between you and ${target.getComponent(NPC)?.typeName}. Engagement: ${stats.engagementTier}`);
                     this.messageService.combat(target.id, `${player.id} retreats! Engagement: ${stats.engagementTier}`);
 
-                    this.applyRoundtime(playerId, 5, engine);
+                    // Notify observers
+                    const playerPos = player.getComponent(Position);
+                    if (playerPos) {
+                        const playersInRoom = engine.getEntitiesWithComponent(Position).filter(e => {
+                            const ePos = e.getComponent(Position);
+                            return e.hasComponent(CombatStats) && !e.hasComponent(NPC) &&
+                                ePos?.x === playerPos.x && ePos?.y === playerPos.y && e.id !== playerId && e.id !== target.id;
+                        });
 
-                    if (currentIndex - 1 === 1) return 'MAX_RANGE';
+                        for (const observer of playersInRoom) {
+                            this.messageService.combat(observer.id, `<advance>A combatant retreats from ${target.getComponent(NPC)?.typeName}! (Range: <range>${stats.engagementTier}</range>)</advance>`);
+                        }
+                    }
+
+                    this.applyRoundtime(playerId, 1, engine);
+
+                    if (effectiveTierIndex - 1 === 0) return 'MAX_RANGE';
                     return 'SUCCESS';
                 }
             }
@@ -1016,7 +1109,7 @@ export class CombatSystem extends System {
             } else {
                 this.messageService.info(playerId, `You try to maneuver, but ${target.getComponent(NPC)?.typeName} keeps you at bay!`);
             }
-            this.applyRoundtime(playerId, 3, engine); // 3s RT on failure
+            this.applyRoundtime(playerId, 1, engine); // 1s RT on failure
             return 'FAILURE';
         }
         return 'FAILURE';
@@ -1044,24 +1137,55 @@ export class CombatSystem extends System {
         if (targets.length === 0) {
             output += "standing alone.";
         } else {
+            const typeTotals = new Map<string, number>();
+            targets.forEach(t => {
+                const name = t.getComponent(NPC)?.typeName || "Unknown";
+                typeTotals.set(name, (typeTotals.get(name) || 0) + 1);
+            });
+
             const engagedTarget = targets.find(t => t.getComponent(CombatStats)?.engagementTier === stats.engagementTier && stats.engagementTier !== EngagementTier.DISENGAGED);
 
             if (engagedTarget) {
-                output += `facing ${engagedTarget.getComponent(NPC)?.typeName} at ${stats.engagementTier} range.\n`;
+                const name = engagedTarget.getComponent(NPC)?.typeName || "Unknown";
+                const total = typeTotals.get(name) || 0;
+
+                // Find ordinal of engaged target
+                let engagedOrdinal = 0;
+                let currentOrdinal = 0;
+                targets.forEach(t => {
+                    const tName = t.getComponent(NPC)?.typeName || "Unknown";
+                    if (tName === name) {
+                        currentOrdinal++;
+                        if (t === engagedTarget) engagedOrdinal = currentOrdinal;
+                    }
+                });
+
+                const label = total > 1 ? `${this.ordinalNames[engagedOrdinal - 1] || engagedOrdinal} ` : "";
+                output += `facing ${label}${name} at ${stats.engagementTier} range.\n`;
             } else {
                 output += `facing nothing in particular.\n`;
             }
 
+            const typeCounts = new Map<string, number>();
             targets.forEach(t => {
+                const name = t.getComponent(NPC)?.typeName || "Unknown";
+                const count = (typeCounts.get(name) || 0) + 1;
+                typeCounts.set(name, count);
+
                 if (t === engagedTarget) return; // Already mentioned
+
                 const tStats = t.getComponent(CombatStats);
-                const tName = t.getComponent(NPC)?.typeName;
+                const total = typeTotals.get(name) || 0;
+                const label = total > 1 ? `${this.ordinalNames[count - 1] || count} ` : "";
+                const tName = `${label}${name}`;
+
                 if (tStats) {
                     const tBalance = this.getBalanceDescription(tStats.balance);
+                    const hostileTag = tStats.isHostile ? " (attacking you)" : "";
                     if (tStats.engagementTier === EngagementTier.DISENGAGED) {
-                        output += `A ${tName} (${tBalance}) is nearby.\n`;
+                        output += `A ${tName}${hostileTag} (${tBalance}) is nearby.\n`;
                     } else {
-                        output += `A ${tName} (${tBalance}) is flanking you at ${tStats.engagementTier} range.\n`;
+                        output += `A ${tName}${hostileTag} (${tBalance}) is flanking you at ${tStats.engagementTier} range.\n`;
                     }
                 }
             });
@@ -1249,6 +1373,90 @@ export class CombatSystem extends System {
         this.messageService.info(playerId, report);
     }
 
+    handleNPCAttack(npcId: string, targetId: string, engine: IEngine): void {
+        const npc = WorldQuery.getEntityById(engine, npcId);
+        const target = WorldQuery.getEntityById(engine, targetId);
+        if (!npc || !target) return;
+
+        const npcComp = npc.getComponent(NPC);
+        const npcStats = npc.getComponent(CombatStats);
+        const targetStats = target.getComponent(CombatStats);
+        const targetPlayerStats = target.getComponent(Stats);
+        const npcPos = npc.getComponent(Position);
+
+        if (!npcStats || !targetStats || !targetPlayerStats || !npcPos) return;
+
+        // 1. Check Roundtime
+        if (!this.checkRoundtime(npcId, engine, true)) return;
+
+        // 2. Calculate Powers
+        // NPC Attack Power = attack stat + balance bonus + random variance
+        const attackerPower = npcStats.attack + (npcStats.balance * 20) + (Math.random() * 10);
+
+        // Player Defense Power
+        const defenderPower = this.calculateDefenderPower(target, 'MELEE');
+
+        // 3. Result Ladder
+        const margin = attackerPower - defenderPower;
+        let combatLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks you!\n`;
+        let observerLog = `\n<combat>${npcComp?.typeName || 'The enemy'} attacks another combatant!\n`;
+
+        let effectiveHitType: 'marginal' | 'solid' | 'crushing' | 'miss' = 'miss';
+        if (margin > 15) effectiveHitType = 'crushing';
+        else if (margin > 0) effectiveHitType = 'solid';
+        else if (margin > -10) effectiveHitType = 'marginal';
+
+        switch (effectiveHitType) {
+            case 'crushing':
+                const crushingDamage = Math.floor(npcStats.attack * 1.5);
+                targetStats.hp -= crushingDamage;
+                npcStats.balance = Math.min(1.0, npcStats.balance + 0.1);
+                targetStats.balance = Math.max(0.0, targetStats.balance - 0.2);
+                combatLog += `<combat-hit>[CRUSHING] You take ${crushingDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>[CRUSHING HIT]</combat-hit>\n`;
+                combatLog += this.applyWoundToTarget(target, BodyPart.Chest, 5);
+                break;
+            case 'solid':
+                const solidDamage = Math.floor(npcStats.attack * 0.8);
+                targetStats.hp -= solidDamage;
+                targetStats.balance = Math.max(0.0, targetStats.balance - 0.1);
+                combatLog += `<combat-hit>[SOLID] You take ${solidDamage} damage!</combat-hit>\n`;
+                observerLog += `<combat-hit>[SOLID HIT]</combat-hit>\n`;
+                break;
+            case 'marginal':
+                const marginalDamage = Math.floor(npcStats.attack * 0.3);
+                targetStats.hp -= marginalDamage;
+                combatLog += `<combat-hit>[MARGINAL] You take ${marginalDamage} damage.</combat-hit>\n`;
+                observerLog += `<combat-hit>[MARGINAL HIT]</combat-hit>\n`;
+                break;
+            case 'miss':
+                combatLog += `<combat-miss>The attack misses!</combat-miss>\n`;
+                observerLog += `<combat-miss>The attack misses!</combat-miss>\n`;
+                npcStats.balance = Math.max(0.0, npcStats.balance - 0.1);
+                break;
+        }
+
+        combatLog += `</combat>`;
+        observerLog += `</combat>`;
+
+        // Send to target
+        this.messageService.combat(targetId, combatLog);
+
+        // Send to observers in the room
+        const playersInRoom = engine.getEntitiesWithComponent(Position).filter(e => {
+            const ePos = e.getComponent(Position);
+            return e.hasComponent(CombatStats) && !e.hasComponent(NPC) &&
+                ePos?.x === npcPos.x && ePos?.y === npcPos.y && e.id !== targetId;
+        });
+
+        for (const observer of playersInRoom) {
+            this.messageService.combat(observer.id, observerLog);
+        }
+
+        // 4. Apply Roundtime to NPC (4 seconds base for NPC attacks)
+        this.applyRoundtime(npcId, 4, engine);
+    }
+
     private checkRoundtime(entityId: string, engine: IEngine, silent: boolean = false): boolean {
         const entity = WorldQuery.getEntityById(engine, entityId);
         const rt = entity?.getComponent(Roundtime);
@@ -1275,5 +1483,30 @@ export class CombatSystem extends System {
             rt.secondsRemaining = seconds;
             rt.totalSeconds = seconds;
         }
+    }
+
+    private parseTargetName(targetName: string): { name: string, ordinal: number } {
+        const parts = targetName.toLowerCase().split(' ');
+
+        let ordinal = 1;
+        let name = targetName;
+
+        if (parts.length > 1) {
+            const firstPart = parts[0];
+            const index = this.ordinalNames.indexOf(firstPart);
+            if (index !== -1) {
+                ordinal = index + 1;
+                name = parts.slice(1).join(' ');
+            } else {
+                // Check for "rat 1", "rat 2"
+                const lastPart = parts[parts.length - 1];
+                const num = parseInt(lastPart);
+                if (!isNaN(num)) {
+                    ordinal = num;
+                    name = parts.slice(0, -1).join(' ');
+                }
+            }
+        }
+        return { name, ordinal };
     }
 }

@@ -118,6 +118,16 @@
   font-weight: bold;
 }
 
+.text-advance {
+  color: #d4af37;
+  font-weight: bold;
+}
+
+.text-range {
+  color: #00e5ff;
+  font-weight: bold;
+}
+
 .text-cmd {
   color: #fff;
   background: #333;

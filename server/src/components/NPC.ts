@@ -8,7 +8,8 @@ export class NPC extends Component {
         public barks: string[],
         public description: string,
         public canMove: boolean = true,
-        public tag: string = ''
+        public tag: string = '',
+        public isAggressive: boolean = false
     ) {
         super();
     }

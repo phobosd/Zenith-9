@@ -41,20 +41,6 @@ export class WorldGenerator {
             }
         }
 
-        // Spawn a guaranteed rat in the center of Central Plaza
-        const centerX = Math.floor(this.width / 2);
-        const centerY = Math.floor(this.height / 2);
-        const plazaRat = new Entity();
-        plazaRat.addComponent(new Position(centerX, centerY));
-        plazaRat.addComponent(new NPC(
-            "Giant Rat",
-            ["Squeak!", "Hiss...", "*scratches floor*"],
-            "A large, mutated rat with glowing green eyes.",
-            false
-        ));
-        plazaRat.addComponent(new CombatStats(20, 5, 0, true));
-        this.engine.addEntity(plazaRat);
-
         this.createCyberspace();
 
         console.log('World generation complete.');

@@ -9,6 +9,7 @@ import { Position } from '../components/Position';
 import { Cyberware } from '../components/Cyberware';
 import { IsICE } from '../components/IsICE';
 import { WoundTable } from '../components/WoundTable';
+import { Stats } from '../components/Stats';
 
 import { ItemRegistry } from '../services/ItemRegistry';
 import { EngagementTier } from '../types/CombatTypes';
@@ -130,7 +131,9 @@ export class PrefabFactory {
                     "Giant Rat",
                     ["Squeak!", "Hiss...", "*scratches floor*"],
                     "A massive, mutated rodent the size of a large dog. Its fur is matted and greasy, patchy in places where scarred, pink skin shows through. Its eyes glow with a sickly, radioactive green luminescence, twitching erratically. You can hear its heavy, wheezing breath and smell the acrid stench of decay and sewage that clings to it.",
-                    false
+                    false,
+                    '',
+                    true // isAggressive
                 ));
                 entity.addComponent(new CombatStats(20, 5, 0, true));
                 break;
@@ -138,7 +141,10 @@ export class PrefabFactory {
                 entity.addComponent(new NPC(
                     "Cyber Thug",
                     ["You lookin' at me?", "Got any credits?", "This is my turf."],
-                    "A lean, dangerous figure leaning with practiced nonchalance. They wear a patchwork of scavenged leather and matte-black synthetic plates. A glowing red cybernetic implant replaces their left eye, scanning you with mechanical precision, while their right hand hovers near a holster. A low hum emanates from their enhanced limbs, and they smell of ozone and cheap tobacco."
+                    "A lean, dangerous figure leaning with practiced nonchalance. They wear a patchwork of scavenged leather and matte-black synthetic plates. A glowing red cybernetic implant replaces their left eye, scanning you with mechanical precision, while their right hand hovers near a holster. A low hum emanates from their enhanced limbs, and they smell of ozone and cheap tobacco.",
+                    true,
+                    '',
+                    true // isAggressive
                 ));
                 entity.addComponent(new CombatStats(50, 10, 5));
                 break;
@@ -173,7 +179,10 @@ export class PrefabFactory {
                 entity.addComponent(new NPC(
                     "Street Samurai",
                     ["My reflexes are faster than your thoughts.", "Honor is a luxury you can't afford.", "Target locked."],
-                    "A razor-edged warrior with chrome-plated limbs and retractable mono-filament claws. Their eyes are replaced by a multi-spectrum sensor array, and they move with a fluid, predatory grace that suggests heavy synaptic acceleration."
+                    "A razor-edged warrior with chrome-plated limbs and retractable mono-filament claws. Their eyes are replaced by a multi-spectrum sensor array, and they move with a fluid, predatory grace that suggests heavy synaptic acceleration.",
+                    true,
+                    '',
+                    true // isAggressive
                 ));
                 entity.addComponent(new CombatStats(150, 25, 15));
                 break;
@@ -223,7 +232,9 @@ export class PrefabFactory {
                     "Black ICE",
                     ["[SYSTEM] LETHAL FEEDBACK ENGAGED", "[SYSTEM] NEURAL SPIKE UPLOADING", "[SYSTEM] TARGET ACQUIRED"],
                     "A dark, swirling vortex of malevolent code. It is an aggressive intrusion countermeasure designed to physically damage the brain of any hacker it encounters.",
-                    false
+                    false,
+                    '',
+                    true // isAggressive
                 ));
                 entity.addComponent(new IsICE('Black ICE'));
                 entity.addComponent(new CombatStats(200, 50, 10, true)); // Lethal
@@ -232,8 +243,9 @@ export class PrefabFactory {
                 return null;
         }
 
-        // All NPCs get a WoundTable
+        // All NPCs get a WoundTable and Stats
         entity.addComponent(new WoundTable());
+        entity.addComponent(new Stats());
 
         return entity;
     }
