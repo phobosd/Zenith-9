@@ -13,7 +13,7 @@ import { Stance, StanceType } from '../components/Stance';
 import { Server } from 'socket.io';
 import { Engine } from '../ecs/Engine';
 import { WorldQuery } from '../utils/WorldQuery';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { PrefabFactory } from '../factories/PrefabFactory';
 import { BodyPart, EngagementTier } from '../types/CombatTypes';
 import { WoundTable } from '../components/WoundTable';

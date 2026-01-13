@@ -8,7 +8,7 @@ import { IsICE } from '../components/IsICE';
 import { CombatStats } from '../components/CombatStats';
 import { Server } from 'socket.io';
 import { MessageService } from '../services/MessageService';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { WorldQuery } from '../utils/WorldQuery';
 import { Description } from '../components/Description';
 

@@ -12,7 +12,8 @@ Ouroboro is a **High-Performance ECS (Entity-Component-System)** MUD (Multi-User
 - **Entities**: Simple containers with a unique ID. They hold **Components**.
 - **Components**: Pure data structures (classes) that inherit from `Component`. They must be serializable.
 - **Systems**: Logic classes that inherit from `System`. They iterate over entities with specific component signatures.
-- **Engine**: The orchestrator. It manages the entity list, component indexing, and system execution.
+- **Engine**: The orchestrator. It manages the entity list, component indexing, and system execution. Uses the `IEngine` interface to break circular dependencies and implements **Component Caching** for high-performance queries.
+- **Event Bus**: A type-safe `GameEventBus` for decoupled communication between systems (e.g., `MovementSystem` emitting events that `NPCSystem` listens to).
 
 ### 2. The Game Loop
 The server runs at **10 Ticks Per Second (TPS)**.
@@ -42,9 +43,10 @@ graph TD
 
     subgraph Engine_Layer [Engine Layer - ECS]
         Engine[ECS Engine]
-        Systems[Systems: Movement, Combat, Interaction, NPC]
+        Systems[Systems: Movement, Combat, Interaction, Inventory, NPC]
         Entities[Entities & Components]
         Registry[Component Registry]
+        EventBus[GameEventBus]
     end
 
     subgraph Service_Layer [Service Layer]
@@ -70,6 +72,7 @@ graph TD
 
     %% System Logic
     Systems -->|Query| Entities
+    Systems -->|Emit/Listen| EventBus
     Systems -->|Notify| MessageService
     Systems -->|Spawn| PrefabFactory
     
@@ -140,7 +143,29 @@ Commands are registered in the `CommandRegistry`:
        }
    });
    ```
-3. **Context**: Use `ctx.messageService` for all output.
+3. **Context**: Use `ctx.systems` to access other systems and `ctx.messageService` for all output.
+   ```typescript
+   // Example: Accessing inventory from a command
+   ctx.systems.inventory.handleGet(ctx.socketId, itemName, ctx.engine);
+   ```
+
+### 📡 Event-Driven Communication
+Use the `GameEventBus` to decouple systems:
+1. **Define Event**: Add to `GameEventType` and `GameEventPayloads` in `GameEventBus.ts`.
+2. **Emit**: `GameEventBus.getInstance().emit(GameEventType.PLAYER_MOVED, { ... })`.
+3. **Listen**: Subscribe in a system's constructor:
+   ```typescript
+   GameEventBus.getInstance().on(GameEventType.PLAYER_MOVED, (payload) => {
+       this.onPlayerMoved(payload);
+   });
+   ```
+
+### 🧪 Testing Framework
+Ouroboro uses **Jest** for unit testing:
+- **Location**: Tests are located in `**/__tests__/*.test.ts`.
+- **Running**: Use `npm test` to run the suite.
+- **Mocking**: Use `jest.mock('uuid')` or similar for deterministic tests.
+- **Config**: `jest.config.js` handles TypeScript transformation and module mapping.
 
 ### 🔍 Implementing Tab Completion
 Autocomplete is a two-part system:
@@ -214,6 +239,7 @@ Puzzles follow the **State-Check Pattern**:
 | **Frontend** | React | ^19.2.0 |
 | **Build Tool** | Vite | ^7.2.4 |
 | **Validation** | Zod | ^3.x |
+| **Testing** | Jest | ^29.x |
 
 ---
 

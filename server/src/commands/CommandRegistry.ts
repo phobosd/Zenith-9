@@ -8,23 +8,27 @@ import { AtmosphereSystem } from '../systems/AtmosphereSystem';
 import { Entity } from '../ecs/Entity';
 import { Logger } from '../utils/Logger';
 
+import { ObservationSystem } from '../systems/ObservationSystem';
+import { PortalSystem } from '../systems/PortalSystem';
+import { StanceSystem } from '../systems/StanceSystem';
+import { CharacterSystem } from '../systems/CharacterSystem';
+import { InventorySystem } from '../systems/InventorySystem';
+
 export interface SystemRegistry {
     movement: MovementSystem;
     interaction: InteractionSystem;
+    inventory: InventorySystem;
     npc: NPCSystem;
     combat: CombatSystem;
     cyberspace: CyberspaceSystem;
     atmosphere: AtmosphereSystem;
+    observation: ObservationSystem;
+    portal: PortalSystem;
+    stance: StanceSystem;
+    character: CharacterSystem;
 }
 
-export interface IEngine {
-    addEntity(entity: Entity): void;
-    removeEntity(entityId: string): void;
-    getEntity(entityId: string): Entity | undefined;
-    getEntities(): Map<string, Entity>;
-    getEntitiesWithComponent<T extends any>(componentClass: any): Entity[];
-}
-
+import { IEngine } from '../ecs/IEngine';
 import { MessageService } from '../services/MessageService';
 
 export interface CommandContext {

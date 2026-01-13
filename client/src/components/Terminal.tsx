@@ -21,6 +21,57 @@ interface TerminalLine {
     data?: any;
 }
 
+// Helper function to parse messages (moved outside component to be accessible)
+const parseMessage = (text: string): React.ReactNode => {
+    if (!text) return null;
+
+    const tagRegex = /<([a-zA-Z0-9-]+)>([\s\S]*?)<\/\1>/g;
+    const parts: React.ReactNode[] = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = tagRegex.exec(text)) !== null) {
+        if (match.index > lastIndex) {
+            parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, match.index)}</span>);
+        }
+
+        const tag = match[1];
+        const content = match[2];
+
+        parts.push(
+            <span key={`tag-${match.index}`} className={`text-${tag}`}>
+                {parseMessage(content)}
+            </span>
+        );
+
+        lastIndex = tagRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+        parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
+    }
+
+    return <>{parts}</>;
+};
+
+const TerminalLineItem = React.memo(({ line }: { line: TerminalLine }) => {
+    return (
+        <div className={`terminal-line ${line.type}`}>
+            {line.type === 'inventory' && line.data ? (
+                <InventoryDisplay data={line.data} />
+            ) : line.type === 'score' && line.data ? (
+                <ScoreDisplay data={line.data} />
+            ) : line.type === 'sheet' && line.data ? (
+                <SheetDisplay data={line.data} />
+            ) : line.type === 'map' && line.data ? (
+                <MapDisplay data={line.data} />
+            ) : (
+                parseMessage(line.text)
+            )}
+        </div>
+    );
+}, (prev, next) => prev.line.id === next.line.id);
+
 export const Terminal: React.FC = () => {
     const [lines, setLines] = useState<TerminalLine[]>([]);
     const [inputValue, setInputValue] = useState('');
@@ -53,6 +104,8 @@ export const Terminal: React.FC = () => {
 
     const [terminalData, setTerminalData] = useState<any>(null);
     const [guideContent, setGuideContent] = useState<string | null>(null);
+
+    // ... (rest of Terminal component)
 
     useEffect(() => {
         const newSocket = io(SOCKET_URL);
@@ -522,43 +575,6 @@ export const Terminal: React.FC = () => {
         }
     };
 
-    const parseMessage = (text: string): React.ReactNode => {
-        if (!text) return null;
-
-        // Regex to find tags: <tag>content</tag>
-        // We use a more sophisticated approach to handle nesting
-        const tagRegex = /<([a-zA-Z0-9-]+)>([\s\S]*?)<\/\1>/g;
-        const parts: React.ReactNode[] = [];
-        let lastIndex = 0;
-        let match;
-
-        while ((match = tagRegex.exec(text)) !== null) {
-            // Add text before the match
-            if (match.index > lastIndex) {
-                parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex, match.index)}</span>);
-            }
-
-            const tag = match[1];
-            const content = match[2];
-
-            // Recursively parse the content for nested tags
-            parts.push(
-                <span key={`tag-${match.index}`} className={`text-${tag}`}>
-                    {parseMessage(content)}
-                </span>
-            );
-
-            lastIndex = tagRegex.lastIndex;
-        }
-
-        // Add remaining text
-        if (lastIndex < text.length) {
-            parts.push(<span key={`text-${lastIndex}`}>{text.substring(lastIndex)}</span>);
-        }
-
-        return <>{parts}</>;
-    };
-
     return (
         <div className="terminal-container">
             {socket && <CombatOverlay socket={socket} />}
@@ -578,19 +594,7 @@ export const Terminal: React.FC = () => {
             )}
             <div className="terminal-output" ref={outputRef}>
                 {lines.map(line => (
-                    <div key={line.id} className={`terminal-line ${line.type}`}>
-                        {line.type === 'inventory' && line.data ? (
-                            <InventoryDisplay data={line.data} />
-                        ) : line.type === 'score' && line.data ? (
-                            <ScoreDisplay data={line.data} />
-                        ) : line.type === 'sheet' && line.data ? (
-                            <SheetDisplay data={line.data} />
-                        ) : line.type === 'map' && line.data ? (
-                            <MapDisplay data={line.data} />
-                        ) : (
-                            parseMessage(line.text)
-                        )}
-                    </div>
+                    <TerminalLineItem key={line.id} line={line} />
                 ))}
             </div>
             <div className="terminal-input-area">

@@ -1,5 +1,5 @@
 import { System } from '../ecs/System';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { Atmosphere } from '../components/Atmosphere';
 import { IsCyberspace } from '../components/IsCyberspace';
 import { MessageService } from '../services/MessageService';

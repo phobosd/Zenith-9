@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { WorldQuery } from '../utils/WorldQuery';
 import { Credits } from '../components/Credits';
 import { PrefabFactory } from '../factories/PrefabFactory';

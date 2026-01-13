@@ -8,10 +8,14 @@ import { Terminal } from '../components/Terminal';
 import { Shop } from '../components/Shop';
 import { Container } from '../components/Container';
 import { Inventory } from '../components/Inventory';
+import { Stats } from '../components/Stats';
 import { WorldQuery } from '../utils/WorldQuery';
 import { MessageFormatter } from '../utils/MessageFormatter';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { Atmosphere } from '../components/Atmosphere';
+import { Portal } from '../components/Portal';
+import { DungeonService } from '../services/DungeonService';
+import { Visuals } from '../components/Visuals';
 
 export class DescriptionService {
     /**
@@ -54,6 +58,16 @@ export class DescriptionService {
             terminalText = "\n" + MessageFormatter.wrap('terminal', "A Shop Terminal is here.");
         }
 
+        // Find Portals
+        const portalsInRoom = engine.getEntitiesWithComponent(Portal).filter(e => {
+            const pos = e.getComponent(Position);
+            return pos && pos.x === playerPos.x && pos.y === playerPos.y;
+        });
+        const portalText = portalsInRoom.map(p => {
+            const desc = p.getComponent(Description);
+            return desc ? `\n${desc.description}` : '';
+        }).join('');
+
         // Calculate Exits
         const exits = [];
         if (WorldQuery.findRoomAt(engine, playerPos.x, playerPos.y - 1)) exits.push('N');
@@ -71,7 +85,7 @@ export class DescriptionService {
         const miniMap = this.generateMiniMap(playerPos, engine);
 
         return `${MessageFormatter.title(`[${roomDesc.title}]`)}
-${atmosphereText}<desc>${roomDesc.description}</desc>${terminalText}
+${atmosphereText}<desc>${roomDesc.description}</desc>${terminalText}${portalText}
 <exits>Exits: ${exits.join(', ')}</exits>
 ${miniMap}
 ${itemDescriptions}
@@ -84,36 +98,63 @@ ${npcDescriptions}`.trim();
     static generateMiniMap(playerPos: Position, engine: IEngine): string {
         let miniMap = "";
         const range = 2; // +/- 2 tiles
+
+        // Get player ID for visited check
+        const playerEntity = engine.getEntitiesWithComponent(Position).find(e => {
+            const p = e.getComponent(Position);
+            return p && p.x === playerPos.x && p.y === playerPos.y && e.hasComponent(Stats) && !e.hasComponent(NPC);
+        });
+        const playerId = playerEntity?.id || "";
+
         for (let y = playerPos.y - range; y <= playerPos.y + range; y++) {
             let row = "";
             for (let x = playerPos.x - range; x <= playerPos.x + range; x++) {
+                // Fog of War check
+                if (!DungeonService.getInstance().isVisited(playerId, x, y)) {
+                    row += "  "; // Two spaces to match char + space width
+                    continue;
+                }
+
                 if (x === playerPos.x && y === playerPos.y) {
                     row += MessageFormatter.mapPlayer("@");
                 } else {
-                    const r = WorldQuery.findRoomAt(engine, x, y);
-                    if (r) {
-                        const shop = r.getComponent(Shop);
-                        const desc = r.getComponent(Description);
+                    // Check for NPCs with Visuals first
+                    const npcs = WorldQuery.findNPCsAt(engine, x, y);
+                    const visualNPC = npcs.find(n => n.hasComponent(Visuals));
 
-                        if (shop) {
-                            if (shop.name.includes("Clinic")) {
-                                row += "<map-clinic>+</map-clinic>";
-                            } else {
-                                row += MessageFormatter.mapShop("$");
-                            }
-                        } else if (desc?.title.includes("Club")) {
-                            row += "<map-club>♫</map-club>";
-                        } else if (desc?.title.includes("Park")) {
-                            row += "<map-grass>T</map-grass>";
-                        } else if (desc?.title.includes("Plaza")) {
-                            row += "<map-street>#</map-street>";
-                        } else if (desc?.title.includes("Street")) {
-                            row += "<map-street>.</map-street>";
-                        } else {
-                            row += MessageFormatter.mapRoom("#");
-                        }
+                    if (visualNPC) {
+                        const visuals = visualNPC.getComponent(Visuals);
+                        // We need a way to format this color. MessageFormatter doesn't support arbitrary hex.
+                        // We'll map known colors or just use red for enemies.
+                        // For now, let's use a generic enemy tag or try to use the char.
+                        // Since the client parses tags, we can try <color:hex> if supported, or just <enemy>char</enemy>
+                        row += `<enemy>${visuals?.char || 'E'}</enemy>`;
                     } else {
-                        row += " "; // Empty space
+                        const r = WorldQuery.findRoomAt(engine, x, y);
+                        if (r) {
+                            const shop = r.getComponent(Shop);
+                            const desc = r.getComponent(Description);
+
+                            if (shop) {
+                                if (shop.name.includes("Clinic")) {
+                                    row += "<map-clinic>+</map-clinic>";
+                                } else {
+                                    row += MessageFormatter.mapShop("$");
+                                }
+                            } else if (desc?.title.includes("Club")) {
+                                row += "<map-club>♫</map-club>";
+                            } else if (desc?.title.includes("Park")) {
+                                row += "<map-grass>T</map-grass>";
+                            } else if (desc?.title.includes("Plaza")) {
+                                row += "<map-street>#</map-street>";
+                            } else if (desc?.title.includes("Street")) {
+                                row += "<map-street>.</map-street>";
+                            } else {
+                                row += MessageFormatter.mapRoom("#");
+                            }
+                        } else {
+                            row += " "; // Empty space
+                        }
                     }
                 }
                 row += " "; // Spacing
@@ -127,13 +168,44 @@ ${npcDescriptions}`.trim();
      * Generates structured map data for React rendering.
      */
     static generateMapData(playerPos: Position, engine: IEngine) {
-        const width = 20;
-        const height = 20;
-        const grid: any[][] = [];
+        // Determine map bounds based on player position
+        let startX = 0;
+        let startY = 0;
+        let width = 20;
+        let height = 20;
 
-        for (let y = 0; y < height; y++) {
+        const isDungeon = playerPos.x >= 2000;
+        if (isDungeon) {
+            // Center map on player for dungeon
+            const viewRadius = 10; // 20x20 view (matches city map size)
+            startX = playerPos.x - viewRadius;
+            startY = playerPos.y - viewRadius;
+            width = viewRadius * 2;
+            height = viewRadius * 2;
+        }
+
+        const grid: any[][] = [];
+        // We need the player ID to check visited status. 
+        // Since we don't have it passed here, we have to find the player entity by position?
+        // Or assume the caller passes it? The caller is InteractionSystem.handleMap(entityId...)
+        // But this method signature is (playerPos, engine).
+        // We can find the player entity at this position.
+        const playerEntity = engine.getEntitiesWithComponent(Position).find(e => {
+            const p = e.getComponent(Position);
+            return p && p.x === playerPos.x && p.y === playerPos.y && e.hasComponent(Stats) && !e.hasComponent(NPC);
+        });
+
+        const playerId = playerEntity?.id || "";
+
+        for (let y = startY; y < startY + height; y++) {
             const row: any[] = [];
-            for (let x = 0; x < width; x++) {
+            for (let x = startX; x < startX + width; x++) {
+                // Fog of War check for dungeon
+                if (isDungeon && !DungeonService.getInstance().isVisited(playerId, x, y)) {
+                    row.push(null);
+                    continue;
+                }
+
                 const room = WorldQuery.findRoomAt(engine, x, y);
                 if (room) {
                     const shop = room.getComponent(Shop);
@@ -141,14 +213,17 @@ ${npcDescriptions}`.trim();
                     const isPlayer = x === playerPos.x && y === playerPos.y;
 
                     let type = 'street';
-                    if (desc?.title.includes("Clinic")) type = 'clinic';
+                    if (isDungeon) type = 'dungeon'; // New type for client styling
+                    else if (desc?.title.includes("Clinic")) type = 'clinic';
                     else if (shop) type = 'shop';
                     else if (desc?.title.includes("Club")) type = 'club';
                     else if (desc?.title.includes("Park")) type = 'park';
                     else if (desc?.title.includes("Plaza")) type = 'plaza';
 
+                    // Normalize coordinates for client grid (0-based)
                     row.push({
-                        x, y,
+                        x: x - startX,
+                        y: y - startY,
                         type,
                         title: desc?.title || "Unknown",
                         isPlayer
@@ -162,7 +237,8 @@ ${npcDescriptions}`.trim();
 
         return {
             grid,
-            playerPos: { x: playerPos.x, y: playerPos.y }
+            playerPos: { x: playerPos.x - startX, y: playerPos.y - startY },
+            worldPos: { x: playerPos.x, y: playerPos.y }
         };
     }
 

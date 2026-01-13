@@ -1,5 +1,5 @@
 import { Server } from 'socket.io';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { WorldQuery } from '../utils/WorldQuery';
 import { Position } from '../components/Position';
 import { Description } from '../components/Description';

@@ -12,13 +12,14 @@ interface MapCell {
 interface MapData {
     grid: (MapCell | null)[][];
     playerPos: { x: number; y: number };
+    worldPos?: { x: number; y: number };
 }
 
 interface Props {
     data: MapData;
 }
 
-export const MapDisplay: React.FC<Props> = ({ data }) => {
+export const MapDisplay: React.FC<Props> = React.memo(({ data }) => {
     const getSymbol = (cell: MapCell) => {
         if (cell.isPlayer) return '@';
         switch (cell.type) {
@@ -28,6 +29,7 @@ export const MapDisplay: React.FC<Props> = ({ data }) => {
             case 'park': return 'T';
             case 'plaza': return '#';
             case 'street': return '.';
+            case 'dungeon': return '░';
             default: return '?';
         }
     };
@@ -37,11 +39,22 @@ export const MapDisplay: React.FC<Props> = ({ data }) => {
         return `map-${cell.type}`;
     };
 
+    const displayX = data.worldPos ? data.worldPos.x : data.playerPos.x;
+    const displayY = data.worldPos ? data.worldPos.y : data.playerPos.y;
+
+    let sector = 'UNKNOWN';
+    if (displayX >= 2000) sector = 'CYBERSPACE';
+    else if (displayX < 7) sector = 'CHIBA';
+    else if (displayX < 14) sector = 'SPRAWL';
+    else sector = 'STRAYLIGHT';
+
+    const isLargeMap = data.grid.length > 25;
+
     return (
         <div className="inventory-display">
             <div className="inventory-header">CITY NAVIGATION GRID</div>
             <div className="inventory-grid" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                <div className="map-grid">
+                <div className={`map-grid ${isLargeMap ? 'large-map' : ''}`}>
                     {data.grid.map((row, y) => (
                         <div key={y} className="map-row">
                             {row.map((cell, x) => (
@@ -58,8 +71,8 @@ export const MapDisplay: React.FC<Props> = ({ data }) => {
                 </div>
             </div>
             <div className="inventory-footer" style={{ marginTop: '10px', textAlign: 'center', fontSize: '12px', color: '#0ff', borderTop: '1px solid rgba(0, 255, 255, 0.3)', paddingTop: '5px' }}>
-                LOCATION: ({data.playerPos.x}, {data.playerPos.y}) | SECTOR: {data.playerPos.x < 7 ? 'CHIBA' : data.playerPos.x < 14 ? 'SPRAWL' : 'STRAYLIGHT'}
+                LOCATION: ({displayX}, {displayY}) | SECTOR: {sector}
             </div>
         </div>
     );
-};
+});

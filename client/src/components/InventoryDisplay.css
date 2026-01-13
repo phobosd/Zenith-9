@@ -100,6 +100,108 @@
     border: 1px solid #333;
 }
 
+.inventory-display {
+    padding: 15px;
+    border: 1px solid #333;
+    background: rgba(0, 0, 0, 0.3);
+    color: #0f0;
+    font-family: 'Courier New', Courier, monospace;
+    margin: 10px 0;
+    max-width: 800px;
+    box-shadow: 0 0 10px rgba(0, 255, 0, 0.1);
+}
+
+.inventory-header {
+    font-weight: bold;
+    color: #0ff;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #0ff;
+    padding-bottom: 5px;
+    text-align: center;
+    letter-spacing: 2px;
+    text-shadow: 0 0 5px #0ff;
+}
+
+.inventory-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.inventory-section {
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-weight: bold;
+    color: #0ff;
+    margin-bottom: 8px;
+    text-decoration: underline;
+    font-size: 12px;
+    letter-spacing: 1px;
+}
+
+.inventory-item {
+    margin-bottom: 4px;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.05);
+    padding: 2px 0;
+}
+
+/* Skill Row Grid - Ensures perfect alignment */
+.skill-row {
+    display: grid !important;
+    grid-template-columns: 220px 80px 1fr;
+    gap: 15px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1) !important;
+}
+
+.skill-name,
+.skill-level {
+    color: #0f0;
+}
+
+.skill-progress {
+    font-family: 'Courier New', Courier, monospace;
+    color: #0ff;
+    white-space: nowrap;
+}
+
+/* Stat Row Grid - For Sheet and Inventory */
+.stat-row {
+    display: grid !important;
+    grid-template-columns: 140px 1fr;
+    gap: 10px;
+    border-bottom: 1px solid rgba(0, 255, 0, 0.1) !important;
+}
+
+.stat-label {
+    color: #0ff;
+    font-weight: bold;
+}
+
+.stat-value {
+    color: #0f0;
+}
+
+.backpack-list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Map specific styles */
+.map-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    background: #000;
+    padding: 10px;
+    border: 1px solid #333;
+}
+
 .map-row {
     display: flex;
     gap: 2px;
@@ -108,11 +210,23 @@
 .map-cell {
     width: 20px;
     height: 20px;
+    min-width: 20px;
+    min-height: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
     font-weight: bold;
+    flex-shrink: 0;
+}
+
+/* Large map overrides */
+.map-grid.large-map .map-cell {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    font-size: 10px;
 }
 
 .map-player {
@@ -142,6 +256,26 @@
 
 .map-street {
     color: #444;
+}
+
+.map-dungeon {
+    color: #ff00ff;
+    text-shadow: 0 0 3px #ff00ff;
+    animation: glitch 0.2s infinite;
+}
+
+@keyframes glitch {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.8;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 /* Scrollbar styling */

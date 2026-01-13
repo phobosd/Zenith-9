@@ -1,17 +1,23 @@
 import { Entity } from './Entity';
 import { System } from './System';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from './IEngine';
 import { Logger } from '../utils/Logger';
+import { SpatialIndex } from '../utils/SpatialIndex';
+import { Position } from '../components/Position';
 
 export class Engine implements IEngine {
     private entities: Map<string, Entity>;
     private systems: System[];
     private componentIndex: Map<string, Set<string>>;
+    private spatialIndex: SpatialIndex;
+    private queryCache: Map<string, Entity[]>;
 
     constructor() {
         this.entities = new Map();
         this.systems = [];
         this.componentIndex = new Map();
+        this.spatialIndex = new SpatialIndex();
+        this.queryCache = new Map();
     }
 
     addEntity(entity: Entity): void {
@@ -44,6 +50,7 @@ export class Engine implements IEngine {
             this.componentIndex.set(componentType, new Set());
         }
         this.componentIndex.get(componentType)!.add(entityId);
+        this.queryCache.delete(componentType);
     }
 
     private removeFromIndex(componentType: string, entityId: string) {
@@ -54,16 +61,25 @@ export class Engine implements IEngine {
                 this.componentIndex.delete(componentType);
             }
         }
+        this.queryCache.delete(componentType);
     }
 
     getEntitiesWithComponent<T extends any>(componentClass: any): Entity[] {
         const type = componentClass.type;
+
+        if (this.queryCache.has(type)) {
+            return this.queryCache.get(type)!;
+        }
+
         const ids = this.componentIndex.get(type);
         if (!ids) return [];
 
-        return Array.from(ids)
+        const entities = Array.from(ids)
             .map(id => this.entities.get(id))
             .filter((e): e is Entity => !!e);
+
+        this.queryCache.set(type, entities);
+        return entities;
     }
 
     getEntity(entityId: string): Entity | undefined {
@@ -78,7 +94,26 @@ export class Engine implements IEngine {
         this.systems.push(system);
     }
 
+    private reindexSpatial(): void {
+        this.spatialIndex.clear();
+        const entitiesWithPos = this.getEntitiesWithComponent(Position);
+        for (const entity of entitiesWithPos) {
+            const pos = entity.getComponent(Position);
+            if (pos) {
+                this.spatialIndex.add(entity.id, pos.x, pos.y);
+            }
+        }
+    }
+
+    getEntitiesAt(x: number, y: number): Entity[] {
+        const ids = this.spatialIndex.getEntitiesAt(x, y);
+        return ids
+            .map(id => this.entities.get(id))
+            .filter((e): e is Entity => !!e);
+    }
+
     update(deltaTime: number): void {
+        this.reindexSpatial();
         for (const system of this.systems) {
             try {
                 system.update(this, deltaTime);

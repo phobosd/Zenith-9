@@ -90,24 +90,7 @@ Navigate to `http://localhost:5173` in your browser.
 
 ## 🎮 How to Play
 
-### Basic Commands
-- `look` / `l` - Examine your surroundings
-- `map` / `m` - View the world map
-- `north` / `n`, `south` / `s`, `east` / `e`, `west` / `w` - Move
-- `get <item>` - Pick up an item
-- `drop <item>` - Drop an item
-- `inventory` / `i` - View your inventory
-- `sheet` - View your attributes
-- `score` - View your skills
-
-### Combat Commands
-- `attack <target>` / `kill <target>` - Initiate combat
-- **During Combat**: Press `F` when the sync bar cursor is in your desired zone
-
-### Inventory Management
-- `stow <item>` - Move item from hand to backpack
-- `swap` - Swap items between hands
-- `get <item> from <container>` - Retrieve from container
+For a comprehensive guide on commands, combat, and game mechanics, please refer to the [User's Guide](./docs/USERS_GUIDE.md).
 
 ## 🏗️ Architecture
 

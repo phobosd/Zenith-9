@@ -5,18 +5,20 @@ import { Stance, StanceType } from '../components/Stance';
 import { CombatStats } from '../components/CombatStats';
 import { EngagementTier } from '../types/CombatTypes';
 import { Server } from 'socket.io';
-import { InteractionSystem } from './InteractionSystem';
+import { ObservationSystem } from './ObservationSystem';
 import { WorldQuery } from '../utils/WorldQuery';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { NPC } from '../components/NPC';
 
 import { MessageService } from '../services/MessageService';
+import { DungeonService } from '../services/DungeonService';
+import { GameEventBus, GameEventType } from '../utils/GameEventBus';
 
 export class MovementSystem extends System {
     private pendingMoves: Map<string, { x: number, y: number }>;
     private io: Server;
     private messageService: MessageService;
-    private interactionSystem?: InteractionSystem;
+    private observationSystem?: ObservationSystem;
 
     constructor(io: Server, messageService: MessageService) {
         super();
@@ -25,8 +27,8 @@ export class MovementSystem extends System {
         this.messageService = messageService;
     }
 
-    setInteractionSystem(system: InteractionSystem) {
-        this.interactionSystem = system;
+    setObservationSystem(system: ObservationSystem) {
+        this.observationSystem = system;
     }
 
     // Method to queue a move command from a player
@@ -93,8 +95,21 @@ export class MovementSystem extends System {
             const targetRoom = WorldQuery.findRoomAt(engine, targetX, targetY);
 
             if (targetRoom) {
+                const fromX = pos.x;
+                const fromY = pos.y;
+
+                console.log(`[Movement] Player ${entityId} moved to ${targetX}, ${targetY}`);
                 pos.x = targetX;
                 pos.y = targetY;
+
+                // Emit move event
+                GameEventBus.getInstance().emit(GameEventType.PLAYER_MOVED, {
+                    playerId: entityId,
+                    fromX,
+                    fromY,
+                    toX: targetX,
+                    toY: targetY
+                });
 
                 // Reset engagement tier on room change
                 if (combatStats) {
@@ -126,9 +141,12 @@ export class MovementSystem extends System {
                 }
 
                 // Trigger look
-                if (this.interactionSystem) {
-                    this.interactionSystem.handleLook(entityId, engine);
+                if (this.observationSystem) {
+                    this.observationSystem.handleLook(entityId, engine);
                 }
+
+                // Mark visited for Dungeon Fog of War
+                DungeonService.getInstance().markVisited(entityId, targetX, targetY);
             } else {
                 this.messageService.info(entityId, "You can't go that way.");
             }

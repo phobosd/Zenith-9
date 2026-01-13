@@ -8,7 +8,7 @@ import { Container } from '../components/Container';
 import { Inventory } from '../components/Inventory';
 import { IsRoom } from '../components/IsRoom';
 import { WorldQuery } from '../utils/WorldQuery';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 
 export interface AutocompleteData {
     type: 'room' | 'inventory';

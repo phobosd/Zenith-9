@@ -14,6 +14,7 @@ import { Atmosphere } from '../components/Atmosphere';
 import { IsCyberspace } from '../components/IsCyberspace';
 import { PrefabFactory } from '../factories/PrefabFactory';
 import { ItemRegistry } from '../services/ItemRegistry';
+import { Portal } from '../components/Portal';
 
 export class WorldGenerator {
     private engine: Engine;
@@ -223,6 +224,15 @@ export class WorldGenerator {
         if (type === 7) {
             this.spawnPuzzleObjects(x, y);
         }
+
+        // Spawn Cyber-Door in Plaza (10, 10)
+        if (x === 10 && y === 10) {
+            const door = new Entity();
+            door.addComponent(new Position(x, y));
+            door.addComponent(new Description("Glitch Door", "A flickering, unstable tear in reality. It hums with the sound of dial-up internet and screams."));
+            door.addComponent(new Portal('dungeon'));
+            this.engine.addEntity(door);
+        }
     }
 
     private spawnPuzzleObjects(x: number, y: number) {
@@ -332,7 +342,7 @@ export class WorldGenerator {
             case 2: // Plaza
                 return {
                     title: zonePrefix + "Central Arcology Plaza",
-                    desc: "The beating heart of the sprawl. Huge holographic ads tower over the geo-dome. Crowds of people move through the interstitial spaces in every direction."
+                    desc: "The beating heart of the sprawl. Huge holographic ads tower over the geo-dome. Crowds of people move through the interstitial spaces in every direction. In the center of the plaza, a flickering <terminal>Glitch Door</terminal> tears at the fabric of reality."
                 };
             case 3: // Shop
                 if (x < 10 && y < 10) {

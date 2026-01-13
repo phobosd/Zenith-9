@@ -15,7 +15,7 @@ import { ItemRegistry } from '../services/ItemRegistry';
 import { EngagementTier } from '../types/CombatTypes';
 
 import { Inventory } from '../components/Inventory';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { CombatBuffer } from '../components/CombatBuffer';
 
 export class PrefabFactory {

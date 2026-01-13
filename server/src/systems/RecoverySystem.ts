@@ -1,7 +1,7 @@
 import { System } from '../ecs/System';
 import { CombatStats } from '../components/CombatStats';
 import { Stats } from '../components/Stats';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 
 export class RecoverySystem extends System {
     private regenTimer: number = 0;

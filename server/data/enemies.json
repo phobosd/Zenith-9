@@ -1,0 +1,70 @@
+{
+    "enemies": [
+        {
+            "id": "glitch_rat",
+            "name": "Glitch Rat",
+            "tier": 1,
+            "stats": {
+                "atk": 5,
+                "def": 2,
+                "spd": 10,
+                "hp": 20
+            },
+            "visuals": {
+                "char": "r",
+                "color": "#ff00ff",
+                "glitch_rate": 0.1
+            },
+            "special": {
+                "id": "none",
+                "trigger": "none",
+                "effect": "none"
+            },
+            "description": "A rat composed of flickering static and corrupted code."
+        },
+        {
+            "id": "data_wraith",
+            "name": "Data Wraith",
+            "tier": 2,
+            "stats": {
+                "atk": 15,
+                "def": 5,
+                "spd": 15,
+                "hp": 50
+            },
+            "visuals": {
+                "char": "W",
+                "color": "#00ffff",
+                "glitch_rate": 0.3
+            },
+            "special": {
+                "id": "drain",
+                "trigger": "hit",
+                "effect": "drain_energy"
+            },
+            "description": "A floating torso of neon blue light, screaming silently."
+        },
+        {
+            "id": "firewall_sentinel",
+            "name": "Firewall Sentinel",
+            "tier": 3,
+            "stats": {
+                "atk": 25,
+                "def": 20,
+                "spd": 5,
+                "hp": 100
+            },
+            "visuals": {
+                "char": "S",
+                "color": "#ffaa00",
+                "glitch_rate": 0.05
+            },
+            "special": {
+                "id": "block",
+                "trigger": "defend",
+                "effect": "reflect_damage"
+            },
+            "description": "A heavy, armored figure made of burning orange firewall data."
+        }
+    ]
+}

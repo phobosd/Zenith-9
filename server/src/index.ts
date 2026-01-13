@@ -9,6 +9,7 @@ dotenv.config();
 import { Engine } from './ecs/Engine';
 import { Entity } from './ecs/Entity';
 import { Position } from './components/Position';
+import { Description } from './components/Description';
 import { WorldGenerator } from './world/WorldGenerator';
 import { MovementSystem } from './systems/MovementSystem';
 import { InteractionSystem } from './systems/InteractionSystem';
@@ -18,6 +19,11 @@ import { WorldQuery } from './utils/WorldQuery';
 import { CombatSystem } from './systems/CombatSystem';
 import { CyberspaceSystem } from './systems/CyberspaceSystem';
 import { AtmosphereSystem } from './systems/AtmosphereSystem';
+import { ObservationSystem } from './systems/ObservationSystem';
+import { PortalSystem } from './systems/PortalSystem';
+import { StanceSystem } from './systems/StanceSystem';
+import { CharacterSystem } from './systems/CharacterSystem';
+import { InventorySystem } from './systems/InventorySystem';
 import { Inventory } from './components/Inventory';
 import { Item } from './components/Item';
 import { Container } from './components/Container';
@@ -36,6 +42,7 @@ import { Credits } from './components/Credits';
 import { WorldStateService } from './services/WorldStateService';
 import { AutocompleteAggregator } from './services/AutocompleteAggregator';
 import { MessageService } from './services/MessageService';
+import { DungeonService } from './services/DungeonService';
 import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/SocketSchemas';
 import { EngagementTier } from './types/CombatTypes';
 import { CombatBuffer, CombatActionType } from './components/CombatBuffer';
@@ -55,7 +62,6 @@ ItemRegistry.getInstance();
 
 const app = express();
 app.use(cors());
-
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
@@ -69,23 +75,34 @@ import { RecoverySystem } from './systems/RecoverySystem';
 // ECS Setup
 const engine = new Engine();
 const messageService = new MessageService(io);
+const dungeonService = DungeonService.getInstance(engine, messageService);
 const movementSystem = new MovementSystem(io, messageService);
 const interactionSystem = new InteractionSystem(io);
+const inventorySystem = new InventorySystem(io);
 const npcSystem = new NPCSystem(io, messageService);
 const combatSystem = new CombatSystem(engine, io, messageService);
 const cyberspaceSystem = new CyberspaceSystem(io, messageService);
 const atmosphereSystem = new AtmosphereSystem(messageService);
+const observationSystem = new ObservationSystem(io);
+const portalSystem = new PortalSystem(io);
+const stanceSystem = new StanceSystem(io);
+const characterSystem = new CharacterSystem(io);
 const recoverySystem = new RecoverySystem();
 
 engine.addSystem(movementSystem);
 engine.addSystem(interactionSystem);
+engine.addSystem(inventorySystem);
 engine.addSystem(npcSystem);
 engine.addSystem(combatSystem);
 engine.addSystem(cyberspaceSystem);
 engine.addSystem(atmosphereSystem);
+engine.addSystem(observationSystem);
+engine.addSystem(portalSystem);
+engine.addSystem(stanceSystem);
+engine.addSystem(characterSystem);
 engine.addSystem(recoverySystem);
 
-movementSystem.setInteractionSystem(interactionSystem);
+movementSystem.setObservationSystem(observationSystem);
 npcSystem.setCombatSystem(combatSystem);
 
 // Command Registry Setup
@@ -210,22 +227,29 @@ commandRegistry.register({
         if (target.toLowerCase().startsWith('at ')) {
             target = target.substring(3).trim();
         }
-        ctx.systems.interaction.handleLook(ctx.socketId, ctx.engine, target);
+        ctx.systems.observation.handleLook(ctx.socketId, ctx.engine, target);
     }
+});
+
+commandRegistry.register({
+    name: 'map',
+    aliases: ['m'],
+    description: 'View the area map',
+    execute: (ctx) => ctx.systems.observation.handleMap(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'get',
     aliases: ['g', 'take'],
     description: 'Pick up an item',
-    execute: (ctx) => ctx.systems.interaction.handleGet(ctx.socketId, ctx.args.join(' '), ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleGet(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'drop',
     aliases: ['d'],
     description: 'Drop an item',
-    execute: (ctx) => ctx.systems.interaction.handleDrop(ctx.socketId, ctx.args.join(' '), ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleDrop(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
@@ -236,80 +260,101 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
+    name: 'enter',
+    aliases: ['go'],
+    description: 'Enter a door or portal',
+    execute: (ctx) => ctx.systems.portal.handleEnter(ctx.socketId, ctx.engine, ctx.args.join(' '))
+});
+
+commandRegistry.register({
+    name: 'jackin',
+    aliases: ['connect'],
+    description: 'Jack into the Matrix',
+    execute: (ctx) => ctx.systems.cyberspace.handleJackIn(ctx.socketId, ctx.engine)
+});
+
+commandRegistry.register({
+    name: 'jackout',
+    aliases: ['disconnect'],
+    description: 'Jack out of the Matrix',
+    execute: (ctx) => ctx.systems.cyberspace.handleJackOut(ctx.socketId, ctx.engine)
+});
+
+commandRegistry.register({
     name: 'inventory',
     aliases: ['inv', 'i'],
     description: 'Check your inventory',
-    execute: (ctx) => ctx.systems.interaction.handleInventory(ctx.socketId, ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleInventory(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'glance',
     aliases: ['gl'],
     description: 'Glance at your hands',
-    execute: (ctx) => ctx.systems.interaction.handleGlance(ctx.socketId, ctx.engine)
-});
-
-commandRegistry.register({
-    name: 'sit',
-    aliases: [],
-    description: 'Sit down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Sitting, ctx.engine)
-});
-
-commandRegistry.register({
-    name: 'stand',
-    aliases: ['st'],
-    description: 'Stand up',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Standing, ctx.engine)
+    execute: (ctx) => ctx.systems.observation.handleGlance(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'lie',
     aliases: ['rest', 'sleep'],
     description: 'Lie down',
-    execute: (ctx) => ctx.systems.interaction.handleStanceChange(ctx.socketId, StanceType.Lying, ctx.engine)
+    execute: (ctx) => ctx.systems.stance.handleStanceChange(ctx.socketId, StanceType.Lying, ctx.engine)
+});
+
+commandRegistry.register({
+    name: 'sit',
+    aliases: [],
+    description: 'Sit down',
+    execute: (ctx) => ctx.systems.stance.handleStanceChange(ctx.socketId, StanceType.Sitting, ctx.engine)
+});
+
+commandRegistry.register({
+    name: 'stand',
+    aliases: ['st'],
+    description: 'Stand up',
+    execute: (ctx) => ctx.systems.stance.handleStanceChange(ctx.socketId, StanceType.Standing, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'stow',
     aliases: ['put'],
     description: 'Put an item in your backpack (Usage: stow <item>)',
-    execute: (ctx) => ctx.systems.interaction.handleStow(ctx.socketId, ctx.args.join(' '), ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleStow(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'sheet',
     aliases: ['stats'],
     description: 'View your character attributes',
-    execute: (ctx) => ctx.systems.interaction.handleSheet(ctx.socketId, ctx.engine)
+    execute: (ctx) => ctx.systems.character.handleSheet(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'score',
     aliases: ['skills'],
     description: 'View your character skills',
-    execute: (ctx) => ctx.systems.interaction.handleScore(ctx.socketId, ctx.engine)
+    execute: (ctx) => ctx.systems.character.handleScore(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'swap',
     aliases: ['switch'],
     description: 'Swap items between your hands',
-    execute: (ctx) => ctx.systems.interaction.handleSwap(ctx.socketId, ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleSwap(ctx.socketId, ctx.engine)
 });
 
 commandRegistry.register({
     name: 'wear',
     aliases: ['equip'],
     description: 'Wear a piece of clothing or equipment (Usage: wear <item>)',
-    execute: (ctx) => ctx.systems.interaction.handleWear(ctx.socketId, ctx.args.join(' '), ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleWear(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
     name: 'remove',
     aliases: ['unequip', 'takeoff'],
     description: 'Remove a piece of clothing or equipment (Usage: remove <item>)',
-    execute: (ctx) => ctx.systems.interaction.handleRemove(ctx.socketId, ctx.args.join(' '), ctx.engine)
+    execute: (ctx) => ctx.systems.inventory.handleRemove(ctx.socketId, ctx.args.join(' '), ctx.engine)
 });
 
 commandRegistry.register({
@@ -554,41 +599,6 @@ commandRegistry.register({
 });
 
 commandRegistry.register({
-    name: 'map',
-    aliases: ['m'],
-    description: 'Display the world map',
-    execute: (ctx) => ctx.systems.interaction.handleMap(ctx.socketId, ctx.engine)
-});
-
-commandRegistry.register({
-    name: 'weather',
-    aliases: ['sky'],
-    description: 'Scan the sky for current weather conditions',
-    execute: (ctx) => {
-        const weather = ctx.systems.atmosphere.getCurrentWeather();
-        let msg = `<title>[Weather Scan]</title>\n`;
-        msg += `<info>Sky:</info> <atmosphere>${weather.sky}</atmosphere>\n`;
-        msg += `<info>Lighting:</info> ${weather.lighting}\n`;
-        msg += `<info>Contrast:</info> ${weather.contrast}`;
-        ctx.messageService.info(ctx.socketId, msg);
-    }
-});
-
-commandRegistry.register({
-    name: 'jack_in',
-    aliases: ['jackin', 'connect'],
-    description: 'Jack into the Matrix',
-    execute: (ctx) => (ctx.systems as any).cyberspace.handleJackIn(ctx.socketId, ctx.engine)
-});
-
-commandRegistry.register({
-    name: 'jack_out',
-    aliases: ['jackout', 'disconnect'],
-    description: 'Jack out of the Matrix',
-    execute: (ctx) => (ctx.systems as any).cyberspace.handleJackOut(ctx.socketId, ctx.engine)
-});
-
-commandRegistry.register({
     name: 'god',
     aliases: ['admin'],
     description: 'Admin commands (Usage: god <spawn|set-stat|set-skill|view|reset|weather|pacify|registry>)',
@@ -625,7 +635,7 @@ commandRegistry.register({
                 ctx.messageService.success(ctx.socketId, `Spawned NPC: ${name}`);
 
                 // Refresh autocomplete for the player
-                ctx.systems.interaction.refreshAutocomplete(ctx.socketId, ctx.engine);
+                ctx.systems.observation.refreshAutocomplete(ctx.socketId, ctx.engine);
                 return;
             }
 
@@ -637,7 +647,7 @@ commandRegistry.register({
                 ctx.messageService.success(ctx.socketId, `Spawned Item: ${name}`);
 
                 // Refresh autocomplete for the player
-                ctx.systems.interaction.refreshAutocomplete(ctx.socketId, ctx.engine);
+                ctx.systems.observation.refreshAutocomplete(ctx.socketId, ctx.engine);
                 return;
             }
 
@@ -888,6 +898,36 @@ commandRegistry.register({
                 msg += `<info>${item.id}</info>: <cmd>${item.name}</cmd> | <success>${item.shortName}</success>\n`;
             });
             ctx.messageService.info(ctx.socketId, msg);
+        } else if (subCommand === 'find') {
+            const targetName = ctx.args.slice(1).join(' ');
+            if (!targetName) {
+                ctx.messageService.info(ctx.socketId, 'Usage: god find <name>');
+                return;
+            }
+
+            let found = false;
+            let msg = `<title>[Search Results for: ${targetName}]</title>\n`;
+
+            for (const [id, entity] of ctx.engine.getEntities()) {
+                const desc = entity.getComponent(Description);
+                const pos = entity.getComponent(Position);
+                const npc = entity.getComponent(NPC);
+                const item = entity.getComponent(Item);
+
+                const name = npc?.typeName || item?.name || desc?.title || id;
+
+                if (name.toLowerCase().includes(targetName.toLowerCase())) {
+                    found = true;
+                    const posStr = pos ? `(${pos.x}, ${pos.y})` : 'No Position';
+                    msg += `<info>${name}</info> [${id}] at ${posStr}\n`;
+                }
+            }
+
+            if (!found) {
+                ctx.messageService.error(ctx.socketId, `No entities found matching: ${targetName}`);
+            } else {
+                ctx.messageService.info(ctx.socketId, msg);
+            }
         }
     }
 });
@@ -921,6 +961,17 @@ setInterval(() => {
 
     // Broadcast state to clients (Simplified for now)
     io.emit('tick', { timestamp: Date.now() });
+
+    // Auto-save world state
+    const SAVE_INTERVAL = 60000; // Save every minute
+    if (Date.now() - lastSaveTime > SAVE_INTERVAL) {
+        lastSaveTime = Date.now();
+        const entitiesToSave = Array.from(engine.getEntities().values()).map(e => e.toJSON());
+        persistence.saveWorldState(entitiesToSave).catch(err => {
+            Logger.error('Persistence', 'Failed to auto-save world state:', err);
+        });
+        Logger.info('Persistence', `Auto-saved ${entitiesToSave.length} entities.`);
+    }
 
     // Send health updates to all connected players
     for (const [id, entity] of engine.getEntities()) {
@@ -1081,7 +1132,7 @@ io.on('connection', (socket) => {
     socket.emit('autocomplete-update', invAuto);
 
     // Initial Look
-    interactionSystem.handleLook(socket.id, engine);
+    observationSystem.handleLook(socket.id, engine);
 
 
     socket.on('command', (cmd: string) => {
@@ -1099,10 +1150,15 @@ io.on('connection', (socket) => {
             systems: {
                 movement: movementSystem,
                 interaction: interactionSystem,
+                inventory: inventorySystem,
                 npc: npcSystem,
                 combat: combatSystem,
                 cyberspace: cyberspaceSystem,
-                atmosphere: atmosphereSystem
+                atmosphere: atmosphereSystem,
+                observation: observationSystem,
+                portal: portalSystem,
+                stance: stanceSystem,
+                character: characterSystem
             },
             messageService: messageService
         });

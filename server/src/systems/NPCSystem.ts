@@ -7,12 +7,13 @@ import { EngagementTier } from '../types/CombatTypes';
 import { Server } from 'socket.io';
 import { WorldQuery } from '../utils/WorldQuery';
 import { IsRoom } from '../components/IsRoom';
-import { IEngine } from '../commands/CommandRegistry';
+import { IEngine } from '../ecs/IEngine';
 import { Roundtime } from '../components/Roundtime';
 import { Stats } from '../components/Stats';
 
 import { MessageService } from '../services/MessageService';
 import { MessageFormatter } from '../utils/MessageFormatter';
+import { GameEventBus, GameEventType } from '../utils/GameEventBus';
 
 export class NPCSystem extends System {
     private io: Server;
@@ -20,11 +21,19 @@ export class NPCSystem extends System {
     private lastBarkTime: Map<string, number> = new Map();
     private lastMoveTime: Map<string, number> = new Map();
     private combatSystem: any; // Using any to avoid circular dependency issues if they arise, but ideally CombatSystem
+    private engine?: IEngine;
 
     constructor(io: Server, messageService: MessageService) {
         super();
         this.io = io;
         this.messageService = messageService;
+
+        // Subscribe to player movement
+        GameEventBus.getInstance().subscribe(GameEventType.PLAYER_MOVED, (payload) => {
+            if (this.engine) {
+                this.onPlayerMoved(payload.playerId, payload.toX, payload.toY, this.engine);
+            }
+        });
     }
 
     setCombatSystem(combatSystem: any) {
@@ -32,11 +41,29 @@ export class NPCSystem extends System {
     }
 
     update(engine: IEngine, deltaTime: number): void {
+        this.engine = engine;
         const now = Date.now();
         const npcs = engine.getEntitiesWithComponent(NPC);
 
         for (const npc of npcs) {
             this.handleNPCBehavior(npc, now, engine);
+        }
+    }
+
+    public onPlayerMoved(playerId: string, x: number, y: number, engine: IEngine): void {
+        // Find aggressive NPCs in the new room
+        const npcs = WorldQuery.findNPCsAt(engine, x, y);
+        for (const npc of npcs) {
+            const npcComp = npc.getComponent(NPC);
+            const combatStats = npc.getComponent(CombatStats);
+
+            if (npcComp && npcComp.isAggressive && combatStats && !combatStats.targetId) {
+                combatStats.isHostile = true;
+                combatStats.targetId = playerId;
+                combatStats.engagementTier = EngagementTier.DISENGAGED;
+                console.log(`[NPC AI] ${npcComp.typeName} (${npc.id}) detected player ${playerId} moving into room`);
+                this.messageService.combat(playerId, `<enemy>${npcComp.typeName} notices you and prepares to attack!</enemy>`);
+            }
         }
     }
 
