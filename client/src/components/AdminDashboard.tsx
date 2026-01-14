@@ -7,6 +7,7 @@ interface LogEntry {
     level: 'info' | 'warn' | 'error' | 'success';
     message: string;
     context?: any;
+    source?: 'director' | 'server';
 }
 
 interface Proposal {
@@ -128,14 +129,17 @@ export const AdminDashboard: React.FC = () => {
             console.log('Connected to Admin Stream');
             addLog('success', 'Connected to World Director');
             newSocket.emit('snapshot:list');
-            newSocket.emit('snapshot:list');
             newSocket.emit('director:get_chunks');
             newSocket.emit('director:get_items');
             newSocket.emit('director:get_npcs');
         });
 
         newSocket.on('director:log', (entry: LogEntry) => {
-            addLog(entry.level, entry.message, entry.context);
+            addLog(entry.level, entry.message, entry.context, 'director');
+        });
+
+        newSocket.on('server:console_output', (entry: { timestamp: number, type: 'info' | 'warn' | 'error', message: string }) => {
+            addLog(entry.type, entry.message, undefined, 'server');
         });
 
         newSocket.on('director:status', (status: DirectorStatus) => {
@@ -358,10 +362,38 @@ export const AdminDashboard: React.FC = () => {
 
             {/* Header */}
             <div className="admin-header">
-                <h1 className="text-neon-blue">Ouroboro World Director</h1>
-                <div className="status-indicator">
-                    <div className={`dot ${socket?.connected ? 'dot-online' : 'dot-offline'}`} />
-                    <span>{socket?.connected ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                <div>
+                    <h1 className="text-neon-blue">Ouroboro World Director</h1>
+                    <div className="status-indicator">
+                        <div className={`dot ${socket?.connected ? 'dot-online' : 'dot-offline'}`} />
+                        <span>{socket?.connected ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                    </div>
+                </div>
+                <div style={{
+                    flex: 1,
+                    marginLeft: '2rem',
+                    background: '#000',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    padding: '0.5rem',
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    height: '60px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column-reverse' // Show latest at bottom if we stack, but here we just want latest
+                }}>
+                    {logs.filter(l => l.source === 'server').slice(0, 2).map((log, i) => (
+                        <div key={i} style={{
+                            color: log.level === 'error' ? '#ff4444' : log.level === 'warn' ? '#ffcc00' : '#888',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                        }}>
+                            <span style={{ opacity: 0.5, marginRight: '0.5rem' }}>[{new Date(log.timestamp).toLocaleTimeString()}]</span>
+                            {log.message}
+                        </div>
+                    ))}
                 </div>
             </div>
 
@@ -1235,13 +1267,64 @@ export const AdminDashboard: React.FC = () => {
             )}
 
             {activeTab === 'logs' && (
-                <div className="admin-card" style={{ height: 'calc(100vh - 250px)', display: 'flex', flexDirection: 'column' }}>
-                    <div className="log-header" style={{ background: 'transparent', padding: '0 0 1rem 0' }}>Live System Stream</div>
-                    <div className="log-content" style={{ flex: 1, overflowY: 'auto' }}>
+                <div className="admin-card" style={{
+                    flex: 1,
+                    minHeight: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    background: '#050505',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                    padding: 0,
+                    overflow: 'hidden'
+                }}>
+                    <div className="log-header" style={{
+                        background: '#111',
+                        padding: '0.75rem 1rem',
+                        borderBottom: '1px solid #333',
+                        color: '#888',
+                        fontSize: '0.9rem',
+                        fontWeight: 'bold',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                    }}>
+                        <span>Live System Stream</span>
+                        <span style={{ fontSize: '0.8rem', opacity: 0.5 }}>{logs.length} entries</span>
+                    </div>
+                    <div className="log-content" style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        display: 'flex',
+                        flexDirection: 'column-reverse',
+                        padding: '1rem',
+                        fontFamily: 'monospace',
+                        fontSize: '0.85rem'
+                    }}>
                         {logs.map((log, i) => (
-                            <div key={i} className="log-entry">
-                                <span className="log-time">[{new Date(log.timestamp).toLocaleTimeString()}]</span>
-                                <span className={`log-msg-${log.level}`}>{log.message}</span>
+                            <div key={i} className="log-entry" style={{ marginBottom: '0.25rem', lineHeight: '1.4' }}>
+                                <span className="log-time" style={{ color: '#666', marginRight: '0.5rem' }}>
+                                    [{new Date(log.timestamp).toLocaleTimeString()}]
+                                </span>
+                                {log.source && (
+                                    <span style={{
+                                        marginRight: '0.5rem',
+                                        color: log.source === 'server' ? '#00ff00' : '#bd93f9',
+                                        fontWeight: 'bold',
+                                        fontSize: '0.8em',
+                                        textTransform: 'uppercase'
+                                    }}>
+                                        [{log.source}]
+                                    </span>
+                                )}
+                                <span className={`log-msg-${log.level}`} style={{
+                                    color: log.level === 'error' ? '#ff5555' :
+                                        log.level === 'warn' ? '#ffb86c' :
+                                            log.level === 'success' ? '#50fa7b' : '#f8f8f2'
+                                }}>
+                                    {log.message}
+                                </span>
                             </div>
                         ))}
                     </div>

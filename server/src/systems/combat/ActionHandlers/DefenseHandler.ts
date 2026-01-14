@@ -35,7 +35,14 @@ export class DefenseHandler {
         if (!stats) return;
 
         const stanceName = args[0]?.toLowerCase();
+
         if (!stanceName) {
+            // Show current stance configuration
+            messageService.info(playerId, `Current Stance Configuration:\nEvasion: ${stats.evasion}%\nParry: ${stats.parry}%\nShield: ${stats.shield}%\nAggression: ${Math.round(stats.aggression * 100)}%`);
+            return;
+        }
+
+        if (stanceName === '?') {
             messageService.info(playerId, "Usage: stance <evasion|parry|shield|offensive|defensive|neutral|custom>");
             return;
         }
@@ -51,13 +58,13 @@ export class DefenseHandler {
                 stats.evasion = 40; stats.parry = 30; stats.shield = 30; stats.aggression = 0.5;
                 break;
             case 'evasion':
-                stats.evasion = 80; stats.parry = 10; stats.shield = 10; stats.aggression = 0.3;
+                stats.evasion = 100; stats.parry = 0; stats.shield = 0; stats.aggression = 0.3;
                 break;
             case 'parry':
-                stats.evasion = 10; stats.parry = 80; stats.shield = 10; stats.aggression = 0.3;
+                stats.evasion = 0; stats.parry = 100; stats.shield = 0; stats.aggression = 0.3;
                 break;
             case 'shield':
-                stats.evasion = 10; stats.parry = 10; stats.shield = 80; stats.aggression = 0.3;
+                stats.evasion = 0; stats.parry = 0; stats.shield = 100; stats.aggression = 0.3;
                 break;
             case 'custom':
                 const e = parseInt(args[1]);

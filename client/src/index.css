@@ -68,11 +68,15 @@ body {
 
 /* Admin Dashboard Styles */
 .admin-container {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: #050505;
   color: #e0e0e0;
   padding: 2rem;
   font-family: 'Courier New', Courier, monospace;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .admin-header {

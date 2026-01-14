@@ -55,15 +55,20 @@ export const CombatStatusDisplay: React.FC<StatusProps> = ({ stats }) => {
 
     const getStanceName = () => {
         const { evasion, parry, shield, aggression } = stats;
-        if (evasion === 100) return 'EVASION';
-        if (parry === 100) return 'PARRY';
-        if (shield === 100) return 'SHIELD';
 
-        if (evasion === 33 && parry === 33) {
-            if (aggression === 1.0) return 'OFFENSIVE';
-            if (aggression === 0.5) return 'NEUTRAL';
-            if (aggression === 0.0) return 'DEFENSIVE';
-        }
+        // Evasion: 100/0/0
+        if (evasion === 100 && parry === 0 && shield === 0) return 'EVASION';
+        // Parry: 0/100/0
+        if (evasion === 0 && parry === 100 && shield === 0) return 'PARRY';
+        // Shield: 0/0/100
+        if (evasion === 0 && parry === 0 && shield === 100) return 'SHIELD';
+
+        // Offensive: 30/30/10, Agg 0.8
+        if (evasion === 30 && parry === 30 && shield === 10 && aggression === 0.8) return 'OFFENSIVE';
+        // Defensive: 40/40/20, Agg 0.2
+        if (evasion === 40 && parry === 40 && shield === 20 && aggression === 0.2) return 'DEFENSIVE';
+        // Neutral: 40/30/30, Agg 0.5
+        if (evasion === 40 && parry === 30 && shield === 30 && aggression === 0.5) return 'NEUTRAL';
 
         return 'CUSTOM';
     };

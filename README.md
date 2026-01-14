@@ -170,8 +170,9 @@ Ouroboro/
 │   │   ├── ecs/          # Entity Component System
 │   │   ├── components/   # Game components
 │   │   ├── systems/      # Game systems
-│   │   ├── commands/     # Command registry
-│   │   ├── world/        # World generation
+│   │   ├── commands/     # Command modules
+│   │   ├── world/        # World generation & factories
+│   │   ├── factories/    # Entity factories
 │   │   └── persistence/  # Redis integration
 │   └── package.json
 └── docker-compose.yml    # Redis setup
