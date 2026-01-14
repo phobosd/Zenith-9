@@ -234,8 +234,8 @@ export const Terminal: React.FC = () => {
     const addLine = (newLine: TerminalLine) => {
         setLines(prev => {
             const newLines = [...prev, newLine];
-            if (newLines.length > 2000) {
-                return newLines.slice(newLines.length - 2000);
+            if (newLines.length > 1000) {
+                return newLines.slice(newLines.length - 1000);
             }
             return newLines;
         });

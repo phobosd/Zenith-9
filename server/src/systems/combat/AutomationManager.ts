@@ -9,6 +9,7 @@ import { WorldQuery } from '../../utils/WorldQuery';
 import { MessageService } from '../../services/MessageService';
 import { CombatUtils } from './CombatUtils';
 import { ManeuverHandler } from './ActionHandlers/ManeuverHandler';
+import { EngagementTier } from '../../types/CombatTypes';
 
 export class AutomationManager {
     static processAutomatedActions(engine: IEngine, messageService: MessageService): void {
@@ -40,7 +41,12 @@ export class AutomationManager {
             // Perform Action
             if (action.type === 'ADVANCE') {
                 const result = ManeuverHandler.performManeuver(entity, target, 'CLOSE', engine, messageService);
-                if (result === 'MAX_RANGE' || result === 'FAIL_STOP') {
+
+                const stats = entity.getComponent(CombatStats);
+                if (stats?.engagementTier === EngagementTier.MELEE) {
+                    entity.removeComponent(AutomatedAction);
+                    messageService.info(entity.id, "You reach melee range and stop advancing.");
+                } else if (result === 'MAX_RANGE' || result === 'FAIL_STOP') {
                     entity.removeComponent(AutomatedAction);
                     messageService.info(entity.id, "You stop advancing.");
                 }

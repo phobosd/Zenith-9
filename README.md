@@ -113,6 +113,7 @@ graph TD
         GameServer[Node.js Game Server]
         Director[World Director Service]
         Redis[(Redis DB)]
+        SQLite[(game.db - SQLite)]
         FileSystem[JSON Data Files]
     end
 

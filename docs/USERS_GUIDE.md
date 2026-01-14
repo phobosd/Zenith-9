@@ -323,7 +323,7 @@ These commands are for testing and world management.
 | `god set-stat <stat> <val>` | Set a specific attribute for a target. | `god set-stat STR 20` |
 | `god set-skill <skill> <val>` | Set a specific skill level for a target. | `god set-skill Hacking 10` |
 | `god view [target]` | View detailed stats and components of a target. | `god view me` |
-| `god reset <skills\|health>` | Reset your skills or restore health to full. | `god reset health` |
+| `god reset [skills\|health]` | Reset your skills or restore health to full. | `god reset health` |
 | `god weather` | Trigger a random weather change. | `god weather` |
 | `god pacify [target]` | Stop a target (or everyone in room) from attacking. | `god pacify` |
 | `god registry` | List all unique items in the game database. | `god registry` |

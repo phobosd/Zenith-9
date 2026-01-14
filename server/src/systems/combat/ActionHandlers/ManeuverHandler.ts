@@ -257,6 +257,15 @@ export class ManeuverHandler {
 
         if (CombatUtils.checkRoundtime(player, messageService, true)) {
             const result = this.performManeuver(player, target, type === 'ADVANCE' ? 'CLOSE' : 'WITHDRAW', engine, messageService);
+
+            // If we just reached MELEE range via ADVANCE, stop there
+            const stats = player.getComponent(CombatStats);
+            if (type === 'ADVANCE' && stats?.engagementTier === EngagementTier.MELEE) {
+                player.removeComponent(AutomatedAction);
+                messageService.info(playerId, "You reach melee range and stop advancing.");
+                return;
+            }
+
             if (result === 'MAX_RANGE' || result === 'FAIL_STOP') {
                 player.removeComponent(AutomatedAction);
             }

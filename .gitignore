@@ -37,6 +37,9 @@ Thumbs.db
 # Redis
 dump.rdb
 
+# Database
+*.db
+
 # Markdown files (except README)
 *.md
 !README.md

@@ -95,7 +95,7 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ content, onClose }) 
 
             // Tables
             if (trimmedLine.startsWith('|')) {
-                const cells = line.split('|').filter(c => c.trim() !== '').map(c => c.trim());
+                const cells = line.split(/(?<!\\)\|/).filter(c => c.trim() !== '').map(c => c.trim().replace(/\\\|/g, '|'));
 
                 if (line.includes('---')) {
                     inTable = true;

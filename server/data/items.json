@@ -10,6 +10,7 @@
         "attributes": "4 Slots for Programs; +2 to Matrix Initiative.",
         "cost": 5000,
         "type": "cyberware",
+        "rarity": "Legendary",
         "extraData": {
             "slot": "neural",
             "modifiers": {
@@ -19,7 +20,7 @@
     },
     {
         "id": "3",
-        "name": "microsoft_hacking",
+        "name": "pretty_hacking",
         "shortName": "Microsoft (Hacking Skill-Chip)",
         "description": "chip",
         "weight": 0.01,
@@ -134,57 +135,6 @@
         "description": "chip",
         "weight": 0.05,
         "size": "Tiny",
-        "legality": "Variable",
-        "attributes": "Contains lore or mission data; requires 'Decrypt' skill.",
-        "cost": 50,
-        "type": "item",
-        "extraData": {}
-    },
-    {
-        "id": "9",
-        "name": "optical_hud",
-        "shortName": "Optical Internal HUD",
-        "description": "hud",
-        "weight": 0,
-        "size": "Built-in",
-        "legality": "Legal",
-        "attributes": "Displays room exits and player health in real-time.",
-        "cost": 500,
-        "type": "cyberware",
-        "extraData": {
-            "slot": "ocular"
-        }
-    },
-    {
-        "id": "10",
-        "name": "signal_jammer",
-        "shortName": "Signal Jammer",
-        "description": "jammer",
-        "weight": 0.8,
-        "size": "Small",
-        "legality": "Illegal",
-        "attributes": "Prevents 'Call for Backup' in the current room.",
-        "cost": 300,
-        "type": "item",
-        "extraData": {}
-    },
-    {
-        "id": "11",
-        "name": "ext_drive",
-        "shortName": "External Hard Drive",
-        "description": "drive",
-        "weight": 0.3,
-        "size": "Small",
-        "legality": "Legal",
-        "attributes": "Used to extract 'Data Payloads' from servers.",
-        "cost": 150,
-        "type": "item",
-        "extraData": {}
-    },
-    {
-        "id": "12",
-        "name": "exoskeleton_frame",
-        "shortName": "Exoskeleton Frame",
         "description": "exo",
         "weight": 15,
         "size": "Large",
@@ -916,7 +866,7 @@
         "type": "weapon",
         "extraData": {
             "damage": 20,
-            "range": 1,
+            "range": 0,
             "minTier": "melee",
             "maxTier": "close quarters",
             "momentumImpact": 0.2,
@@ -1106,7 +1056,7 @@
     {
         "id": "62",
         "name": "plated_cuirass",
-        "shortName": "Plated Cuirass",
+        "shortName": "Plated Cruirass",
         "description": "A heavy chest piece made of industrial-grade steel and ceramic composites.",
         "weight": 15.0,
         "size": "Large",

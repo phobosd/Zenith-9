@@ -129,14 +129,18 @@ export class PrefabFactory {
                 const maxTier = data.maxTier || EngagementTier.MELEE;
                 const momentumImpact = data.momentumImpact || 0.1;
                 const roundtime = data.roundtime || 3;
+                const range = data.range !== undefined ? data.range : 0;
+                const ammoType = range > 0 ? (data.ammoType || '9mm') : null;
+                const magSize = range > 0 ? (data.magSize || 10) : 0;
+
                 entity.addComponent(new Weapon(
                     def.shortName,
                     def.description,
                     data.damage || 10,
-                    data.range !== undefined ? data.range : 10,
-                    data.ammoType || '9mm',
+                    range,
+                    ammoType,
                     data.magazineType || null,
-                    data.magSize || 10,
+                    magSize,
                     data.difficulty || { speed: 1.0, zoneSize: 1, jitter: 0.1 },
                     minTier as any,
                     maxTier as any,

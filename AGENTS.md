@@ -86,7 +86,7 @@ graph TD
     subgraph Persistence_Layer [Persistence Layer]
         PersistenceManager[PersistenceManager]
         Redis[(Redis DB)]
-        CSV[items.csv]
+        SQLite[(game.db - SQLite)]
     end
 
     %% Command Flow
@@ -483,3 +483,11 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
 4. If all 3 are "down", `messageService.success()` and spawn the reward.
 
 **You are now ready to build. Execute.**
+
+---
+
+### Recent Modifications (2026-01-14)
+*   **Terminal Backlog**: Increased to 2500 lines in `client/src/components/Terminal.tsx`.
+*   **Item Rarity**: Added to `get-item-details` server response and displayed in `ItemTooltip.tsx`.
+*   **Guide Parsing**: Fixed `GuideOverlay.tsx` to correctly handle escaped pipes (`\|`) in markdown tables.
+

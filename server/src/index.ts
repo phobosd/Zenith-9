@@ -1488,6 +1488,7 @@ io.on('connection', (socket) => {
                         name: itemComp.name,
                         description: itemComp.description || template?.description || "No description.",
                         weight: itemComp.weight,
+                        rarity: itemComp.rarity || template?.rarity,
                         // Use component data for dynamic stats if available, otherwise template
                         extraData: {
                             damage: (entity.getComponent(Weapon) as any)?.damage || template?.extraData?.damage,
@@ -1521,7 +1522,8 @@ io.on('connection', (socket) => {
                 range: item.extraData?.range,
                 ammo: item.extraData?.magSize ? `${item.extraData.currentAmmo || item.extraData.magSize}/${item.extraData.magSize}` : undefined,
                 weight: item.weight,
-                attributes: item.attributes
+                attributes: item.attributes,
+                rarity: item.rarity
             });
         } else {
             callback(null);

@@ -179,9 +179,8 @@ export class AttackHandler {
             return;
         }
 
-        if (weapon.range > 0 && weapon.currentAmmo <= 0) {
+        if (weapon.range > 0 && weapon.ammoType && weapon.currentAmmo <= 0) {
             messageService.info(attackerId, `Your ${weapon.name} is out of ammo!`);
-            // Auto-reload logic could go here or be triggered by user
             return;
         }
 
@@ -360,7 +359,7 @@ export class AttackHandler {
             }
         }
 
-        if (weapon.range > 0) {
+        if (weapon.range > 0 && weapon.ammoType) {
             weapon.currentAmmo--;
             combatLog += `\n[${weapon.currentAmmo}/${weapon.magSize} rounds remaining]`;
         }

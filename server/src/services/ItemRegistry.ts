@@ -1,7 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-// import { parse } from 'csv-parse/sync';
-const { parse } = require('csv-parse/sync');
+import Database from 'better-sqlite3';
 import { Logger } from '../utils/Logger';
 
 export interface ItemDefinition {
@@ -23,9 +22,13 @@ export interface ItemDefinition {
 export class ItemRegistry {
     private static instance: ItemRegistry;
     private items: Map<string, ItemDefinition> = new Map();
+    private db: Database.Database;
 
     private constructor() {
+        const dbPath = path.join(process.cwd(), 'game.db');
+        this.db = new Database(dbPath);
         this.loadItems();
+        this.loadGeneratedItems();
     }
 
     public static getInstance(): ItemRegistry {
@@ -37,73 +40,39 @@ export class ItemRegistry {
 
     private loadItems() {
         try {
-            const dataDir = path.join(process.cwd(), 'data');
-            const jsonPath = path.join(dataDir, 'items.json');
-            const csvPath = path.join(dataDir, 'items.csv');
+            Logger.info('ItemRegistry', 'Loading items from SQLite database...');
 
-            if (fs.existsSync(jsonPath)) {
-                Logger.info('ItemRegistry', `Loading items from JSON: ${jsonPath}`);
-                const content = fs.readFileSync(jsonPath, 'utf-8');
-                const items = JSON.parse(content);
-                for (const item of items) {
-                    // Swap name and shortName for hardcoded items
-                    const prettyName = item.shortName || item.name;
-                    const slug = item.name;
-                    item.name = prettyName;
-                    item.shortName = slug;
+            const stmt = this.db.prepare('SELECT * FROM items');
+            const rows = stmt.all();
 
-                    this.items.set(item.id.toString().trim(), item);
-                    this.items.set(item.name.toLowerCase().trim(), item);
-                    if (item.shortName) {
-                        this.items.set(item.shortName.toLowerCase().trim(), item);
-                    }
+            for (const row of rows as any[]) {
+                const item: ItemDefinition = {
+                    id: row.id,
+                    name: row.short_name || row.name, // Swap: short_name is the pretty name
+                    shortName: row.name,              // Swap: name is the slug
+                    description: row.description,
+                    weight: row.weight,
+                    size: row.size,
+                    legality: row.legality,
+                    attributes: row.attributes,
+                    cost: row.cost,
+                    type: row.type as any,
+                    slot: row.slot,
+                    rarity: row.rarity,
+                    extraData: JSON.parse(row.extra_data || '{}')
+                };
+
+                this.items.set(item.id.toString().trim(), item);
+                this.items.set(item.name.toLowerCase().trim(), item);
+                if (item.shortName) {
+                    this.items.set(item.shortName.toLowerCase().trim(), item);
                 }
-                Logger.info('ItemRegistry', `Loaded ${items.length} items from JSON.`);
-                return;
             }
 
-            if (fs.existsSync(csvPath)) {
-                Logger.info('ItemRegistry', `Loading items from CSV: ${csvPath}`);
-                const fileContent = fs.readFileSync(csvPath, 'utf-8');
-                const records = parse(fileContent, {
-                    columns: true,
-                    skip_empty_lines: true,
-                    trim: true
-                });
+            Logger.info('ItemRegistry', `Loaded ${rows.length} items from database.`);
 
-                for (const record of records) {
-                    try {
-                        const def: ItemDefinition = {
-                            id: record.id,
-                            name: record.shortName || record.name, // Swap: shortName is the pretty name in CSV
-                            shortName: record.name, // Swap: name is the slug in CSV
-                            description: record.description,
-                            weight: parseFloat(record.weight) || 0,
-                            size: record.size,
-                            legality: record.legality,
-                            attributes: record.attributes,
-                            cost: parseInt(record.cost) || 0,
-                            type: record.type as any,
-                            extraData: record.extraData ? JSON.parse(record.extraData) : {}
-                        };
-                        this.items.set(def.id.toString().trim(), def);
-                        this.items.set(def.name.toLowerCase().trim(), def);
-                        if (def.shortName) {
-                            this.items.set(def.shortName.toLowerCase().trim(), def);
-                        }
-                    } catch (err) {
-                        Logger.error('ItemRegistry', `Failed to parse CSV record: ${record.id}`, err);
-                    }
-                }
-                Logger.info('ItemRegistry', `Loaded ${this.items.size / 2} items from CSV.`);
-                return;
-            }
-
-            Logger.error('ItemRegistry', "No items.json or items.csv found!");
-        } catch (error) {
-            Logger.error('ItemRegistry', "Failed to load items:", error);
-        } finally {
-            this.loadGeneratedItems();
+        } catch (err) {
+            Logger.error('ItemRegistry', 'Failed to load items from database', err);
         }
     }
 
@@ -136,7 +105,7 @@ export class ItemRegistry {
                         attributes: "",
                         cost: item.cost || 0,
                         type: item.type === 'junk' ? 'item' : item.type,
-                        rarity: item.rarity,
+                        rarity: item.rarity || 'Common',
                         extraData: item.attributes || {}
                     };
 
@@ -182,21 +151,35 @@ export class ItemRegistry {
             this.items.delete(item.shortName.toLowerCase().trim());
         }
 
-        // Try to delete file if it's generated
+        // Try to delete from SQLite
+        try {
+            const stmt = this.db.prepare('DELETE FROM items WHERE id = ?');
+            const result = stmt.run(id);
+            if (result.changes > 0) {
+                Logger.info('ItemRegistry', `Deleted item from DB: ${id}`);
+                return true;
+            }
+        } catch (err) {
+            Logger.warn('ItemRegistry', `Failed to delete item from DB ${id}: ${err}`);
+        }
+
+        // Try to delete file if it's generated (fallback/legacy support)
         try {
             const generatedDir = path.join(process.cwd(), 'data', 'generated', 'items');
-            const files = fs.readdirSync(generatedDir);
-            for (const file of files) {
-                const content = fs.readFileSync(path.join(generatedDir, file), 'utf-8');
-                const json = JSON.parse(content);
-                if (json.id === id) {
-                    fs.unlinkSync(path.join(generatedDir, file));
-                    Logger.info('ItemRegistry', `Deleted generated item file: ${file}`);
-                    return true;
+            if (fs.existsSync(generatedDir)) {
+                const files = fs.readdirSync(generatedDir);
+                for (const file of files) {
+                    const content = fs.readFileSync(path.join(generatedDir, file), 'utf-8');
+                    const json = JSON.parse(content);
+                    if (json.id === id) {
+                        fs.unlinkSync(path.join(generatedDir, file));
+                        Logger.info('ItemRegistry', `Deleted generated item file: ${file}`);
+                        return true;
+                    }
                 }
             }
         } catch (err) {
-            Logger.warn('ItemRegistry', `Could not delete file for item ${id} (might be hardcoded or error): ${err}`);
+            Logger.warn('ItemRegistry', `Could not delete file for item ${id}: ${err}`);
         }
 
         return true;
@@ -210,36 +193,65 @@ export class ItemRegistry {
         Object.assign(item, updates);
         this.items.set(id, item); // Re-set to ensure map is up to date
 
+        // Try to update SQLite
+        try {
+            // Build dynamic update query
+            const fields: string[] = [];
+            const values: any[] = [];
+
+            if (updates.name !== undefined) { fields.push('name = ?'); values.push(updates.name); }
+            if (updates.shortName !== undefined) { fields.push('short_name = ?'); values.push(updates.shortName); }
+            if (updates.description !== undefined) { fields.push('description = ?'); values.push(updates.description); }
+            if (updates.weight !== undefined) { fields.push('weight = ?'); values.push(updates.weight); }
+            if (updates.size !== undefined) { fields.push('size = ?'); values.push(updates.size); }
+            if (updates.legality !== undefined) { fields.push('legality = ?'); values.push(updates.legality); }
+            if (updates.attributes !== undefined) { fields.push('attributes = ?'); values.push(updates.attributes); }
+            if (updates.cost !== undefined) { fields.push('cost = ?'); values.push(updates.cost); }
+            if (updates.type !== undefined) { fields.push('type = ?'); values.push(updates.type); }
+            if (updates.slot !== undefined) { fields.push('slot = ?'); values.push(updates.slot); }
+            if (updates.rarity !== undefined) { fields.push('rarity = ?'); values.push(updates.rarity); }
+            if (updates.extraData !== undefined) { fields.push('extra_data = ?'); values.push(JSON.stringify(updates.extraData)); }
+
+            if (fields.length > 0) {
+                values.push(id); // For WHERE clause
+                const stmt = this.db.prepare(`UPDATE items SET ${fields.join(', ')} WHERE id = ?`);
+                const result = stmt.run(...values);
+                if (result.changes > 0) {
+                    Logger.info('ItemRegistry', `Updated item in DB: ${id}`);
+                    return true;
+                }
+            }
+        } catch (err) {
+            Logger.warn('ItemRegistry', `Failed to update item in DB ${id}: ${err}`);
+        }
+
         // Try to update file if it's generated
         try {
             const generatedDir = path.join(process.cwd(), 'data', 'generated', 'items');
-            if (!fs.existsSync(generatedDir)) return false;
+            if (fs.existsSync(generatedDir)) {
+                const files = fs.readdirSync(generatedDir);
+                for (const file of files) {
+                    const filePath = path.join(generatedDir, file);
+                    const content = fs.readFileSync(filePath, 'utf-8');
+                    const json = JSON.parse(content);
 
-            const files = fs.readdirSync(generatedDir);
-            for (const file of files) {
-                const filePath = path.join(generatedDir, file);
-                const content = fs.readFileSync(filePath, 'utf-8');
-                const json = JSON.parse(content);
+                    if (json.id === id) {
+                        // Merge updates into the JSON structure
+                        if (updates.name) json.name = updates.name;
+                        if (updates.description) json.description = updates.description;
+                        if (updates.cost !== undefined) json.cost = updates.cost;
+                        if (updates.weight !== undefined) json.weight = updates.weight;
+                        if (updates.rarity) json.rarity = updates.rarity;
 
-                if (json.id === id) {
-                    // Merge updates into the JSON structure
-                    // Note: ItemDefinition structure is slightly different from the JSON payload structure
-                    // We need to map back carefully
+                        // Handle extraData / attributes
+                        if (updates.extraData) {
+                            json.attributes = { ...json.attributes, ...updates.extraData };
+                        }
 
-                    if (updates.name) json.name = updates.name;
-                    if (updates.description) json.description = updates.description;
-                    if (updates.cost !== undefined) json.cost = updates.cost;
-                    if (updates.weight !== undefined) json.weight = updates.weight;
-                    if (updates.rarity) json.rarity = updates.rarity;
-
-                    // Handle extraData / attributes
-                    if (updates.extraData) {
-                        json.attributes = { ...json.attributes, ...updates.extraData };
+                        fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
+                        Logger.info('ItemRegistry', `Updated generated item file: ${file}`);
+                        return true;
                     }
-
-                    fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
-                    Logger.info('ItemRegistry', `Updated generated item file: ${file}`);
-                    return true;
                 }
             }
         } catch (err) {

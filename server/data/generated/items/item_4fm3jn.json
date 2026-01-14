@@ -1,0 +1,23 @@
+{
+  "id": "item_4fm3jn",
+  "name": "Chromaweave Cascade",
+  "shortName": "cascade",
+  "description": "A shimmering cascade of woven light, this suit shifts colors and patterns as you move. Its chameleon properties provide a degree of camouflage in neon-drenched urban environments.",
+  "type": "armor",
+  "rarity": "rare",
+  "cost": 300,
+  "weight": 2,
+  "attributes": {
+    "slot": "head",
+    "defense": 4
+  },
+  "_metadata": {
+    "proposalId": "17f04215-1aeb-403b-b2cd-22c70e35de91",
+    "generatedAt": 1768406913350,
+    "publishedAt": 1768406918112,
+    "seed": "v24ih",
+    "flavor": {
+      "rationale": "Developed by the R&D division of the Kusanagi Corporation for covert operations, Chromaweave Cascade was designed to blend seamlessly into chaotic cityscapes using advanced photonic technology. It's rare due to the high cost and specialized manufacturing process."
+    }
+  }
+}
