@@ -11,8 +11,13 @@ import { IsICE } from '../components/IsICE';
 import { WoundTable } from '../components/WoundTable';
 import { Stats } from '../components/Stats';
 import { Armor } from '../components/Armor';
+import { IsRoom } from '../components/IsRoom';
+import { Description } from '../components/Description';
+import { Atmosphere } from '../components/Atmosphere';
 
 import { ItemRegistry } from '../services/ItemRegistry';
+import { NPCRegistry } from '../services/NPCRegistry';
+import { RoomRegistry } from '../services/RoomRegistry';
 import { EngagementTier } from '../types/CombatTypes';
 
 import { Inventory } from '../components/Inventory';
@@ -112,8 +117,8 @@ export class PrefabFactory {
                 ? def.extraData.slot
                 : (def.slot || null);
 
-            // Use shortName as the display name, and name as the internal slug/alias
-            entity.addComponent(new Item(def.shortName, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.name, itemSlot));
+            // Use name as the display name, and shortName as the internal slug/alias
+            entity.addComponent(new Item(def.name, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.shortName, itemSlot, def.rarity || 'common'));
 
             if (def.type === 'container') {
                 const capacity = def.extraData.capacity || 10;
@@ -184,9 +189,51 @@ export class PrefabFactory {
         return entity;
     }
 
+    static createRoom(id: string): Entity | null {
+        const registry = RoomRegistry.getInstance();
+        const def = registry.getRoom(id);
+        if (!def) return null;
+
+        const entity = new Entity(def.id);
+        entity.addComponent(new IsRoom());
+        entity.addComponent(new Position(def.coordinates.x, def.coordinates.y));
+        entity.addComponent(new Description(def.name, def.description));
+        entity.addComponent(new Atmosphere());
+
+        return entity;
+    }
+
     static createNPC(name: string, id?: string): Entity | null {
         const entity = new Entity(id);
         const lowerName = name.toLowerCase();
+
+        // Try Registry First
+        const registry = NPCRegistry.getInstance();
+        const def = registry.getNPC(name);
+
+        if (def) {
+            entity.addComponent(new NPC(
+                def.name,
+                def.dialogue || ["..."],
+                def.description,
+                def.canMove ?? true,
+                def.tags?.[0] || '',
+                def.behavior === 'aggressive'
+            ));
+            entity.addComponent(new CombatStats(def.stats.health, def.stats.attack, def.stats.defense, def.behavior === 'aggressive'));
+
+            // Add common components
+            entity.addComponent(new WoundTable());
+            entity.addComponent(new Stats());
+            entity.addComponent(new CombatBuffer(3));
+
+            // Handle Special Tags
+            if (def.tags?.includes('ice')) {
+                entity.addComponent(new IsICE(def.name));
+            }
+
+            return entity;
+        }
 
         switch (lowerName) {
             case 'giant rat':
@@ -317,7 +364,7 @@ export class PrefabFactory {
     }
 
     static getSpawnableItems(): string[] {
-        return [
+        const hardcoded = [
             'beer can', 'pistol_9mm', 'mag_pistol_9mm', 'backpack',
             'tactical shirt', 'cargo pants', 'utility belt',
             'ceska_scorpion', 'mag_scorpion', 'shotgun_12g', 'shells_12g',
@@ -325,9 +372,13 @@ export class PrefabFactory {
             'katana', 'dagger', 'machete', 'brass_knuckles',
             'digital_blade', 'pulse_rifle', 'digital_vest', 'energy_cell'
         ];
+        const registryItems = ItemRegistry.getInstance().getUniqueItemNames();
+        return Array.from(new Set([...hardcoded, ...registryItems]));
     }
 
     static getSpawnableNPCs(): string[] {
-        return ['giant rat', 'cyber thug', 'dancer', 'ripperdoc', 'street vendor', 'street samurai', 'fixer', 'turing police', 'white ice', 'black ice'];
+        const hardcoded = ['giant rat', 'cyber thug', 'dancer', 'ripperdoc', 'street vendor', 'street samurai', 'fixer', 'turing police', 'white ice', 'black ice'];
+        const registryNPCs = NPCRegistry.getInstance().getAllNPCs().map(n => n.name.toLowerCase());
+        return Array.from(new Set([...hardcoded, ...registryNPCs]));
     }
 }

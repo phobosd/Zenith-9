@@ -1,0 +1,23 @@
+{
+  "id": "room_3r7h3u",
+  "name": "Neon Highway 34,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 34,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "d1896e04-217c-450f-ab21-eddf5b542c7b",
+    "generatedAt": 1768368508309,
+    "publishedAt": 1768368508309,
+    "seed": "yq612r",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

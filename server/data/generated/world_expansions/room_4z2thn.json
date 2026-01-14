@@ -1,0 +1,23 @@
+{
+  "id": "room_4z2thn",
+  "name": "Neon Highway 18,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 18,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "5c9854f5-fd2d-41b7-95bf-d95c47a30d31",
+    "generatedAt": 1768364770854,
+    "publishedAt": 1768364770854,
+    "seed": "c9o2y",
+    "flavor": {
+      "rationale": "Expanding the world with a new shop block."
+    }
+  }
+}

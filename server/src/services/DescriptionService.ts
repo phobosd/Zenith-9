@@ -33,7 +33,7 @@ export class DescriptionService {
         const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
         const itemDescriptions = itemsInRoom.map(item => {
             const itemComp = item.getComponent(Item);
-            return itemComp ? `There is a ${MessageFormatter.item(itemComp.name, item.id)} here.` : '';
+            return itemComp ? `There is a ${MessageFormatter.item(itemComp.name, item.id, itemComp.rarity)} here.` : '';
         }).filter(s => s !== '').join('\n');
 
         // Find NPCs in the room
@@ -184,6 +184,13 @@ ${npcDescriptions}`.trim();
             startY = playerPos.y - viewRadius;
             width = viewRadius * 2;
             height = viewRadius * 2;
+        } else {
+            // Dynamic Chunking for Infinite World
+            const CHUNK_SIZE = 20;
+            const chunkX = Math.floor(playerPos.x / CHUNK_SIZE);
+            const chunkY = Math.floor(playerPos.y / CHUNK_SIZE);
+            startX = chunkX * CHUNK_SIZE;
+            startY = chunkY * CHUNK_SIZE;
         }
 
         const grid: any[][] = [];
@@ -368,7 +375,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
             const i = item?.getComponent(Item);
             if (!i) return "Unknown";
             const displayName = i.quantity > 1 ? `${i.name} x${i.quantity}` : i.name;
-            return MessageFormatter.item(displayName, id);
+            return MessageFormatter.item(displayName, id, i.rarity);
         });
     }
 
@@ -386,7 +393,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
             const i = item?.getComponent(Item);
             if (i) {
                 const displayName = i.quantity > 1 ? `${i.name} (x${i.quantity})` : i.name;
-                output += `  - ${MessageFormatter.item(displayName, id)}\n`;
+                output += `  - ${MessageFormatter.item(displayName, id, i.rarity)}\n`;
             }
         });
 
@@ -442,14 +449,23 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         });
         roomEntities.forEach(e => matches.push({ type: 'object', entity: e }));
 
-        // 4. Check inventory
+        // 4. Check items in the room
+        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
+        itemsInRoom.forEach(item => {
+            const itemComp = item.getComponent(Item);
+            if (itemComp && itemComp.matches(targetNameLower)) {
+                matches.push({ type: 'item', entity: item });
+            }
+        });
+
+        // 5. Check inventory
         const inventory = player.getComponent(Inventory);
         if (inventory) {
             const collectFromInventory = (itemId: string) => {
                 const itemEntity = WorldQuery.getEntityById(engine, itemId);
                 if (!itemEntity) return;
                 const item = itemEntity.getComponent(Item);
-                if (item && item.name.toLowerCase().includes(targetNameLower)) {
+                if (item && item.matches(targetNameLower)) {
                     matches.push({ type: 'item', entity: itemEntity });
                 }
 

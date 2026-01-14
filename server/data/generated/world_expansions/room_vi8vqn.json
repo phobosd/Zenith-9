@@ -1,0 +1,23 @@
+{
+  "id": "room_vi8vqn",
+  "name": "Neon Highway 33,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 33,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "aef7a1f6-60aa-4541-8b2a-041389ee813f",
+    "generatedAt": 1768368508305,
+    "publishedAt": 1768368508305,
+    "seed": "2y8eq9",
+    "flavor": {
+      "rationale": "Expanding the world with a new dungeon block."
+    }
+  }
+}

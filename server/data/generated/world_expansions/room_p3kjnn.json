@@ -1,0 +1,23 @@
+{
+  "id": "room_p3kjnn",
+  "name": "Neon Highway 19,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 19,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "ae9e4242-e58e-4b9c-9c0e-f8be3e340494",
+    "generatedAt": 1768364770855,
+    "publishedAt": 1768364770855,
+    "seed": "g0vets",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

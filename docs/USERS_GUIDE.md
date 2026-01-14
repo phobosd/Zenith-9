@@ -37,6 +37,14 @@ The world of Ouroboro is divided into several distinct sectors, each with its ow
 *   **The Matrix (Cyberspace)**: A digital mirror of the physical world, accessible via `jack_in`. It contains specialized nodes like **Data-Stream Conduits** and **Encrypted Sub-Nodes**.
 *   **The Glitch Zone**: An unstable, procedurally generated dungeon accessed through the Glitch Door in the Central Plaza.
 
+## NPC Behavior & Interaction
+
+The citizens of Ouroboro are not static. They have their own lives and agendas.
+
+*   **Roaming**: Most NPCs are capable of moving between rooms. You might see a Street Samurai patrol the Chiba district or a Thug wander into the Central Plaza.
+*   **Barks**: NPCs will periodically "bark" dialogue lines. These lines reflect their personality, archetype, and current mood. A Ripperdoc might complain about the cost of medical supplies, while a Turing Police agent will issue stern warnings about illegal AI activity.
+*   **Hostility**: Not all NPCs are friendly. Some, like the Giant Rat or Cyber Thug, are aggressive and will attack on sight. Others may only become hostile if you attack them first.
+
 For a detailed map and list of key locations, see the [Area Guide](AREAS.md).
 
 ## Interaction & Exploration
@@ -53,14 +61,24 @@ Navigate the world using cardinal directions: `north` (`n`), `south` (`s`), `eas
     *   `stow <item name>` (e.g., `stow pistol`)
 *   **Swap**: Switch items between your left and right hands.
     *   `swap`
-*   **Wear**: Equip clothing or armor. Items automatically go to the correct slot (Head, Torso, Legs, Feet, Hands, Waist, Back).
+*   **Wear**: Equip clothing, armor, or cyberware. Items automatically go to the correct slot.
     *   `wear <item name>` (e.g., `wear combat boots`)
+    *   **Slots**: `Head`, `Torso`, `Legs`, `Feet`, `Waist`, `Back`, and the specialized **`Neural`** slot for brain-implants.
 *   **Remove**: Unequip an item.
     *   `remove <item name>` (e.g., `remove helmet`)
 *   **Glance**: Quickly check what you are holding in your hands.
     *   `glance`
 *   **Use**: Consume an item to gain its effects.
     *   `use <item name>` (e.g., `use medkit`)
+
+### Item Rarity
+Items in Ouroboro are classified by rarity, which determines their power and value. You can identify an item's rarity by its color in the terminal:
+
+*   **Common** (Grey): Standard street-grade gear.
+*   **Uncommon** (Green): Reliable tech with slight improvements.
+*   **Rare** (Cyan): High-quality corporate or specialized equipment.
+*   **Epic** (Purple): Elite gear with significant stat bonuses and modifiers.
+*   **Legendary** (Gold): One-of-a-kind artifacts. These items **pulse with light** and possess overwhelming power.
 
 ### Consumables
 Consumables provide vital recovery and buffs. Most are destroyed upon use.

@@ -12,6 +12,7 @@ interface InventoryData {
     legs: string;
     feet: string;
     waist: string;
+    neural: string;
     backpackContents: string[];
 }
 
@@ -70,6 +71,10 @@ export const InventoryDisplay: React.FC<Props> = ({ data, socket }) => {
                         <div className="inventory-item stat-row">
                             <span className="stat-label">Feet:</span>
                             <span className="stat-value">{renderItem(data.feet)}</span>
+                        </div>
+                        <div className="inventory-item stat-row">
+                            <span className="stat-label">Neural:</span>
+                            <span className="stat-value">{renderItem(data.neural)}</span>
                         </div>
                     </div>
                 </div>

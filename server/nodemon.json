@@ -1,0 +1,13 @@
+{
+    "watch": [
+        "src"
+    ],
+    "ext": "ts,js,json",
+    "ignore": [
+        "src/**/*.spec.ts",
+        "data/**/*",
+        "snapshots/**/*",
+        "guardrails.json"
+    ],
+    "exec": "ts-node src/index.ts"
+}

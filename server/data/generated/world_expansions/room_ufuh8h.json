@@ -1,0 +1,23 @@
+{
+  "id": "room_ufuh8h",
+  "name": "Neon Highway 24,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 24,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "88afffeb-b162-46ce-8830-5e93b3c34053",
+    "generatedAt": 1768368508271,
+    "publishedAt": 1768368508271,
+    "seed": "hrrovd",
+    "flavor": {
+      "rationale": "Expanding the world with a new dungeon block."
+    }
+  }
+}

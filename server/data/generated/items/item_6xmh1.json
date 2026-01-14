@@ -1,0 +1,21 @@
+{
+  "id": "item_6xmh1",
+  "name": "Glitch Medkit",
+  "shortName": "medkit",
+  "description": "A rare consumable of Glitch quality.",
+  "type": "consumable",
+  "rarity": "rare",
+  "cost": 10286,
+  "weight": 5.1842988849975296,
+  "attributes": {},
+  "effects": [],
+  "_metadata": {
+    "proposalId": "709d3b13-fa47-417e-8644-bf8cdafe47e9",
+    "generatedAt": 1768357655788,
+    "publishedAt": 1768357658889,
+    "seed": "qlibfg",
+    "flavor": {
+      "rationale": "Created a rare consumable for loot tables."
+    }
+  }
+}

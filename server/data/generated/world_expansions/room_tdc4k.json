@@ -1,0 +1,23 @@
+{
+  "id": "room_tdc4k",
+  "name": "Neon Highway 31,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 31,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "3cca6d67-8a65-4329-9d18-56b8f2dd932c",
+    "generatedAt": 1768368508296,
+    "publishedAt": 1768368508296,
+    "seed": "hm391",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

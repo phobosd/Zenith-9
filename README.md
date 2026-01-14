@@ -96,11 +96,61 @@ For a comprehensive guide on commands, combat, and game mechanics, please refer 
 
 ## 🏗️ Architecture
 
+### Overarching System Diagram
+The Ouroboro ecosystem consists of the Game Client, Game Server, Admin Dashboard, and external AI services.
+
+```mermaid
+graph TD
+    User((Player))
+    Admin((Admin/Dev))
+
+    subgraph Client_Side [Client Side]
+        GameClient[Game Client (React)]
+        AdminDash[Admin Dashboard (React)]
+    end
+
+    subgraph Server_Side [Server Side]
+        GameServer[Node.js Game Server]
+        Director[World Director Service]
+        Redis[(Redis DB)]
+        FileSystem[JSON Data Files]
+    end
+
+    subgraph AI_Services [AI Services]
+        LLM[LLM Provider (Local/Cloud)]
+    end
+
+    %% Interactions
+    User <-->|Socket.io / Game Events| GameClient
+    Admin <-->|Socket.io / Admin Events| AdminDash
+
+    GameClient <-->|Socket.io / Game Namespace| GameServer
+    AdminDash <-->|Socket.io / Admin Namespace| GameServer
+
+    GameServer <-->|Read/Write| Redis
+    GameServer <-->|Read/Write| FileSystem
+
+    %% Director Flow
+    Director -.->|Managed by| GameServer
+    Director <-->|Generate Content| LLM
+    Director -->|Publish| FileSystem
+    Director -->|Hot Reload| GameServer
+```
+
 ### Tech Stack
 - **Frontend**: React + TypeScript + Socket.io-client
 - **Backend**: Node.js + TypeScript + Socket.io
 - **Database**: Redis (for persistence)
 - **Architecture**: Entity Component System (ECS)
+- **AI Integration**: Custom LLM Service with Guardrails
+
+### 🛠️ Admin Dashboard (`/admin`)
+Ouroboro includes a comprehensive Admin Dashboard for real-time world management and content generation.
+- **World Map**: Visualize and manage procedurally generated chunks.
+- **Content Registry**: Search, edit, and delete Items and NPCs live.
+- **AI Director**: Manually trigger generation of new content (NPCs, Mobs, Items, Quests, Rooms).
+- **Review Pipeline**: Approve or reject AI-generated content before it enters the game.
+- **Snapshots**: Backup and restore the entire world state.
 
 ### Project Structure
 ```

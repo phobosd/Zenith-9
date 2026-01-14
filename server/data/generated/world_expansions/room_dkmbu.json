@@ -1,0 +1,23 @@
+{
+  "id": "room_dkmbu",
+  "name": "Neon Highway 30,19",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 19,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "0ea37cbc-79a9-44c0-9abf-077b769cf4b3",
+    "generatedAt": 1768368508340,
+    "publishedAt": 1768368508340,
+    "seed": "69uxjl",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

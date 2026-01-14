@@ -1,0 +1,23 @@
+{
+  "id": "room_rznsbw",
+  "name": "Neon Highway 36,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 36,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "1df4d0fc-c58e-46d4-a4aa-a2d79befd555",
+    "generatedAt": 1768368508319,
+    "publishedAt": 1768368508319,
+    "seed": "3oti54s",
+    "flavor": {
+      "rationale": "Expanding the world with a new street block."
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "room_d8w48",
+  "name": "Neon Highway 23,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 23,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "bda25338-67d7-4097-adf2-833adbbe738e",
+    "generatedAt": 1768368508268,
+    "publishedAt": 1768368508268,
+    "seed": "xx6wev9",
+    "flavor": {
+      "rationale": "Expanding the world with a new shop block."
+    }
+  }
+}

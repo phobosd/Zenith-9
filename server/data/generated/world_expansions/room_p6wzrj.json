@@ -1,0 +1,23 @@
+{
+  "id": "room_p6wzrj",
+  "name": "Neon Highway 30,16",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 16,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "7bb77cdd-716d-43d5-9c16-cd25009e0b3a",
+    "generatedAt": 1768368508322,
+    "publishedAt": 1768368508322,
+    "seed": "wshu58",
+    "flavor": {
+      "rationale": "Expanding the world with a new shop block."
+    }
+  }
+}

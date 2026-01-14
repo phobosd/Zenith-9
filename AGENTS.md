@@ -118,6 +118,90 @@ graph TD
     SocketClient -->|Render| Terminal
 ```
 
+### 5. Content Generation Architecture
+The Ouroboro engine includes a sophisticated **AI-driven content generation pipeline** managed by the `WorldDirector`. This system allows for both automated and manual creation of game content (NPCs, Items, Quests, Rooms) using LLMs (Large Language Models).
+
+#### 5.1 The World Director
+The `WorldDirector` is the central orchestrator for all generated content. It manages:
+- **Generators**: Specialized classes for different content types (`NPCGenerator`, `ItemGenerator`, etc.).
+- **LLM Service**: Interface for communicating with AI models (Local or Cloud).
+- **Guardrails**: Rules and budgets to ensure generated content fits the game's balance and theme.
+- **Publisher**: Service for committing approved content to the game's file system and memory.
+
+#### 5.2 Generation Workflow Diagram
+
+```mermaid
+graph TD
+    subgraph Admin_Dashboard [Admin Dashboard - Client]
+        UI[React UI]
+        ManualTrigger[Manual Trigger Button]
+        ReviewPanel[Review & Edit Panel]
+    end
+
+    subgraph Director_Layer [World Director - Server]
+        Director[WorldDirector Class]
+        SocketAdmin[Admin Socket Namespace]
+        
+        subgraph Generators
+            NPCGen[NPCGenerator]
+            ItemGen[ItemGenerator]
+            QuestGen[QuestGenerator]
+            RoomGen[RoomGenerator]
+        end
+        
+        LLM[LLMService]
+        Guardrails[GuardrailService]
+    end
+
+    subgraph Persistence
+        FileSystem[JSON Files]
+        Registries[Item/NPC/Room Registries]
+    end
+
+    %% Trigger Flow
+    ManualTrigger -->|Socket: director:manual_trigger| SocketAdmin
+    SocketAdmin -->|Route| Director
+    Director -->|Select Generator| Generators
+
+    %% Generation Flow
+    Generators -->|1. Creative Prompt| LLM
+    LLM -->|Creative JSON| Generators
+    Generators -->|2. Logic/Stats Prompt| LLM
+    LLM -->|Balanced JSON| Generators
+    Generators -->|3. Apply Guardrails| Guardrails
+    Guardrails -->|Validated Proposal| Director
+
+    %% Review Flow
+    Director -->|Socket: proposals_update| UI
+    UI -->|Edit/Approve| SocketAdmin
+    SocketAdmin -->|Socket: director:approve_proposal| Director
+
+    %% Publishing Flow
+    Director -->|Publish| Persistence
+    Persistence -->|Reload| Registries
+    Registries -->|Update Game State| Director
+```
+
+### 6. The Admin Dashboard (`/admin`)
+The Admin Dashboard is a powerful web-based tool for managing the game world in real-time. It connects to the server via a dedicated `socket.io` namespace (`/admin`).
+
+#### Features:
+- **World Map**: Visual grid of generated chunks. Allows manual generation and deletion of chunks.
+- **Item Registry**: View, search, edit, and delete all items in the game.
+- **NPC Registry**: View, search, edit, and delete all NPCs.
+- **Pending Proposals**: Review, edit, approve, or reject AI-generated content.
+- **Manual Generation**: Buttons to manually trigger generation of NPCs, Mobs, Items, Quests, and Rooms.
+- **Snapshots**: Create and restore full world backups.
+- **LLM Configuration**: Manage AI profiles and connection settings.
+
+#### Mob Generation
+The "Generate Mob" feature is a specialized subset of NPC generation:
+- **Trigger**: `director:manual_trigger` with type `MOB`.
+- **Logic**: Uses `NPCGenerator` with a `subtype: 'MOB'` context.
+- **Archetypes**: Selects from creature-specific archetypes (Vermin, Glitch Construct, etc.).
+- **Behavior**: Forces `aggressive` behavior.
+- **Dialogue**: Generates creature sounds instead of speech.
+
 ---
 
 ## 🛠 Golden Path Implementation Recipes

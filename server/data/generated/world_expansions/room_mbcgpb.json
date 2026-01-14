@@ -1,0 +1,23 @@
+{
+  "id": "room_mbcgpb",
+  "name": "Neon Highway 30,11",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 11,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "d678d70e-5abe-468a-8be4-512de59b3c23",
+    "generatedAt": 1768368508298,
+    "publishedAt": 1768368508298,
+    "seed": "alslrp",
+    "flavor": {
+      "rationale": "Expanding the world with a new shop block."
+    }
+  }
+}

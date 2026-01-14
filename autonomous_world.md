@@ -56,7 +56,6 @@ Workers communicate via:
 This matches your existing Redis footprint. :contentReference[oaicite:2]{index=2}
 
 ### 3.1 The "Council" Diagram
-This diagram illustrates how the **Director** (The Brain) coordinates with the **Generators** (The Creatives) and the **Validators** (The Gatekeepers) before anything reaches the **Simulation Engine**.
 
 ```mermaid
 graph TD
@@ -276,33 +275,37 @@ We will implement a **Dynamic Guardrail System** that allows you to tune safety 
 
 ## 12) Implementation milestones (order matters)
 ### Milestone 0 — Safety Net
-- [ ] Implement `SnapshotService` (Backup/Restore scripts).
-- [ ] Verify rollback works 100%.
+- [x] Implement `SnapshotService` (Backup/Restore scripts).
+- [x] Verify rollback works 100%.
 
 ### Milestone 1 — Schemas + Proposal system + Guardrails
-- [ ] Create `schemas/proposals.ts`
-- [ ] Define `Proposal<T>` types.
-- [ ] Implement `GuardrailService` (loads config, validates rules).
-- [ ] Implement `validateProposal()` (Zod) + `scoreBudget()` (dynamic rules).
+- [x] Create `schemas/proposals.ts`
+- [x] Define `Proposal<T>` types.
+- [x] Implement `GuardrailService` (loads config, validates rules).
+- [x] Implement `validateProposal()` (Zod) + `scoreBudget()` (dynamic rules).
 
-### Milestone 2 — Observability UI (Skeleton)
-- [ ] Create `/admin` route in client.
-- [ ] Build `DirectorLog` component.
-- [ ] Implement `Director.pause()` and `Director.resume()` endpoints.
-- [ ] Add big **STOP / GO** buttons to UI.
-- [ ] Add **Personality Sliders** (Chaos, Aggression, Expansion).
-- [ ] Add **Approval Queue** UI (Review/Edit/Approve/Reject).
-- [ ] Add **Transaction Log** with "Undo" button per item.
-- [ ] Hook up to server logs/stream.
+### Milestone 2 — Observability UI (The Dashboard)
+- [x] `/admin` route with real-time socket connection.
+- [x] `DirectorLog` component for live system stream.
+- [x] `Director.pause()` and `Director.resume()` endpoints.
+- [x] Master Control: STOP/GO buttons with emergency halt.
+- [x] Director Personality: Chaos, Aggression, Expansion sliders + Toggles.
+- [x] Human-in-the-loop: Approval Queue for generated content.
+- [x] Snapshot Utility: Create, List, Delete, and Rollback (with double confirmation).
+- [x] Dynamic Guardrails: Real-time budget editing and safety toggles.
+- [x] Tabbed Interface: Clean organization of controls, logs, and snapshots.
+- [x] Restricted Generation: Toggle to limit AI to "Glitch Door" areas.
 
-### Milestone 3 — Procedural generators (Drafting)
-- [ ] NPC archetype generator from tables.
-- [ ] Item generator from budgets.
-- [ ] File-based publisher (writes to `server/data/generated`).
+### Milestone 3 — Procedural generators (The Drafting Stage)
+- [x] NPC archetype generator (Components + Constraints).
+- [x] Item generator (Stats + Rarity + Budgets).
+- [x] Quest blueprint generator (Nodes + Rewards).
+- [x] Room/Building generator (World Expansion).
+- [x] File-based publisher (Writes JSON to `server/data/generated`).
 
 ### Milestone 4 — LLM Integration
 - [ ] Implement `LLMService` (LM Studio / Gemini adapter).
-- [ ] Add "Enrich" stage to pipeline.
+- [ ] Add "Enrich" stage to pipeline (Flavor text, rationale).
 
 ### Milestone 5 — Infinite World
 - [ ] Implement `ChunkSystem` (coordinate management).

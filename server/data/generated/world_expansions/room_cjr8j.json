@@ -1,0 +1,23 @@
+{
+  "id": "room_cjr8j",
+  "name": "Empty Structure 27,14",
+  "description": "A placeholder location waiting for development.",
+  "type": "indoor",
+  "coordinates": {
+    "x": 27,
+    "y": 14,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "d8e83325-35ad-4dbe-a4c5-303a74c4d6b7",
+    "generatedAt": 1768368508361,
+    "publishedAt": 1768368508361,
+    "seed": "3ld6h",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

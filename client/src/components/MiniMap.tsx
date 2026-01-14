@@ -90,7 +90,8 @@ export const MiniMap: React.FC<Props> = ({ data }) => {
     if (isCyberspace) sector = 'MATRIX';
     else if (displayX < 7) sector = 'CHIBA';
     else if (displayX < 14) sector = 'SPRAWL';
-    else sector = 'STRAYLIGHT';
+    else if (displayX < 20) sector = 'STRAYLIGHT';
+    else sector = `SECTOR ${Math.floor(displayX / 20)},${Math.floor(displayY / 20)}`;
 
     return (
         <div

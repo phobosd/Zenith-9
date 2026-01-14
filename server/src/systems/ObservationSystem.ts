@@ -70,7 +70,7 @@ export class ObservationSystem extends System {
         if (inventory.leftHand) {
             const item = WorldQuery.getEntityById(engine, inventory.leftHand);
             const itemComp = item?.getComponent(Item);
-            if (itemComp && itemComp.name.toLowerCase().includes(targetName)) {
+            if (itemComp && itemComp.matches(targetName)) {
                 matches.push(item!);
             }
         }
@@ -79,7 +79,7 @@ export class ObservationSystem extends System {
         if (inventory.rightHand) {
             const item = WorldQuery.getEntityById(engine, inventory.rightHand);
             const itemComp = item?.getComponent(Item);
-            if (itemComp && itemComp.name.toLowerCase().includes(targetName)) {
+            if (itemComp && itemComp.matches(targetName)) {
                 matches.push(item!);
             }
         }
@@ -88,7 +88,7 @@ export class ObservationSystem extends System {
         for (const itemId of inventory.equipment.values()) {
             const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
-            if (itemComp && itemComp.name.toLowerCase().includes(targetName)) {
+            if (itemComp && itemComp.matches(targetName)) {
                 matches.push(item!);
             }
         }

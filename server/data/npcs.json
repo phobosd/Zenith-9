@@ -1,0 +1,177 @@
+[
+    {
+        "id": "giant_rat",
+        "name": "Giant Rat",
+        "description": "A massive, mutated rodent the size of a large dog. Its fur is matted and greasy, patchy in places where scarred, pink skin shows through. Its eyes glow with a sickly, radioactive green luminescence, twitching erratically. You can hear its heavy, wheezing breath and smell the acrid stench of decay and sewage that clings to it.",
+        "dialogue": [
+            "Squeak!",
+            "Hiss...",
+            "*scratches floor*"
+        ],
+        "stats": {
+            "health": 20,
+            "attack": 5,
+            "defense": 0
+        },
+        "behavior": "aggressive",
+        "canMove": false
+    },
+    {
+        "id": "cyber_thug",
+        "name": "Cyber Thug",
+        "description": "A lean, dangerous figure leaning with practiced nonchalance. They wear a patchwork of scavenged leather and matte-black synthetic plates. A glowing red cybernetic implant replaces their left eye, scanning you with mechanical precision, while their right hand hovers near a holster. A low hum emanates from their enhanced limbs, and they smell of ozone and cheap tobacco.",
+        "dialogue": [
+            "You lookin' at me?",
+            "Got any credits?",
+            "This is my turf."
+        ],
+        "stats": {
+            "health": 50,
+            "attack": 10,
+            "defense": 5
+        },
+        "behavior": "aggressive",
+        "canMove": true
+    },
+    {
+        "id": "dancer",
+        "name": "Dancer",
+        "description": "A holographic dancer shimmering in the strobe lights.",
+        "dialogue": [
+            "Keep the rhythm.",
+            "Want a drink?",
+            "Too loud? Never."
+        ],
+        "stats": {
+            "health": 30,
+            "attack": 5,
+            "defense": 2
+        },
+        "canMove": false
+    },
+    {
+        "id": "ripperdoc",
+        "name": "Ripperdoc",
+        "description": "A surgeon with multi-tool fingers and a blood-stained apron.",
+        "dialogue": [
+            "Need a fix?",
+            "I can replace that arm.",
+            "Clean credits only."
+        ],
+        "stats": {
+            "health": 40,
+            "attack": 8,
+            "defense": 3
+        },
+        "canMove": false
+    },
+    {
+        "id": "street_vendor",
+        "name": "Street Vendor",
+        "description": "An old man hunched over a steaming cart.",
+        "dialogue": [
+            "Fresh noodles!",
+            "Best synthetic meat!",
+            "Buy something!"
+        ],
+        "stats": {
+            "health": 30,
+            "attack": 5,
+            "defense": 1
+        },
+        "canMove": false
+    },
+    {
+        "id": "street_samurai",
+        "name": "Street Samurai",
+        "description": "A razor-edged warrior with chrome-plated limbs and retractable mono-filament claws. Their eyes are replaced by a multi-spectrum sensor array, and they move with a fluid, predatory grace that suggests heavy synaptic acceleration.",
+        "dialogue": [
+            "My reflexes are faster than your thoughts.",
+            "Honor is a luxury you can't afford.",
+            "Target locked."
+        ],
+        "stats": {
+            "health": 150,
+            "attack": 25,
+            "defense": 15
+        },
+        "behavior": "aggressive",
+        "canMove": true
+    },
+    {
+        "id": "fixer",
+        "name": "The Fixer",
+        "description": "A well-dressed individual sitting in the shadows, surrounded by multiple encrypted data-slates. They have a calm, calculating demeanor and a neural-link that never seems to stop blinking.",
+        "dialogue": [
+            "I have a job for you.",
+            "Information is the only real currency.",
+            "Don't ask where I got it."
+        ],
+        "stats": {
+            "health": 60,
+            "attack": 10,
+            "defense": 5
+        },
+        "canMove": false
+    },
+    {
+        "id": "turing_police",
+        "name": "Turing Police",
+        "description": "A stern agent in a grey polycarbon suit, wearing a badge that signifies their authority over artificial intelligences. They carry a heavy taser-prod and a specialized scanner for detecting rogue code.",
+        "dialogue": [
+            "AI breakthrough detected.",
+            "Cease and desist.",
+            "By order of the Turing Registry."
+        ],
+        "stats": {
+            "health": 120,
+            "attack": 20,
+            "defense": 10
+        },
+        "canMove": true,
+        "tags": [
+            "turing"
+        ]
+    },
+    {
+        "id": "white_ice",
+        "name": "White ICE",
+        "description": "A shimmering wall of crystalline code, pulsing with a cold, white light. It is a passive but formidable defense system designed to block unauthorized access.",
+        "dialogue": [
+            "[SYSTEM] ACCESS DENIED",
+            "[SYSTEM] INTRUSION DETECTED",
+            "[SYSTEM] TRACE INITIATED"
+        ],
+        "stats": {
+            "health": 100,
+            "attack": 0,
+            "defense": 20
+        },
+        "canMove": false,
+        "tags": [
+            "ice",
+            "passive"
+        ]
+    },
+    {
+        "id": "black_ice",
+        "name": "Black ICE",
+        "description": "A dark, swirling vortex of malevolent code. It is an aggressive intrusion countermeasure designed to physically damage the brain of any hacker it encounters.",
+        "dialogue": [
+            "[SYSTEM] LETHAL FEEDBACK ENGAGED",
+            "[SYSTEM] NEURAL SPIKE UPLOADING",
+            "[SYSTEM] TARGET ACQUIRED"
+        ],
+        "stats": {
+            "health": 200,
+            "attack": 50,
+            "defense": 10
+        },
+        "behavior": "aggressive",
+        "canMove": false,
+        "tags": [
+            "ice",
+            "aggressive"
+        ]
+    }
+]

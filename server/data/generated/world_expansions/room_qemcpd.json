@@ -1,0 +1,23 @@
+{
+  "id": "room_qemcpd",
+  "name": "Neon Highway 20,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 20,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "7ea8cdf8-2050-4e28-ab6a-4027cfe742c7",
+    "generatedAt": 1768368508260,
+    "publishedAt": 1768368508260,
+    "seed": "61naq3",
+    "flavor": {
+      "rationale": "Expanding the world with a new dungeon block."
+    }
+  }
+}

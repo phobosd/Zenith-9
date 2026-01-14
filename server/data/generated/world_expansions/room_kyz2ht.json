@@ -1,0 +1,23 @@
+{
+  "id": "room_kyz2ht",
+  "name": "Neon Highway 30,18",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 18,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "1d89833e-9669-4b1d-9fba-d43066c2fd42",
+    "generatedAt": 1768368508334,
+    "publishedAt": 1768368508334,
+    "seed": "94iax",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

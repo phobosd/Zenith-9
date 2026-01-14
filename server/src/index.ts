@@ -23,6 +23,7 @@ import { ObservationSystem } from './systems/ObservationSystem';
 import { PortalSystem } from './systems/PortalSystem';
 import { StanceSystem } from './systems/StanceSystem';
 import { CharacterSystem } from './systems/CharacterSystem';
+import { RecoverySystem } from './systems/RecoverySystem';
 import { InventorySystem } from './systems/InventorySystem';
 import { Inventory } from './components/Inventory';
 import { Item } from './components/Item';
@@ -37,6 +38,7 @@ import { Stance, StanceType } from './components/Stance';
 import { Roundtime } from './components/Roundtime';
 import { PrefabFactory } from './factories/PrefabFactory';
 import { ItemRegistry } from './services/ItemRegistry';
+import { RoomRegistry } from './services/RoomRegistry';
 import { Logger } from './utils/Logger';
 import { Credits } from './components/Credits';
 import { WorldStateService } from './services/WorldStateService';
@@ -47,6 +49,10 @@ import { CommandSchema, CombatResultSchema, TerminalBuySchema } from './schemas/
 import { EngagementTier } from './types/CombatTypes';
 import { CombatBuffer, CombatActionType } from './components/CombatBuffer';
 import { Momentum } from './components/Momentum';
+import { WorldDirector } from './worldDirector/Director';
+import { GuardrailService } from './services/GuardrailService';
+import { SnapshotService } from './services/SnapshotService';
+import { PublisherService } from './services/PublisherService';
 
 const ALL_STATS = ['STR', 'CON', 'AGI', 'CHA', 'HP', 'MAXHP', 'ATTACK', 'DEFENSE'];
 const ALL_SKILLS = [
@@ -71,10 +77,14 @@ const io = new Server(httpServer, {
     }
 });
 
-import { RecoverySystem } from './systems/RecoverySystem';
-
 // ECS Setup
 const engine = new Engine();
+
+// Initialize Services
+const guardrails = new GuardrailService();
+const snapshots = new SnapshotService();
+const publisher = new PublisherService();
+const director = new WorldDirector(io, guardrails, snapshots, publisher, engine);
 const messageService = new MessageService(io);
 const dungeonService = DungeonService.getInstance(engine, messageService);
 const movementSystem = new MovementSystem(io, messageService);
@@ -1074,6 +1084,23 @@ const worldState = new WorldStateService(persistence);
 const worldGen = new WorldGenerator(engine, 20, 20);
 worldGen.generate();
 
+// Load and Spawn Generated Expansions
+const roomRegistry = RoomRegistry.getInstance();
+const generatedRooms = roomRegistry.getAllRooms();
+if (generatedRooms.length > 0) {
+    Logger.info('Startup', `Spawning ${generatedRooms.length} generated rooms...`);
+    for (const roomDef of generatedRooms) {
+        // Check if room already exists to avoid duplication
+        const existingRoom = WorldQuery.findRoomAt(engine, roomDef.coordinates.x, roomDef.coordinates.y);
+        if (!existingRoom) {
+            const roomEntity = PrefabFactory.createRoom(roomDef.id);
+            if (roomEntity) {
+                engine.addEntity(roomEntity);
+            }
+        }
+    }
+}
+
 // Game Loop
 const TICK_RATE = 10; // 10 ticks per second
 const TICK_MS = 1000 / TICK_RATE;
@@ -1143,6 +1170,7 @@ setInterval(() => {
                     description: leftHandItemComp.description,
                     weight: leftHandItemComp.weight,
                     attributes: leftHandItemComp.attributes,
+                    rarity: leftHandItemComp.rarity,
                     damage: leftHandWeapon?.damage,
                     range: leftHandWeapon?.range,
                     ammo: leftHandWeapon ? `${leftHandWeapon.currentAmmo}/${leftHandWeapon.magSize}` : undefined
@@ -1152,6 +1180,7 @@ setInterval(() => {
                     description: rightHandItemComp.description,
                     weight: rightHandItemComp.weight,
                     attributes: rightHandItemComp.attributes,
+                    rarity: rightHandItemComp.rarity,
                     damage: rightHandWeapon?.damage,
                     range: rightHandWeapon?.range,
                     ammo: rightHandWeapon ? `${rightHandWeapon.currentAmmo}/${rightHandWeapon.magSize}` : undefined

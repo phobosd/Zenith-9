@@ -1,0 +1,23 @@
+{
+  "id": "room_1hcnuk",
+  "name": "Neon Highway 18,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 18,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "ce188ec8-4d17-4ba2-9f10-65bb7cb0e2a5",
+    "generatedAt": 1768364658865,
+    "publishedAt": 1768364658865,
+    "seed": "6ghwr",
+    "flavor": {
+      "rationale": "Expanding the world with a new indoor block."
+    }
+  }
+}

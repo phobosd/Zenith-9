@@ -1,0 +1,25 @@
+{
+  "id": "item_3xl5rf",
+  "name": "Neuro-Flash Override",
+  "shortName": "Override",
+  "description": "A small data chip that temporarily disrupts neural pathways. It allows the user to bypass or override implanted cybernetics for a short duration.",
+  "type": "consumable",
+  "rarity": "epic",
+  "cost": 700,
+  "weight": 1,
+  "attributes": {
+    "modifiers": {
+      "AGI": 20,
+      "AI Debuff": -15
+    }
+  },
+  "_metadata": {
+    "proposalId": "aa198834-333a-454e-aa95-bb6ebac4cd90",
+    "generatedAt": 1768362262792,
+    "publishedAt": 1768362267513,
+    "seed": "qual8v",
+    "flavor": {
+      "rationale": "This would be sold on the black market to those who need temporary access to restricted systems, wish to disable hostile cyberware in an emergency situation, or want to avoid detection by security measures reliant on biometric authentication."
+    }
+  }
+}

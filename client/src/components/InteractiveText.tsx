@@ -30,6 +30,10 @@ export const InteractiveTag: React.FC<{ tag: string; content: string; attributes
                 if (idMatch) {
                     entityId = idMatch[1];
                 }
+                const rarityMatch = attributes.match(/rarity="([^"]+)"/);
+                if (rarityMatch) {
+                    // We can store this if needed, but for now we'll just use it in the className
+                }
             }
 
             if (tag === 'item' || tag === 'weapon' || tag === 'armor' || tag === 'container') {
@@ -49,11 +53,14 @@ export const InteractiveTag: React.FC<{ tag: string; content: string; attributes
         setIsHovering(false);
     };
 
+    const rarityMatch = attributes?.match(/rarity="([^"]+)"/);
+    const rarity = rarityMatch ? rarityMatch[1] : null;
+
     return (
         <>
             <span
                 ref={triggerRef}
-                className={`text-${tag} interactive-tag`}
+                className={`text-${tag} interactive-tag ${rarity ? `rarity-${rarity}` : ''}`}
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 style={{ position: 'relative', display: 'inline-block', cursor: 'pointer' }}

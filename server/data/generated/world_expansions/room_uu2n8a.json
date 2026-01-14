@@ -1,0 +1,23 @@
+{
+  "id": "room_uu2n8a",
+  "name": "Neon Highway 30,14",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 14,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "a522f1b5-491d-478f-871f-bdf80c6bf07f",
+    "generatedAt": 1768368508312,
+    "publishedAt": 1768368508312,
+    "seed": "wpoq8z",
+    "flavor": {
+      "rationale": "Expanding the world with a new street block."
+    }
+  }
+}

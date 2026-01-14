@@ -288,10 +288,11 @@ export class WorldGenerator {
 
         // Randomly spawn items
         if (Math.random() > 0.8 && type !== 2) { // Less trash in plaza
-            const item = new Entity();
-            item.addComponent(new Position(x, y));
-            item.addComponent(new Item("Beer Can", "An empty, crushed beer can.", 0.5));
-            this.engine.addEntity(item);
+            const item = PrefabFactory.createItem("beer can");
+            if (item) {
+                item.addComponent(new Position(x, y));
+                this.engine.addEntity(item);
+            }
         }
 
         // Randomly spawn NPCs

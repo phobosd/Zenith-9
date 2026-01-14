@@ -26,8 +26,11 @@ export class MessageFormatter {
         return this.wrap('system', content);
     }
 
-    static item(content: string, id?: string): string {
-        return id ? `<item id="${id}">${content}</item>` : this.wrap('item', content);
+    static item(content: string, id?: string, rarity?: string): string {
+        let attrs = '';
+        if (id) attrs += ` id="${id}"`;
+        if (rarity) attrs += ` rarity="${rarity}"`;
+        return `<item${attrs}>${content}</item>`;
     }
 
     static npc(content: string, id?: string): string {

@@ -1,0 +1,23 @@
+{
+  "id": "room_jbdsen",
+  "name": "Neon Highway 18,10",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 18,
+    "y": 10,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "43ddd1e6-bc13-4814-88f3-1025806a97b3",
+    "generatedAt": 1768366013816,
+    "publishedAt": 1768366013816,
+    "seed": "z11m6h",
+    "flavor": {
+      "rationale": "Expanding the world with a new dungeon block."
+    }
+  }
+}

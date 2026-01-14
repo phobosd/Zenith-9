@@ -61,7 +61,7 @@ export class InventorySystem extends System {
             const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
             itemsInRoom.forEach(item => {
                 const itemComp = item.getComponent(Item);
-                if (itemComp && itemComp.name.toLowerCase().includes(targetName)) {
+                if (itemComp && itemComp.matches(targetName)) {
                     itemMatches.push(item);
                 }
             });
@@ -81,7 +81,7 @@ export class InventorySystem extends System {
                 const itemComp = entity?.getComponent(Item);
                 const containerComp = entity?.getComponent(Container);
                 if (itemComp && containerComp) {
-                    if (!specifiedContainerName || itemComp.name.toLowerCase().includes(specifiedContainerName)) {
+                    if (!specifiedContainerName || itemComp.matches(specifiedContainerName)) {
                         containerMatches.push({ entity: entity!, name: itemComp.name });
                     }
                 }
@@ -159,14 +159,16 @@ export class InventorySystem extends System {
 
         if (inventory.leftHand) {
             const item = WorldQuery.getEntityById(engine, inventory.leftHand);
-            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.matches(targetName)) {
                 itemMatches.push({ id: inventory.leftHand, source: 'left' });
             }
         }
 
         if (inventory.rightHand) {
             const item = WorldQuery.getEntityById(engine, inventory.rightHand);
-            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.matches(targetName)) {
                 itemMatches.push({ id: inventory.rightHand, source: 'right' });
             }
         }
@@ -178,7 +180,8 @@ export class InventorySystem extends System {
             if (container) {
                 container.items.forEach(id => {
                     const item = WorldQuery.getEntityById(engine, id);
-                    if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                    const itemComp = item?.getComponent(Item);
+                    if (itemComp && itemComp.matches(targetName)) {
                         itemMatches.push({ id, source: backpack! });
                     }
                 });
@@ -238,13 +241,15 @@ export class InventorySystem extends System {
         const itemMatches: { id: string, source: 'left' | 'right' }[] = [];
         if (inventory.leftHand) {
             const item = WorldQuery.getEntityById(engine, inventory.leftHand);
-            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetItemNameParsed)) {
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.matches(targetItemNameParsed)) {
                 itemMatches.push({ id: inventory.leftHand, source: 'left' });
             }
         }
         if (inventory.rightHand) {
             const item = WorldQuery.getEntityById(engine, inventory.rightHand);
-            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetItemNameParsed)) {
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.matches(targetItemNameParsed)) {
                 itemMatches.push({ id: inventory.rightHand, source: 'right' });
             }
         }
@@ -267,7 +272,7 @@ export class InventorySystem extends System {
             const item = WorldQuery.getEntityById(engine, id);
             const itemComp = item?.getComponent(Item);
             const container = item?.getComponent(Container);
-            if (container && itemComp && itemComp.name.toLowerCase().includes(targetContainerNameParsed)) {
+            if (container && itemComp && itemComp.matches(targetContainerNameParsed)) {
                 containerMatches.push({ entity: item!, name: itemComp.name });
             }
         };
@@ -351,7 +356,7 @@ export class InventorySystem extends System {
             if (!id) return "Empty";
             const item = WorldQuery.getEntityById(engine, id);
             const itemComp = item?.getComponent(Item);
-            return itemComp ? MessageFormatter.item(itemComp.name, id) : "Unknown";
+            return itemComp ? MessageFormatter.item(itemComp.name, id, itemComp.rarity) : "Unknown";
         };
 
         this.io.to(entityId).emit('inventory-data', {
@@ -363,6 +368,7 @@ export class InventorySystem extends System {
             legs: getItemName(inventory.equipment.get('legs') || null),
             feet: getItemName(inventory.equipment.get('feet') || null),
             waist: getItemName(inventory.equipment.get('waist') || null),
+            neural: getItemName(inventory.equipment.get('neural') || null),
             backpackContents: DescriptionService.getBackpackContents(inventory, engine),
             currency: {
                 newYen: player.getComponent(Credits)?.newYen || 0,
@@ -400,7 +406,8 @@ export class InventorySystem extends System {
         if (playerPos) {
             const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
             itemsInRoom.forEach(item => {
-                if (item.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+                const itemComp = item.getComponent(Item);
+                if (itemComp && itemComp.matches(targetName)) {
                     itemMatches.push({ entity: item, source: 'ground' });
                 }
             });
@@ -429,6 +436,7 @@ export class InventorySystem extends System {
             else if (n.includes('belt')) slot = 'waist';
             else if (n.includes('helmet')) slot = 'head';
             else if (n.includes('boots')) slot = 'feet';
+            else if (n.includes('link') || n.includes('jack') || n.includes('neural')) slot = 'neural';
             else {
                 this.messageService.info(entityId, `You can't wear the ${itemComp.name}.`);
                 return;
@@ -467,7 +475,8 @@ export class InventorySystem extends System {
 
         for (const [s, id] of inventory.equipment) {
             const item = WorldQuery.getEntityById(engine, id);
-            if (item?.getComponent(Item)?.name.toLowerCase().includes(targetName)) {
+            const itemComp = item?.getComponent(Item);
+            if (itemComp && itemComp.matches(targetName)) {
                 itemMatches.push({ entity: item!, slot: s });
             }
         }

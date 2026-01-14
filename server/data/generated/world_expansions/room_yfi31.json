@@ -1,0 +1,23 @@
+{
+  "id": "room_yfi31",
+  "name": "Neon Highway 30,0",
+  "description": "A placeholder location waiting for development.",
+  "type": "street",
+  "coordinates": {
+    "x": 30,
+    "y": 0,
+    "z": 0
+  },
+  "exits": {},
+  "features": [],
+  "spawns": [],
+  "_metadata": {
+    "proposalId": "10ec5a47-ffb9-465f-88b3-fc0f15a299ca",
+    "generatedAt": 1768368508262,
+    "publishedAt": 1768368508262,
+    "seed": "0e90bg",
+    "flavor": {
+      "rationale": "Expanding the world with a new street block."
+    }
+  }
+}
