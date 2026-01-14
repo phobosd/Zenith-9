@@ -105,8 +105,8 @@ graph TD
     Admin((Admin/Dev))
 
     subgraph Client_Side [Client Side]
-        GameClient[Game Client (React)]
-        AdminDash[Admin Dashboard (React)]
+        GameClient["Game Client (React)"]
+        AdminDash["Admin Dashboard (React)"]
     end
 
     subgraph Server_Side [Server Side]
@@ -117,7 +117,7 @@ graph TD
     end
 
     subgraph AI_Services [AI Services]
-        LLM[LLM Provider (Local/Cloud)]
+        LLM["LLM Provider (Local/Cloud)"]
     end
 
     %% Interactions
@@ -151,6 +151,8 @@ Ouroboro includes a comprehensive Admin Dashboard for real-time world management
 - **AI Director**: Manually trigger generation of new content (NPCs, Mobs, Items, Quests, Rooms).
 - **Review Pipeline**: Approve or reject AI-generated content before it enters the game.
 - **Snapshots**: Backup and restore the entire world state.
+
+For a detailed guide on using the dashboard, see the [Admin Guide](./docs/ADMIN_GUIDE.md).
 
 ### Project Structure
 ```
