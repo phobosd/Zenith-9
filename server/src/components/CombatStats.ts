@@ -28,7 +28,7 @@ export class CombatStats extends Component {
     isParrying: boolean = false;
     pendingMove: string | null = null;
 
-    constructor(maxHp: number = 100, attack: number = 10, defense: number = 0, isHostile: boolean = false) {
+    constructor(maxHp: number = 150, attack: number = 15, defense: number = 5, isHostile: boolean = false) {
         super();
         this.hp = maxHp;
         this.maxHp = maxHp;

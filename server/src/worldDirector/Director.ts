@@ -8,7 +8,7 @@ import { ItemGenerator } from '../generation/generators/ItemGenerator';
 import { QuestGenerator } from '../generation/generators/QuestGenerator';
 import { RoomGenerator } from '../generation/generators/RoomGenerator';
 import { LLMService } from '../generation/llm/LLMService';
-import { ProposalStatus, ProposalType } from '../generation/proposals/schemas';
+import { ProposalStatus, ProposalType, NPCPayload, ItemPayload } from '../generation/proposals/schemas';
 import { ItemRegistry } from '../services/ItemRegistry';
 import { NPCRegistry } from '../services/NPCRegistry';
 import { RoomRegistry } from '../services/RoomRegistry';
@@ -56,6 +56,69 @@ export class WorldDirector {
         aggression: { value: 0.3, enabled: true },
         expansion: { value: 0.1, enabled: true }
     };
+
+    private glitchConfig = {
+        mobCount: 5,
+        itemCount: 5,
+        legendaryChance: 0.05
+    };
+
+    // ... constructor ...
+
+    public async generateGlitchRun(): Promise<{ mobs: NPCPayload[], items: ItemPayload[] }> {
+        this.log(DirectorLogLevel.INFO, 'Generating Glitch Run content...');
+
+        const mobs: NPCPayload[] = [];
+        const items: ItemPayload[] = [];
+
+        // Generate Mobs
+        for (let i = 0; i < this.glitchConfig.mobCount; i++) {
+            try {
+                const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm);
+                if (proposal && proposal.payload) {
+                    const payload = proposal.payload as NPCPayload;
+                    // Force tag to be glitch_enemy
+                    payload.tags = ['glitch_enemy'];
+                    payload.behavior = 'aggressive';
+                    mobs.push(payload);
+                }
+            } catch (err) {
+                Logger.error('Director', `Failed to generate glitch mob: ${err}`);
+            }
+        }
+
+        // Generate Items
+        for (let i = 0; i < this.glitchConfig.itemCount; i++) {
+            try {
+                const proposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm);
+                if (proposal && proposal.payload) {
+                    const payload = proposal.payload as ItemPayload;
+                    // Check for Legendary Chance
+                    if (Math.random() < this.glitchConfig.legendaryChance) {
+                        payload.rarity = 'legendary';
+                        payload.name = `[GLITCH] ${payload.name}`;
+                        payload.description += " It pulses with unstable energy.";
+                    }
+                    items.push(payload);
+                }
+            } catch (err) {
+                Logger.error('Director', `Failed to generate glitch item: ${err}`);
+            }
+        }
+
+        this.log(DirectorLogLevel.SUCCESS, `Glitch Run Generated: ${mobs.length} mobs, ${items.length} items.`);
+        return { mobs, items };
+    }
+
+    public getStatus() {
+        return {
+            paused: this.isPaused,
+            personality: this.personality,
+            glitchConfig: this.glitchConfig, // Expose config
+            guardrails: this.guardrails.getConfig(),
+            proposals: this.proposals
+        };
+    }
 
     constructor(io: Server, guardrails: GuardrailService, snapshots: SnapshotService, publisher: PublisherService, engine: Engine) {
         this.io = io;
@@ -110,6 +173,12 @@ export class WorldDirector {
                 if (update.expansion !== undefined) this.personality.expansion = { ...this.personality.expansion, ...update.expansion };
 
                 this.log(DirectorLogLevel.INFO, `Personality updated: ${JSON.stringify(this.personality)}`);
+                this.adminNamespace.emit('director:status', this.getStatus());
+            });
+
+            socket.on('director:update_glitch_config', (config: any) => {
+                this.glitchConfig = { ...this.glitchConfig, ...config };
+                this.log(DirectorLogLevel.INFO, 'Glitch Door configuration updated.');
                 this.adminNamespace.emit('director:status', this.getStatus());
             });
 
@@ -390,15 +459,7 @@ export class WorldDirector {
         this.adminNamespace.emit('director:status', this.getStatus());
     }
 
-    public getStatus() {
-        return {
-            paused: this.isPaused,
-            logCount: this.logs.length,
-            personality: this.personality,
-            guardrails: this.guardrails.getConfig(),
-            proposals: this.proposals
-        };
-    }
+
 
     private async generateChunk(cx: number, cy: number) {
         if (this.chunkSystem.isChunkGenerated(cx, cy)) {

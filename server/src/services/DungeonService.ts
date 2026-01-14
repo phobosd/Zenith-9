@@ -9,6 +9,11 @@ import { NPC } from '../components/NPC';
 import { CombatStats } from '../components/CombatStats';
 import { Stats } from '../components/Stats';
 import { Visuals } from '../components/Visuals';
+import { Loot } from '../components/Loot';
+import { Item } from '../components/Item';
+import { Weapon } from '../components/Weapon';
+import { Armor } from '../components/Armor';
+import { EngagementTier } from '../types/CombatTypes';
 import { MessageService } from './MessageService';
 import { WorldQuery } from '../utils/WorldQuery';
 import * as fs from 'fs';
@@ -61,11 +66,69 @@ export class DungeonService {
         }
     }
 
-    public enterDungeon(playerId: string) {
+    public async enterDungeon(playerId: string, director: any) {
         // TEMPORARY: Always regenerate to clear corrupted state from Redis
         console.log("[DungeonService] Regenerating dungeon (forced)...");
         this.clearDungeon();
-        this.generateDungeon();
+
+        this.messageService.system(playerId, "\n[SYSTEM] WARNING: UNSTABLE REALITY DETECTED.");
+        this.messageService.system(playerId, "[SYSTEM] CONNECTING TO GLITCH ZONE...");
+        this.messageService.info(playerId, "The world dissolves into static. You step through the threshold...");
+        this.messageService.system(playerId, "[SYSTEM] STABILIZING REALITY... PLEASE WAIT...");
+
+        // Generate Content via Director
+        let generatedContent = { mobs: [], items: [] };
+        if (director) {
+            try {
+                generatedContent = await director.generateGlitchRun();
+
+                // Validate generated content
+                generatedContent.mobs = generatedContent.mobs.filter((mob: any) => {
+                    if (!mob.name || mob.name.trim().length === 0) {
+                        console.warn('[DungeonService] Invalid mob: missing name');
+                        return false;
+                    }
+                    if (!mob.description || mob.description.trim().length < 10) {
+                        console.warn(`[DungeonService] Invalid mob ${mob.name}: poor description`);
+                        return false;
+                    }
+                    if (!mob.stats || !mob.stats.health || mob.stats.health <= 0) {
+                        console.warn(`[DungeonService] Invalid mob ${mob.name}: invalid stats`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                generatedContent.items = generatedContent.items.filter((item: any) => {
+                    if (!item.name || item.name.trim().length === 0) {
+                        console.warn('[DungeonService] Invalid item: missing name');
+                        return false;
+                    }
+                    if (!item.description || item.description.trim().length < 10) {
+                        console.warn(`[DungeonService] Invalid item ${item.name}: poor description`);
+                        return false;
+                    }
+                    if (!item.type || !['weapon', 'armor', 'consumable', 'item'].includes(item.type)) {
+                        console.warn(`[DungeonService] Invalid item ${item.name}: invalid type`);
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Ensure we have minimum valid content
+                if (generatedContent.mobs.length < 3) {
+                    console.error('[DungeonService] Insufficient valid mobs generated. Aborting dungeon entry.');
+                    this.messageService.error(playerId, '\n[SYSTEM ERROR] Reality rift too unstable. Try again.');
+                    return;
+                }
+
+                console.log(`[DungeonService] Validated: ${generatedContent.mobs.length} mobs, ${generatedContent.items.length} items`);
+            } catch (err) {
+                console.error("[DungeonService] Failed to generate glitch run content:", err);
+            }
+        }
+
+        this.generateDungeon(generatedContent.mobs, generatedContent.items);
 
         const player = WorldQuery.getEntityById(this.engine, playerId);
         if (player) {
@@ -79,6 +142,7 @@ export class DungeonService {
                     pos.x = this.DUNGEON_OFFSET_X;
                     pos.y = this.DUNGEON_OFFSET_Y;
                     console.log(`[DungeonService] Teleported player ${playerId} to ${pos.x}, ${pos.y}`);
+                    this.messageService.info(playerId, "\n...You materialize in a shifting, neon-lit void.");
                 } else {
                     // Emergency: Find ANY dungeon room
                     console.error(`[DungeonService] No room at dungeon spawn (${this.DUNGEON_OFFSET_X}, ${this.DUNGEON_OFFSET_Y})!`);
@@ -105,10 +169,6 @@ export class DungeonService {
             if (pos) {
                 this.visitedRooms.set(playerId, new Set([`${pos.x},${pos.y}`]));
             }
-
-            this.messageService.system(playerId, "\n[SYSTEM] WARNING: UNSTABLE REALITY DETECTED.");
-            this.messageService.system(playerId, "[SYSTEM] CONNECTING TO GLITCH ZONE...");
-            this.messageService.info(playerId, "\nThe world dissolves into static. You step through the threshold and find yourself in a shifting, neon-lit void.");
         } else {
             console.error(`[DungeonService] Failed to find player ${playerId} or position component.`);
         }
@@ -156,26 +216,10 @@ export class DungeonService {
         }
     }
 
-    private clearDungeon() {
-        const entities = this.engine.getEntities();
-        const toRemove: string[] = [];
 
-        for (const [id, entity] of entities) {
-            const pos = entity.getComponent(Position);
-            if (pos && pos.x >= this.DUNGEON_OFFSET_X) {
-                // Only remove NPCs and Portals, keep rooms
-                if (entity.hasComponent(NPC) || entity.hasComponent(Portal)) {
-                    toRemove.push(id);
-                }
-            }
-        }
 
-        toRemove.forEach(id => this.engine.removeEntity(id));
-        console.log(`[DungeonService] Cleared ${toRemove.length} entities from dungeon`);
-    }
-
-    private generateDungeon() {
-        const targetRooms = 60 + Math.floor(Math.random() * 30);
+    private generateDungeon(mobs: any[] = [], items: any[] = []) {
+        const targetRooms = 30 + Math.floor(Math.random() * 10); // 30-40 rooms for ~20 enemies max
         const visited = new Set<string>();
         const nodes: { x: number, y: number }[] = [{ x: this.DUNGEON_OFFSET_X, y: this.DUNGEON_OFFSET_Y }];
 
@@ -223,7 +267,7 @@ export class DungeonService {
                         break;
                     }
 
-                    this.createRoom(nx, ny, false);
+                    this.createRoom(nx, ny, false, mobs, items);
                     visited.add(key);
                     nodes.push({ x: nx, y: ny });
                     cx = nx;
@@ -258,7 +302,7 @@ export class DungeonService {
         console.log(`[DungeonService] Reality Rift spawned at ${furthestNode.x}, ${furthestNode.y}`);
     }
 
-    private createRoom(x: number, y: number, isEntry: boolean) {
+    private createRoom(x: number, y: number, isEntry: boolean, mobs: any[] = [], items: any[] = []) {
         const room = new Entity();
         room.addComponent(new IsRoom());
         room.addComponent(new Position(x, y));
@@ -271,10 +315,26 @@ export class DungeonService {
         console.log(`[DungeonService] Added room entity ${room.id} at (${x}, ${y}), isEntry: ${isEntry}`);
 
         if (!isEntry) {
-            if (Math.random() < 0.6) {
-                this.spawnEnemy(x, y);
+            if (Math.random() < 0.5) { // 50% spawn rate for ~20 enemies in 40 rooms
+                this.spawnEnemy(x, y, mobs, items);
             }
         }
+    }
+
+    private clearDungeon() {
+        const entities = this.engine.getEntities();
+        const toRemove: string[] = [];
+
+        for (const [id, entity] of entities) {
+            const pos = entity.getComponent(Position);
+            if (pos && pos.x >= this.DUNGEON_OFFSET_X) {
+                // Remove ALL entities in dungeonzone (NPCs, items, portals, rooms)
+                toRemove.push(id);
+            }
+        }
+
+        toRemove.forEach(id => this.engine.removeEntity(id));
+        console.log(`[DungeonService] Cleared ${toRemove.length} entities from dungeon (full cleanup)`);
     }
 
     private generateRoomFlavor(isEntry: boolean): { title: string, desc: string } {
@@ -303,21 +363,20 @@ export class DungeonService {
         };
     }
 
-    private spawnEnemy(x: number, y: number) {
-        if (this.enemies.length === 0) return;
+    private spawnEnemy(x: number, y: number, mobs: any[], items: any[]) {
+        // ONLY use generated mobs for glitch dungeons
+        if (mobs.length === 0) {
+            console.warn('[DungeonService] No generated mobs available, skipping spawn');
+            return;
+        }
 
-        // Filter by tier based on distance
-        const dist = Math.abs(x - this.DUNGEON_OFFSET_X) + Math.abs(y - this.DUNGEON_OFFSET_Y);
-        const targetTier = Math.min(4, 1 + Math.floor(dist / 15));
-        const eligibleEnemies = this.enemies.filter(e => e.tier <= targetTier);
-        const enemyDef = eligibleEnemies.length > 0
-            ? eligibleEnemies[Math.floor(Math.random() * eligibleEnemies.length)]
-            : this.enemies[0];
+        const enemyDef = mobs[Math.floor(Math.random() * mobs.length)];
+        const isGenerated = true;
 
         const entity = new Entity();
         entity.addComponent(new NPC(
             enemyDef.name,
-            ["...buffer overflow...", "010101", "kill -9"],
+            enemyDef.dialogue || ["...buffer overflow...", "010101", "kill -9"],
             enemyDef.description,
             true, // canMove
             'glitch_enemy',
@@ -325,22 +384,79 @@ export class DungeonService {
         ));
         entity.addComponent(new Position(x, y));
 
-        // Map Stats with scaling based on distance
-        const scale = 1 + (dist / 30); // ~3% increase per unit distance
+        // Stats
+        if (isGenerated) {
+            // Generated mobs have stats in 'stats' object
+            entity.addComponent(new CombatStats(
+                enemyDef.stats.health || 50,
+                enemyDef.stats.attack || 10,
+                enemyDef.stats.defense || 5,
+                true
+            ));
+        } else {
+            // Hardcoded mobs scaling
+            const dist = Math.abs(x - this.DUNGEON_OFFSET_X) + Math.abs(y - this.DUNGEON_OFFSET_Y);
+            const scale = 1 + (dist / 30);
+            const hp = Math.floor(enemyDef.stats.hp * scale);
+            const atk = Math.floor(enemyDef.stats.atk * scale);
+            const def = Math.floor(enemyDef.stats.def * scale);
+            entity.addComponent(new CombatStats(hp, atk, def, true));
 
-        const hp = Math.floor(enemyDef.stats.hp * scale);
-        const atk = Math.floor(enemyDef.stats.atk * scale);
-        const def = Math.floor(enemyDef.stats.def * scale);
+            // Visuals for hardcoded
+            entity.addComponent(new Visuals(
+                enemyDef.visuals.char,
+                enemyDef.visuals.color,
+                enemyDef.visuals.glitch_rate
+            ));
+        }
 
-        entity.addComponent(new CombatStats(hp, atk, def));
-        entity.addComponent(new Stats()); // Base stats
+        entity.addComponent(new Stats());
 
-        // Visuals
-        entity.addComponent(new Visuals(
-            enemyDef.visuals.char,
-            enemyDef.visuals.color,
-            enemyDef.visuals.glitch_rate
-        ));
+        // Assign Loot (Generated Items)
+        if (items.length > 0 && Math.random() < 0.4) {
+            const itemDef = items[Math.floor(Math.random() * items.length)];
+
+            const itemEntity = new Entity();
+            itemEntity.addComponent(new Item(
+                itemDef.name,
+                itemDef.description,
+                itemDef.stats?.weight || 1.0,
+                itemDef.stats?.value || 100,
+                "Medium",
+                "Legal",
+                "",
+                itemDef.type,
+                "hand"
+            ));
+
+            // Add specific components based on type
+            if (itemDef.type === 'weapon') {
+                itemEntity.addComponent(new Weapon(
+                    itemDef.name,
+                    "melee", // Default to melee for now unless we parse it
+                    itemDef.stats?.damage || 10,
+                    0, // range
+                    null, // ammoType
+                    null, // magType
+                    0, // magSize
+                    { speed: 1.0, zoneSize: 2, jitter: 0.1 },
+                    EngagementTier.MELEE,
+                    EngagementTier.MELEE,
+                    0.1, // momentum
+                    2.0 // roundtime
+                ));
+            } else if (itemDef.type === 'armor') {
+                itemEntity.addComponent(new Armor(
+                    itemDef.stats?.defense || 5,
+                    0 // penalty
+                ));
+            }
+
+            // Don't add Position - it's "in" the loot bag
+            this.engine.addEntity(itemEntity);
+            entity.addComponent(new Loot([itemEntity.id]));
+            console.log(`[DungeonService] Assigned ${itemDef.name} to ${enemyDef.name}`);
+        }
 
         this.engine.addEntity(entity);
     }

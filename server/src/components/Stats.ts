@@ -21,9 +21,9 @@ export class Stats extends Component {
     constructor() {
         super();
         // Initialize default attributes
-        this.attributes.set('STR', { name: 'STR', value: 10 });
-        this.attributes.set('CON', { name: 'CON', value: 10 });
-        this.attributes.set('AGI', { name: 'AGI', value: 10 });
+        this.attributes.set('STR', { name: 'STR', value: 12 });
+        this.attributes.set('CON', { name: 'CON', value: 12 });
+        this.attributes.set('AGI', { name: 'AGI', value: 15 });
         this.attributes.set('CHA', { name: 'CHA', value: 10 });
 
         // Initialize default skills

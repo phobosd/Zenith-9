@@ -245,7 +245,10 @@ export class PrefabFactory {
                     '',
                     true // isAggressive
                 ));
-                entity.addComponent(new CombatStats(20, 5, 0, true));
+                entity.addComponent(new CombatStats(30, 8, 2, true));
+                entity.addComponent(new Stats());
+                entity.addComponent(new CombatBuffer(3));
+                entity.addComponent(new WoundTable());
                 break;
             case 'cyber thug':
                 entity.addComponent(new NPC(
@@ -256,7 +259,10 @@ export class PrefabFactory {
                     '',
                     true // isAggressive
                 ));
-                entity.addComponent(new CombatStats(50, 10, 5));
+                entity.addComponent(new CombatStats(60, 12, 6));
+                entity.addComponent(new Stats());
+                entity.addComponent(new CombatBuffer(3));
+                entity.addComponent(new WoundTable());
                 break;
             case 'dancer':
                 entity.addComponent(new NPC(
@@ -266,6 +272,9 @@ export class PrefabFactory {
                     false
                 ));
                 entity.addComponent(new CombatStats(30, 5, 2));
+                entity.addComponent(new Stats());
+                entity.addComponent(new CombatBuffer(3));
+                entity.addComponent(new WoundTable());
                 break;
             case 'ripperdoc':
                 entity.addComponent(new NPC(
@@ -275,6 +284,9 @@ export class PrefabFactory {
                     false
                 ));
                 entity.addComponent(new CombatStats(40, 8, 3));
+                entity.addComponent(new Stats());
+                entity.addComponent(new CombatBuffer(3));
+                entity.addComponent(new WoundTable());
                 break;
             case 'street vendor':
                 entity.addComponent(new NPC(
@@ -284,6 +296,9 @@ export class PrefabFactory {
                     false
                 ));
                 entity.addComponent(new CombatStats(30, 5, 1));
+                entity.addComponent(new Stats());
+                entity.addComponent(new CombatBuffer(3));
+                entity.addComponent(new WoundTable());
                 break;
             case 'street samurai':
                 entity.addComponent(new NPC(
@@ -294,7 +309,12 @@ export class PrefabFactory {
                     '',
                     true // isAggressive
                 ));
-                entity.addComponent(new CombatStats(150, 25, 15));
+                entity.addComponent(new CombatStats(80, 12, 8));
+                const samuraiStats = new Stats();
+                samuraiStats.attributes.set('AGI', { name: 'AGI', value: 20 });
+                entity.addComponent(samuraiStats);
+                entity.addComponent(new CombatBuffer(5));
+                entity.addComponent(new WoundTable());
                 break;
             case 'fixer':
                 entity.addComponent(new NPC(
@@ -313,7 +333,7 @@ export class PrefabFactory {
                     true, // canMove
                     'turing' // tag
                 ));
-                entity.addComponent(new CombatStats(120, 20, 10));
+                entity.addComponent(new CombatStats(100, 16, 10));
                 // Loadout is handled in WorldGenerator based on 'turing' tag.
 
                 // We need to handle inventory assignment. 
@@ -347,7 +367,7 @@ export class PrefabFactory {
                     true // isAggressive
                 ));
                 entity.addComponent(new IsICE('Black ICE'));
-                entity.addComponent(new CombatStats(200, 50, 10, true)); // Lethal
+                entity.addComponent(new CombatStats(140, 22, 12, true)); // Lethal
                 break;
             default:
                 return null;

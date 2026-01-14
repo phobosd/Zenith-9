@@ -8,12 +8,16 @@ import { MessageService } from '../services/MessageService';
 import { DungeonService } from '../services/DungeonService';
 import { Server } from 'socket.io';
 
+import { WorldDirector } from '../worldDirector/Director';
+
 export class PortalSystem extends System {
     private messageService: MessageService;
+    private director?: WorldDirector;
 
-    constructor(private io: Server) {
+    constructor(private io: Server, director?: WorldDirector) {
         super();
         this.messageService = new MessageService(io);
+        this.director = director;
     }
 
     update(engine: IEngine, deltaTime: number): void {
@@ -53,7 +57,7 @@ export class PortalSystem extends System {
 
         if (portal.destinationType === 'dungeon') {
             console.log(`[PortalSystem] Entering dungeon for ${entityId}`);
-            DungeonService.getInstance(engine, this.messageService)?.enterDungeon(entityId);
+            DungeonService.getInstance(engine, this.messageService)?.enterDungeon(entityId, this.director);
         } else if (portal.destinationType === 'room') {
             // Check if player is currently in dungeon
             if (playerPos.x >= 2000) {

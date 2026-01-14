@@ -1,0 +1,78 @@
+import { Entity } from '../../../ecs/Entity';
+import { IEngine } from '../../../ecs/IEngine';
+import { CombatStats } from '../../../components/CombatStats';
+import { WorldQuery } from '../../../utils/WorldQuery';
+import { MessageService } from '../../../services/MessageService';
+import { BodyPart } from '../../../types/CombatTypes';
+
+export class DefenseHandler {
+    static handleHangback(playerId: string, engine: IEngine, messageService: MessageService) {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        const stats = player?.getComponent(CombatStats);
+        if (stats) {
+            stats.isHangingBack = !stats.isHangingBack;
+            messageService.info(playerId, `Hangback mode: ${stats.isHangingBack ? 'ENABLED' : 'DISABLED'}`);
+        }
+    }
+
+    static handleTarget(playerId: string, part: string, engine: IEngine, messageService: MessageService) {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        const stats = player?.getComponent(CombatStats);
+        if (stats) {
+            const bodyPart = Object.values(BodyPart).find(p => p.toLowerCase() === part.toLowerCase());
+            if (bodyPart) {
+                stats.targetLimb = bodyPart as BodyPart;
+                messageService.info(playerId, `Targeting bias set to: ${bodyPart}`);
+            } else {
+                messageService.error(playerId, `Invalid body part: ${part}. Valid parts: ${Object.values(BodyPart).join(', ')}`);
+            }
+        }
+    }
+
+    static handleStance(playerId: string, args: string[], engine: IEngine, messageService: MessageService) {
+        const player = WorldQuery.getEntityById(engine, playerId);
+        const stats = player?.getComponent(CombatStats);
+        if (!stats) return;
+
+        const stanceName = args[0]?.toLowerCase();
+        if (!stanceName) {
+            messageService.info(playerId, "Usage: stance <evasion|parry|shield|offensive|defensive|neutral|custom>");
+            return;
+        }
+
+        switch (stanceName) {
+            case 'offensive':
+                stats.evasion = 30; stats.parry = 30; stats.shield = 10; stats.aggression = 0.8;
+                break;
+            case 'defensive':
+                stats.evasion = 40; stats.parry = 40; stats.shield = 20; stats.aggression = 0.2;
+                break;
+            case 'neutral':
+                stats.evasion = 40; stats.parry = 30; stats.shield = 30; stats.aggression = 0.5;
+                break;
+            case 'evasion':
+                stats.evasion = 80; stats.parry = 10; stats.shield = 10; stats.aggression = 0.3;
+                break;
+            case 'parry':
+                stats.evasion = 10; stats.parry = 80; stats.shield = 10; stats.aggression = 0.3;
+                break;
+            case 'shield':
+                stats.evasion = 10; stats.parry = 10; stats.shield = 80; stats.aggression = 0.3;
+                break;
+            case 'custom':
+                const e = parseInt(args[1]);
+                const p = parseInt(args[2]);
+                const s = parseInt(args[3]);
+                if (isNaN(e) || isNaN(p) || isNaN(s) || (e + p + s) > 100) {
+                    messageService.error(playerId, "Invalid custom stance. Usage: stance custom <evasion> <parry> <shield> (Sum must be <= 100)");
+                    return;
+                }
+                stats.evasion = e; stats.parry = p; stats.shield = s;
+                break;
+            default:
+                messageService.error(playerId, `Unknown stance: ${stanceName}`);
+                return;
+        }
+        messageService.success(playerId, `Stance set to ${stanceName.toUpperCase()}. (Evasion: ${stats.evasion}%, Parry: ${stats.parry}%, Shield: ${stats.shield}%)`);
+    }
+}

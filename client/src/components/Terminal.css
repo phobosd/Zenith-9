@@ -130,8 +130,15 @@
 }
 
 .text-range {
-  color: #00e5ff;
+  color: #ffffff;
   font-weight: bold;
+}
+
+.text-range-pulsate {
+  color: #ffffff;
+  font-weight: bold;
+  text-shadow: 0 0 8px #ffffff;
+  animation: pulse 1s infinite;
 }
 
 .text-cmd {

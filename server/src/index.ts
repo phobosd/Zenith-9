@@ -95,7 +95,7 @@ const combatSystem = new CombatSystem(engine, io, messageService);
 const cyberspaceSystem = new CyberspaceSystem(io, messageService);
 const atmosphereSystem = new AtmosphereSystem(messageService);
 const observationSystem = new ObservationSystem(io);
-const portalSystem = new PortalSystem(io);
+const portalSystem = new PortalSystem(io, director);
 const stanceSystem = new StanceSystem(io);
 const characterSystem = new CharacterSystem(io);
 const recoverySystem = new RecoverySystem();
@@ -350,6 +350,35 @@ commandRegistry.register({
     aliases: ['skills'],
     description: 'View your character skills',
     execute: (ctx) => ctx.systems.character.handleScore(ctx.socketId, ctx.engine),
+    ignoresRoundtime: true
+});
+
+commandRegistry.register({
+    name: 'refresh',
+    aliases: ['reset'],
+    description: 'Reset your character to default stats (for testing)',
+    execute: (ctx) => {
+        const player = ctx.engine.getEntity(ctx.socketId);
+        if (!player) return;
+
+        // Remove and re-add Stats component to get new defaults
+        if (player.hasComponent(Stats)) {
+            player.removeComponent(Stats);
+        }
+        player.addComponent(new Stats());
+
+        // Reset CombatStats to new defaults
+        const combatStats = player.getComponent(CombatStats);
+        if (combatStats) {
+            combatStats.hp = 150;
+            combatStats.maxHp = 150;
+            combatStats.attack = 15;
+            combatStats.defense = 5;
+        }
+
+        ctx.messageService.success(ctx.socketId, 'Character refreshed to default stats!');
+        ctx.systems.character.handleSheet(ctx.socketId, ctx.engine);
+    },
     ignoresRoundtime: true
 });
 
@@ -638,7 +667,7 @@ commandRegistry.register({
 commandRegistry.register({
     name: 'advance',
     aliases: ['approach', 'adv'],
-    description: 'Automatically advance on a target until close range',
+    description: 'Automatically advance on a target until melee range',
     execute: (ctx) => {
         const target = ctx.args.join(' ');
         ctx.systems.combat.handleAdvance(ctx.socketId, target, ctx.engine);

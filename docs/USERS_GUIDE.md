@@ -22,6 +22,7 @@ Welcome to Ouroboro, a cyberpunk text-based RPG. This guide will help you naviga
 | `inventory` | `i` | Check your inventory. | `i` |
 | `sheet` | `stats` | View your character attributes and equipment. | `sheet` |
 | `score` | `skills` | View your character skills. | `score` |
+| `refresh` | `reset` | Reset your character to default stats (for testing balance changes). | `refresh` |
 | `map` | `m` | Display the world map. | `map` |
 | `weather` | `sky` | Scan the sky for current weather conditions. | `weather` |
 | `stance` | - | Check or set your physical/combat stance. | `stance`, `stance offensive` |

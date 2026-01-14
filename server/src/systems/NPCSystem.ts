@@ -166,23 +166,23 @@ export class NPCSystem extends System {
         }
 
         // Determine Attack Range based on equipped weapon
-        let maxAttackTier = EngagementTier.MELEE;
+        let minAttackTier = EngagementTier.MELEE; // Default: need to be at melee to attack
         const inventory = npc.getComponent(Inventory) as Inventory;
         if (inventory && inventory.rightHand) {
             const weaponEntity = WorldQuery.getEntityById(engine, inventory.rightHand);
             const weapon = weaponEntity?.getComponent(Weapon) as Weapon;
             if (weapon) {
-                maxAttackTier = weapon.maxTier;
+                minAttackTier = weapon.minTier; // Use minTier (closest they need to be)
             }
         }
 
         const tiers = Object.values(EngagementTier);
         const currentTierIndex = tiers.indexOf(combatStats.engagementTier);
-        const maxTierIndex = tiers.indexOf(maxAttackTier);
+        const minTierIndex = tiers.indexOf(minAttackTier);
 
-        // NPC is at attack range if current tier is <= max weapon tier
-        // AND current tier is not DISENGAGED (unless max tier is also disengaged, which shouldn't happen)
-        const isAtAttackRange = currentTierIndex <= maxTierIndex && combatStats.engagementTier !== EngagementTier.DISENGAGED;
+        // NPC is at attack range if current tier >= minimum weapon tier
+        // AND current tier is not DISENGAGED
+        const isAtAttackRange = currentTierIndex >= minTierIndex && combatStats.engagementTier !== EngagementTier.DISENGAGED;
 
         if (!isAtAttackRange) {
             console.log(`[NPC AI] ${npcComp.typeName} (${npc.id}) checking advance: current tier=${combatStats.engagementTier}, target=${target.id}`);
@@ -259,7 +259,9 @@ export class NPCSystem extends System {
             }
         }
 
-        if (combatStats.engagementTier === EngagementTier.MELEE || combatStats.engagementTier === EngagementTier.CLOSE_QUARTERS) {
+
+        // Attack if at valid attack range for weapon
+        if (isAtAttackRange) {
             // Telegraphing logic
             if (!combatStats.currentTelegraph && Math.random() < 0.5) {
                 const moves = ['SLASH', 'THRUST', 'DASH'];
@@ -282,6 +284,11 @@ export class NPCSystem extends System {
         // Check if NPC is engaged in combat
         const combatStats = npc.getComponent(CombatStats);
         if (combatStats) {
+            // Don't move if hostile and has a target (actively pursuing/fighting)
+            if (combatStats.isHostile && combatStats.targetId) {
+                return; // Cannot move while pursuing/engaged with target
+            }
+            // Also don't move at close combat ranges
             if ([EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS, EngagementTier.POLEARM].includes(combatStats.engagementTier)) {
                 return; // Cannot move while engaged
             }

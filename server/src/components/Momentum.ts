@@ -22,6 +22,14 @@ export class Momentum extends Component {
     }
 
     /**
+     * Consume momentum
+     */
+    consume(amount: number): void {
+        this.current = Math.max(0, this.current - amount);
+        this.lastUpdate = Date.now();
+    }
+
+    /**
      * Decay momentum over time
      */
     decay(deltaTime: number): void {

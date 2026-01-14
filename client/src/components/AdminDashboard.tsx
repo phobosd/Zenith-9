@@ -55,6 +55,11 @@ interface DirectorStatus {
         llmProfiles: Record<string, LLMProfile>;
     };
     proposals: Proposal[];
+    glitchConfig: {
+        mobCount: number;
+        itemCount: number;
+        legendaryChance: number;
+    };
 }
 
 const BUDGET_TOOLTIPS: Record<string, string> = {
@@ -68,7 +73,7 @@ const BUDGET_TOOLTIPS: Record<string, string> = {
     maxQuestXPReward: "Maximum experience points awarded for completing a generated quest."
 };
 
-type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs';
+type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs' | 'glitch';
 
 export const AdminDashboard: React.FC = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -81,6 +86,13 @@ export const AdminDashboard: React.FC = () => {
     const [chaos, setChaos] = useState<PersonalityTrait>({ value: 0.2, enabled: true });
     const [aggression, setAggression] = useState<PersonalityTrait>({ value: 0.3, enabled: true });
     const [expansion, setExpansion] = useState<PersonalityTrait>({ value: 0.1, enabled: true });
+
+    // Glitch Door State
+    const [glitchConfig, setGlitchConfig] = useState({
+        mobCount: 5,
+        itemCount: 5,
+        legendaryChance: 0.05
+    });
 
     // Guardrails State
     const [requireApproval, setRequireApproval] = useState(true);
@@ -148,6 +160,9 @@ export const AdminDashboard: React.FC = () => {
             }
             if (status.proposals) {
                 setProposals(status.proposals);
+            }
+            if (status.glitchConfig) {
+                setGlitchConfig(status.glitchConfig);
             }
         });
 
@@ -359,12 +374,69 @@ export const AdminDashboard: React.FC = () => {
                 <button className={`tab-btn ${activeTab === 'world' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('world')}>WORLD MAP</button>
                 <button className={`tab-btn ${activeTab === 'items' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('items')}>ITEMS</button>
                 <button className={`tab-btn ${activeTab === 'npcs' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('npcs')}>NPCS</button>
+                <button className={`tab-btn ${activeTab === 'glitch' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('glitch')}>GLITCH DOOR</button>
                 <button className={`tab-btn ${activeTab === 'snapshots' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('snapshots')}>SNAPSHOTS</button>
                 <button className={`tab-btn ${activeTab === 'llm' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('llm')}>LLM</button>
                 <button className={`tab-btn ${activeTab === 'logs' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('logs')}>LOGS</button>
             </div>
 
             {/* Tab Content */}
+            {activeTab === 'glitch' && (
+                <div className="admin-grid">
+                    <div className="admin-card">
+                        <h2 style={{ marginBottom: '1.5rem' }}>Glitch Door Configuration</h2>
+                        <p style={{ marginBottom: '1.5rem', color: '#888' }}>
+                            Configure the parameters for the procedural dungeon generation triggered by the Glitch Door.
+                            Changes are applied immediately for the next run.
+                        </p>
+
+                        <div className="setting-row">
+                            <label>Mob Count: <span className="text-neon-blue">{glitchConfig.mobCount}</span></label>
+                            <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={glitchConfig.mobCount}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    setGlitchConfig(prev => ({ ...prev, mobCount: val }));
+                                    socket?.emit('director:update_glitch_config', { mobCount: val });
+                                }}
+                            />
+                        </div>
+
+                        <div className="setting-row">
+                            <label>Item Count: <span className="text-neon-blue">{glitchConfig.itemCount}</span></label>
+                            <input
+                                type="range"
+                                min="1"
+                                max="10"
+                                value={glitchConfig.itemCount}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    setGlitchConfig(prev => ({ ...prev, itemCount: val }));
+                                    socket?.emit('director:update_glitch_config', { itemCount: val });
+                                }}
+                            />
+                        </div>
+
+                        <div className="setting-row">
+                            <label>Legendary Chance: <span className="text-neon-purple">{(glitchConfig.legendaryChance * 100).toFixed(0)}%</span></label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="100"
+                                value={glitchConfig.legendaryChance * 100}
+                                onChange={(e) => {
+                                    const val = parseInt(e.target.value) / 100;
+                                    setGlitchConfig(prev => ({ ...prev, legendaryChance: val }));
+                                    socket?.emit('director:update_glitch_config', { legendaryChance: val });
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
             {activeTab === 'director' && (
                 <div className="admin-grid">
                     {/* Master Control */}
