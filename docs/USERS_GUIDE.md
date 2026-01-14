@@ -80,6 +80,8 @@ Items in Ouroboro are classified by rarity, which determines their power and val
 *   **Epic** (Purple): Elite gear with significant stat bonuses and modifiers.
 *   **Legendary** (Gold): One-of-a-kind artifacts. These items **pulse with light** and possess overwhelming power.
 
+For a complete list of all known items and their stats, consult the [Item Compendium](COMPENDIUM.md).
+
 ### Consumables
 Consumables provide vital recovery and buffs. Most are destroyed upon use.
 *   **Medkit**: Restores **50 HP**.
