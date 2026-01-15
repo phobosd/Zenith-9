@@ -5,6 +5,9 @@ import { Description } from '../components/Description';
 import { IsRoom } from '../components/IsRoom';
 import { Shop } from '../components/Shop';
 import { Atmosphere } from '../components/Atmosphere';
+import { Portal } from '../components/Portal';
+import { Terminal } from '../components/Terminal';
+import { PuzzleObject } from '../components/PuzzleObject';
 import { PrefabFactory } from '../factories/PrefabFactory';
 
 export interface RoomFlavor {
@@ -62,6 +65,7 @@ export class RoomFactory {
                 items = [
                     'combat_knife',
                     'katana',
+                    'item_nco9qq',
                     'monofilament_whip',
                     'stun_baton',
                     'heavy_pistol',
@@ -80,7 +84,7 @@ export class RoomFactory {
                 ];
             } else if (flavor.shopData.name === "Bits & Bytes") {
                 items = [
-                    'stim_pack',
+                    'stimpack',
                     'medkit',
                     'energy_drink',
                     'nutrient_paste',
@@ -91,17 +95,129 @@ export class RoomFactory {
                     'rope',
                     'grappling_hook'
                 ];
+            } else if (flavor.shopData.name === "Street Doc's Clinic") {
+                items = [
+                    'medkit',
+                    'stimpack',
+                    'bandage',
+                    'painkillers',
+                    'water_bottle'
+                ];
             }
 
             // We don't actually add items to the terminal entity here in the original code,
             // the InteractionSystem handles 'read terminal' by checking if the room is a shop.
             // But we might want to store the stock on the terminal or shop component later.
 
+            terminal.addComponent(new Terminal(flavor.shopData.name, {
+                title: `${flavor.shopData.name} - Catalog`,
+                items: items
+            }));
+
             this.engine.addEntity(terminal);
         }
 
+        // Special handling for Alchemist's Study (Type 7) - Puzzle Room
+        if (type === 7) {
+            // Create Stone Table with Inscription
+            const table = new Entity();
+            table.addComponent(new Position(x, y));
+            table.addComponent(new Description(
+                "Stone Table",
+                "A heavy stone table with an inscription carved into its surface. It reads: 'The sun sets in the west, the rain falls to the mud, and the wind blows toward the dawn.'"
+            ));
+            this.engine.addEntity(table);
+
+            // Create Four Elemental Busts on Pedestals
+            // Solution: Ignis=West, Aqua=South, Ventus=East, Terra=North (fixed)
+
+            // Ignis Bust (Fire) - Should face West
+            const ignis = new Entity();
+            ignis.addComponent(new Position(x, y));
+            ignis.addComponent(new Description(
+                "Ignis Bust",
+                "A bronze bust with ruby eyes, representing the element of fire. It is currently facing North."
+            ));
+            ignis.addComponent(new PuzzleObject("alchemist_puzzle", "north", "west"));
+            this.engine.addEntity(ignis);
+
+            // Aqua Bust (Water) - Should face South
+            const aqua = new Entity();
+            aqua.addComponent(new Position(x, y));
+            aqua.addComponent(new Description(
+                "Aqua Bust",
+                "A silver bust with sapphire eyes, representing the element of water. It is currently facing North."
+            ));
+            aqua.addComponent(new PuzzleObject("alchemist_puzzle", "north", "south"));
+            this.engine.addEntity(aqua);
+
+            // Ventus Bust (Air) - Should face East
+            const ventus = new Entity();
+            ventus.addComponent(new Position(x, y));
+            ventus.addComponent(new Description(
+                "Ventus Bust",
+                "A white marble bust with diamond eyes, representing the element of air. It is currently facing North."
+            ));
+            ventus.addComponent(new PuzzleObject("alchemist_puzzle", "north", "east"));
+            this.engine.addEntity(ventus);
+
+            // Terra Bust (Earth) - Fixed, cannot be turned, already facing North
+            const terra = new Entity();
+            terra.addComponent(new Position(x, y));
+            terra.addComponent(new Description(
+                "Terra Bust",
+                "A granite bust with emerald eyes, representing the element of earth. It is fused to its base and faces North."
+            ));
+            terra.addComponent(new PuzzleObject("alchemist_puzzle", "north", "north"));
+            this.engine.addEntity(terra);
+        }
+
+        // Special handling for Portal Room (Type 8) - Add Glitch Door
+        if (type === 8) {
+            const portal = new Entity();
+            portal.addComponent(new Position(x, y));
+            portal.addComponent(new Description("Glitch Door", "A door made of shifting, translucent code. It seems to lead somewhere... unstable."));
+            portal.addComponent(new Portal('dungeon', 'glitch_zone'));
+            this.engine.addEntity(portal);
+        }
+
+        // Random NPC Spawning
+        this.spawnNPCs(x, y, type);
+
         this.engine.addEntity(room);
         return room;
+    }
+
+    private spawnNPCs(x: number, y: number, type: number) {
+        const spawn = (name: string) => {
+            const npc = PrefabFactory.createNPC(name);
+            if (npc) {
+                npc.addComponent(new Position(x, y));
+                this.engine.addEntity(npc);
+                PrefabFactory.equipNPC(npc, this.engine);
+            }
+        };
+
+        const roll = Math.random();
+
+        switch (type) {
+            case 1: // Street
+                if (roll < 0.15) spawn('street samurai');
+                else if (roll < 0.25) spawn('street vendor');
+                else if (roll < 0.35) spawn('cyber thug');
+                break;
+            case 2: // Plaza
+                if (roll < 0.30) spawn('street vendor');
+                else if (roll < 0.40) spawn('street samurai');
+                else if (roll < 0.50) spawn('cyber thug');
+                break;
+            case 5: // Club
+                if (roll < 0.60) spawn('dancer');
+                break;
+            case 4: // Clinic
+                spawn('ripperdoc');
+                break;
+        }
     }
 
     private getRoomFlavor(type: number, x: number, y: number): RoomFlavor {
@@ -149,7 +265,8 @@ export class RoomFactory {
             case 4: // Clinic
                 return {
                     title: "Street Doc's Clinic",
-                    desc: "A grimy waiting room with flickering lights. The muffled sound of a surgical drill comes from the back."
+                    desc: "A grimy waiting room with flickering lights. The muffled sound of a surgical drill comes from the back.",
+                    shopData: { name: "Street Doc's Clinic", desc: "Medical supplies and emergency treatments." }
                 };
             case 5: // Club
                 return {
@@ -164,7 +281,12 @@ export class RoomFactory {
             case 7: // Alchemist's Study
                 return {
                     title: "The Alchemist's Study",
-                    desc: "A hidden room filled with strange, glowing vials and ancient-looking computer terminals. The air hums with a strange energy."
+                    desc: "A hidden room filled with strange, glowing vials and ancient-looking computer terminals. The air hums with a strange energy. In the center stands a heavy stone table, surrounded by four pedestals, each bearing an ornate elemental bust."
+                };
+            case 8: // Portal Room
+                return {
+                    title: "Reality Breach Chamber",
+                    desc: "The center of the city. Reality seems thin here, as if the fabric of space itself is fraying. Strange energies pulse through the air."
                 };
             default:
                 return {

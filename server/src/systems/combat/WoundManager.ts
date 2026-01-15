@@ -105,10 +105,14 @@ export class WoundManager {
         woundTable.applyWound(mappedPart, level);
         const wound = woundTable.getWound(mappedPart);
 
-        let effectLog = `\n[WOUND] ${mappedPart}: Level ${wound?.level}`;
+        let severity = "Minor";
+        if (level >= 4) severity = "Serious";
+        if (level >= 8) severity = "Critical";
+
+        let effectLog = `\n<error>[WOUND] You suffer a ${severity} injury to your ${mappedPart}!</error>`;
 
         if (isCyberspace) {
-            effectLog = `\n[NEURAL FEEDBACK] ${mappedPart} corrupted! Level ${wound?.level}`;
+            effectLog = `\n<error>[NEURAL FEEDBACK] ${mappedPart} corrupted! Severity: ${severity}</error>`;
         }
 
         // Apply functional penalties (simplified for now)

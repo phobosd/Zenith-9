@@ -42,7 +42,9 @@ export class RoomRegistry {
     }
 
     public reloadGeneratedRooms() {
-        this.loadGeneratedRooms();
+        this.rooms.clear();
+        this.coordMap.clear();
+        this.loadRooms();
     }
 
     private loadGeneratedRooms() {

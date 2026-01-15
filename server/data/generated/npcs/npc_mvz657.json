@@ -1,0 +1,38 @@
+{
+  "id": "npc_mvz657",
+  "name": "Spark-Optics",
+  "description": "These rat-like creatures are covered in twitching, bioluminescent optic nerves that flare and crackle when agitated. Their eyes have been replaced with crude cybernetic implants capable of emitting blinding flashes of light.",
+  "stats": {
+    "health": 230,
+    "attack": 65,
+    "defense": 17
+  },
+  "behavior": "aggressive",
+  "faction": "Corporate",
+  "tags": [
+    "invasion_mob",
+    "aggressive"
+  ],
+  "dialogue": [
+    "Kzzzt...",
+    "Flicker...",
+    "Chirp... static...",
+    "*Static crackle*",
+    "BZZZT!",
+    "*High-pitched whine*",
+    "Sizzle...",
+    "*Sudden burst of light*",
+    "*Whirring and clicking noises from cybernetic implants*",
+    "Kzzzt... blink..."
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "49558f71-fd4f-40ff-8028-b9e3c7e8a009",
+    "generatedAt": 1768423304145,
+    "publishedAt": 1768423304145,
+    "seed": "drxaqb",
+    "flavor": {
+      "rationale": "Spark-Optics are the result of a failed bioengineering experiment that sought to enhance the night vision capabilities of sewer rats. The unstable mutation resulted in hyper-sensitive optics with unpredictable behavior, causing them to lash out at anything within their limited field of view."
+    }
+  }
+}

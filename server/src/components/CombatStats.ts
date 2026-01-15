@@ -19,6 +19,11 @@ export class CombatStats extends Component {
     parry: number = 25;
     shield: number = 25;
 
+    // Base values for temporary bonus resets
+    baseEvasion: number = 50;
+    baseParry: number = 25;
+    baseShield: number = 25;
+
     // 0.0 to 1.0 (Offense vs Defense bias) - Keeping for general aggression
     aggression: number = 0.5;
     targetLimb: BodyPart | null = null;

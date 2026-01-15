@@ -232,8 +232,8 @@ export const useTerminalInput = (
                     }
                     baseString = rawParts.slice(0, searchStartIndex).join(' ') + ' ';
                 }
-            } else if (['punch', 'jab', 'headbutt', 'uppercut', 'slice', 'iaijutsu'].includes(cmd)) {
-                const candidates = autocompleteData.roomNPCs;
+            } else if (['punch', 'jab', 'headbutt', 'uppercut', 'slice', 'iaijutsu', 'iai', 'slash', 'thrust'].includes(cmd)) {
+                const candidates = Array.from(new Set([...autocompleteData.roomNPCs, ...autocompleteData.roomObjects]));
                 const search = parts.slice(1).join(' ');
                 matches = candidates.filter(s => matchCandidate(s, search));
                 baseString = rawParts[0] + ' ';

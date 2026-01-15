@@ -106,12 +106,13 @@ export class InteractionHandler {
                 }
 
                 let sourceMsg = fromContainer ? ` from your ${containerDisplayName}` : "";
-                if (!inventory.leftHand) {
-                    inventory.leftHand = targetItem.id;
-                    messageService.info(entityId, `You picked up the ${itemComp!.name}${sourceMsg} with your left hand.`);
-                } else {
+                // Prioritize right hand
+                if (!inventory.rightHand) {
                     inventory.rightHand = targetItem.id;
                     messageService.info(entityId, `You picked up the ${itemComp!.name}${sourceMsg} with your right hand.`);
+                } else {
+                    inventory.leftHand = targetItem.id;
+                    messageService.info(entityId, `You picked up the ${itemComp!.name}${sourceMsg} with your left hand.`);
                 }
                 InventoryUtils.refreshAutocomplete(entityId, engine, io, messageService);
             } else {

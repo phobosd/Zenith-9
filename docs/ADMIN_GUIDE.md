@@ -57,6 +57,9 @@ The main "Director" tab provides high-level control over the AI's autonomy.
     *   **Aggression**: Determines the hostility of generated NPCs and the danger level of quests.
     *   **Expansion**: Controls how frequently the world grows (new rooms/chunks).
 *   **Manual Triggers**: Buttons to force the immediate generation of specific content (NPC, Mob, Item, Quest, Expansion) regardless of the current automation timer.
+    *   **WORLD_EXPANSION**: Generates a new room at a random location (0-100).
+    *   **Create BOSS**: Generates a high-threat entity with boosted stats and guaranteed legendary loot.
+    *   **World Event**: Triggers a global event (e.g., Mob Invasion) that affects the entire world.
 
 ### 2. Guardrails & Budgets
 This section defines the strict limits within which the AI must operate.
@@ -103,4 +106,23 @@ Manage world state backups.
 ### 8. Logs
 A real-time feed of system events.
 
-*   **Usage**: Monitor this feed to see what the Director is "thinking," track errors, and verify that content is being published successfully.
+### 9. World Events & Bosses
+The Director can orchestrate large-scale events and generate powerful adversaries to challenge players.
+
+*   **World Events (Mob Invasion)**:
+    *   **Trigger**: Can be triggered manually via the "World Event" button or automatically by the Director based on the **Aggression** personality trait.
+    *   **Effect**: Spawns 10-20 aggressive mobs in random locations across the world.
+    *   **Loot**: Invasion mobs have a 20% chance to carry `RARE` grade items.
+    *   **System Alerts**: The system broadcasts a global warning to all players when an invasion begins.
+*   **Bosses**:
+    *   **Trigger**: Manual trigger via the "Create BOSS" button.
+    *   **Scaling**: Bosses are automatically scaled to **5x Health** and **2x Attack/Defense** compared to standard NPCs.
+    *   **Loot**: Bosses are guaranteed to drop at least one `LEGENDARY` item.
+    *   **Approval**: Bosses create a **Proposal** that must be reviewed and approved by an admin before they are published to the registry.
+*   **Auto-Approval**: World Event mobs (Invasions) bypass the approval queue for immediate impact.
+
+### 10. Loot System
+All NPCs (including Bosses and Invasion Mobs) now participate in a dynamic loot system.
+*   **On Death**: When an NPC is defeated, it drops all items in its inventory (hands and equipment) and any items defined in its `Loot` component onto the ground.
+*   **Visibility**: A message is broadcast to the attacker when loot is dropped.
+

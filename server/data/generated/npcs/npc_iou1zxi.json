@@ -1,0 +1,38 @@
+{
+  "id": "npc_iou1zxi",
+  "name": "Neon Tentaclaw",
+  "description": "The Neon Tentaclaw resembles a grotesque cross between a giant rat and an octopus. Its body is covered in slick, bioluminescent scales that pulse with shifting neon colors, while its six thick tentacles are tipped with razor-sharp claws made of fused metal and bone.",
+  "stats": {
+    "health": 200,
+    "attack": 60,
+    "defense": 15
+  },
+  "behavior": "aggressive",
+  "faction": "Street",
+  "tags": [
+    "invasion_mob",
+    "aggressive"
+  ],
+  "dialogue": [
+    "Screech! (High pitched)",
+    "Click-whirr...click-whirr...",
+    "Hiss!",
+    "Gurgle-growl...",
+    "Snap! (Tentacle striking)",
+    "Chittering (rapid, like a rat)",
+    "Whine!",
+    "Thrumming (low frequency)",
+    "Sizzle!",
+    "Clack! (Metallic sound)"
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "a1c21f25-f646-402c-b242-348dbe28f9e2",
+    "generatedAt": 1768423262459,
+    "publishedAt": 1768423262459,
+    "seed": "eey1ka",
+    "flavor": {
+      "rationale": "The Neon Tentaclaw evolved from common sewer rats that scavenged near an abandoned cybernetics lab. Exposure to discarded nanites and bio-luminescent chemicals caused them to mutate, gaining their neon coloration and developing tentacles as a means of manipulating objects and defending themselves in the darkness."
+    }
+  }
+}

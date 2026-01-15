@@ -7,6 +7,7 @@
     "test": "jest",
     "build": "tsc",
     "dev": "nodemon",
+    "db:seed": "ts-node src/db/seed.ts",
     "snapshot:create": "ts-node src/scripts/snapshot.ts create",
     "snapshot:restore": "ts-node src/scripts/snapshot.ts restore",
     "snapshot:list": "ts-node src/scripts/snapshot.ts list"

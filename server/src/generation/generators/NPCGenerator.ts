@@ -19,6 +19,7 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
 
     async generate(config: GuardrailConfig, llm?: LLMService, context?: any): Promise<Proposal> {
         const isMob = context?.subtype === 'MOB';
+        const isBoss = context?.subtype === 'BOSS';
 
         const MOB_ARCHETYPES = [
             { name: 'Vermin', behavior: 'aggressive', healthMult: 0.4, attackMult: 0.8, defenseMult: 0.2 },
@@ -27,32 +28,49 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
             { name: 'Feral Mutant', behavior: 'aggressive', healthMult: 1.2, attackMult: 1.1, defenseMult: 0.6 }
         ];
 
-        let archetype = isMob
-            ? MOB_ARCHETYPES[Math.floor(Math.random() * MOB_ARCHETYPES.length)]
-            : ARCHETYPES[Math.floor(Math.random() * ARCHETYPES.length)];
+        const BOSS_ARCHETYPES = [
+            { name: 'Cyber-Monstrosity', behavior: 'aggressive', healthMult: 5.0, attackMult: 2.0, defenseMult: 2.0 },
+            { name: 'Rogue AI Avatar', behavior: 'aggressive', healthMult: 4.0, attackMult: 3.0, defenseMult: 1.5 },
+            { name: 'Corporate Hit-Squad Leader', behavior: 'aggressive', healthMult: 3.0, attackMult: 2.5, defenseMult: 2.5 },
+            { name: 'Mutated Alpha', behavior: 'aggressive', healthMult: 6.0, attackMult: 1.8, defenseMult: 1.2 }
+        ];
+
+        let archetype = isBoss
+            ? BOSS_ARCHETYPES[Math.floor(Math.random() * BOSS_ARCHETYPES.length)]
+            : isMob
+                ? MOB_ARCHETYPES[Math.floor(Math.random() * MOB_ARCHETYPES.length)]
+                : ARCHETYPES[Math.floor(Math.random() * ARCHETYPES.length)];
 
         // If restricted to glitch area, force aggressive behavior
         if (config.features.restrictedToGlitchArea) {
-            archetype = isMob
-                ? MOB_ARCHETYPES.find(a => a.behavior === 'aggressive') || archetype
-                : ARCHETYPES.find(a => a.behavior === 'aggressive') || archetype;
+            archetype = isBoss
+                ? BOSS_ARCHETYPES.find(a => a.behavior === 'aggressive') || archetype
+                : isMob
+                    ? MOB_ARCHETYPES.find(a => a.behavior === 'aggressive') || archetype
+                    : ARCHETYPES.find(a => a.behavior === 'aggressive') || archetype;
         }
 
-        let name = isMob
-            ? `${['Giant', 'Mutated', 'Cyber', 'Neon', 'Toxic'][Math.floor(Math.random() * 5)]} ${['Rat', 'Roach', 'Sludge', 'Hound', 'Spider'][Math.floor(Math.random() * 5)]}`
-            : `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
+        let name = isBoss
+            ? `[BOSS] ${['Omega', 'Titan', 'Apex', 'Void', 'Prime'][Math.floor(Math.random() * 5)]} ${['Stalker', 'Reaper', 'Colossus', 'Executioner', 'Entity'][Math.floor(Math.random() * 5)]}`
+            : isMob
+                ? `${['Giant', 'Mutated', 'Cyber', 'Neon', 'Toxic'][Math.floor(Math.random() * 5)]} ${['Rat', 'Roach', 'Sludge', 'Hound', 'Spider'][Math.floor(Math.random() * 5)]}`
+                : `${FIRST_NAMES[Math.floor(Math.random() * FIRST_NAMES.length)]} ${LAST_NAMES[Math.floor(Math.random() * LAST_NAMES.length)]}`;
 
-        let description = isMob
-            ? `A repulsive ${archetype.name.toLowerCase()} lurking in the shadows.`
-            : `A ${archetype.name.toLowerCase()} seen wandering the neon-lit streets.`;
+        let description = isBoss
+            ? `A towering, nightmare-inducing ${archetype.name.toLowerCase()} that radiates pure malice.`
+            : isMob
+                ? `A repulsive ${archetype.name.toLowerCase()} lurking in the shadows.`
+                : `A ${archetype.name.toLowerCase()} seen wandering the neon-lit streets.`;
 
-        let dialogue = isMob
-            ? ["*hisses*", "*screeches*", "*growls*", "*chitters*", "*beeps menacingly*"]
-            : [
-                "Watch your back, choomba.",
-                "Got any credits?",
-                "The Matrix is watching."
-            ];
+        let dialogue = isBoss
+            ? ["YOU ARE BUT A GLITCH IN MY SYSTEM.", "OBSOLETE.", "PREPARE FOR DELETION.", "I AM THE END.", "YOUR DATA WILL BE CONSUMED."]
+            : isMob
+                ? ["*hisses*", "*screeches*", "*growls*", "*chitters*", "*beeps menacingly*"]
+                : [
+                    "Watch your back, choomba.",
+                    "Got any credits?",
+                    "The Matrix is watching."
+                ];
 
         let rationale = `Generated a ${archetype.name} to populate the area.`;
         let behavior = archetype.behavior;
@@ -63,8 +81,23 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
                 const mutation = ['Toxic', 'Radioactive', 'Crystalline', 'Shadow', 'Neon', 'Rust', 'Fungal', 'Digital', 'Volatile', 'Armored'][Math.floor(Math.random() * 10)];
                 const bodyPart = ['Claws', 'Fangs', 'Spines', 'Tentacles', 'Wires', 'Optics', 'Limbs', 'Maw'][Math.floor(Math.random() * 8)];
 
-                const creativePrompt = isMob
-                    ? `Generate a UNIQUE cyberpunk creature/mob.
+                const creativePrompt = isBoss
+                    ? `Generate a TERRIFYING cyberpunk BOSS.
+                Archetype: ${archetype.name}
+                Mutation Trait: ${mutation}
+                Prominent Feature: ${bodyPart}
+                Current World Context: A massive anomaly has appeared in the city, birthing a legendary horror.
+                
+                Requirements:
+                - Name: A POWERFUL, INTIMIDATING name (e.g., 'The ${mutation} ${bodyPart}', 'System-Breaker', 'Apex-${mutation}').
+                - Description: 3-4 sentences describing its overwhelming presence, its ${mutation} aura, and its lethal ${bodyPart}.
+                - Behavior: MUST be 'aggressive'.
+                - Dialogue: 15 distinct, chilling lines or sounds.
+                - Rationale: Why is this boss here? What is its purpose?
+                
+                Return ONLY a JSON object with fields: name, description, behavior, dialogue, rationale.`
+                    : isMob
+                        ? `Generate a UNIQUE cyberpunk creature/mob.
                 Archetype: ${archetype.name}
                 Mutation Trait: ${mutation}
                 Prominent Feature: ${bodyPart}
@@ -79,7 +112,7 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
                 
                 Return ONLY a JSON object with fields: name, description, behavior, dialogue, rationale.`
 
-                    : `Generate a unique cyberpunk NPC. 
+                        : `Generate a unique cyberpunk NPC. 
                 Archetype: ${archetype.name}
                 Current World Context: The city is under heavy corporate surveillance. The Matrix is leaking into reality.
                 ${config.features.restrictedToGlitchArea ? "IMPORTANT: This NPC is in a highly unstable 'Glitch Area' and MUST be hostile/aggressive." : ""}
@@ -100,12 +133,12 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
                 if (creativeData.description) description = creativeData.description;
                 if (creativeData.behavior) behavior = creativeData.behavior;
                 if (creativeData.dialogue && Array.isArray(creativeData.dialogue)) {
-                    dialogue = creativeData.dialogue.slice(0, isMob ? 10 : 50);
+                    dialogue = creativeData.dialogue.slice(0, isBoss ? 15 : isMob ? 10 : 50);
                 }
                 if (creativeData.rationale) rationale = creativeData.rationale;
 
                 // Final override if restricted
-                if (config.features.restrictedToGlitchArea || isMob) {
+                if (config.features.restrictedToGlitchArea || isMob || isBoss) {
                     behavior = 'aggressive';
                 }
             } catch (err) {

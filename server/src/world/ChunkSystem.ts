@@ -1,6 +1,8 @@
 import { Engine } from '../ecs/Engine';
 import { Position } from '../components/Position';
 import { IsRoom } from '../components/IsRoom';
+import { NPC } from '../components/NPC';
+import { Item } from '../components/Item';
 import { WorldQuery } from '../utils/WorldQuery';
 import { Logger } from '../utils/Logger';
 
@@ -130,7 +132,35 @@ export class ChunkSystem {
 
         this.generatedChunks.delete(key);
 
-        // Delete files
+        // 1. Remove entities from the engine
+        const bounds = this.getChunkBounds(cx, cy);
+        const entities = this.engine.getEntitiesWithComponent(Position);
+        let removedCount = 0;
+
+        for (const entity of entities) {
+            const pos = entity.getComponent(Position);
+            if (!pos) continue;
+
+            if (pos.x >= bounds.minX && pos.x <= bounds.maxX &&
+                pos.y >= bounds.minY && pos.y <= bounds.maxY) {
+
+                // Don't remove players! 
+                // Players are entities that are NOT rooms and NOT NPCs, and NOT items (usually).
+                // A safer check: if it has a socket ID as an ID, it's a player.
+                // But we can also check for NPC component.
+                const isRoom = entity.hasComponent(IsRoom);
+                const isNPC = entity.hasComponent(NPC);
+                const isItem = entity.hasComponent(Item);
+
+                if (isRoom || isNPC || isItem) {
+                    this.engine.removeEntity(entity.id);
+                    removedCount++;
+                }
+            }
+        }
+        Logger.info('ChunkSystem', `Removed ${removedCount} entities from memory for chunk (${cx}, ${cy}).`);
+
+        // 2. Delete files from disk
         try {
             const fs = require('fs');
             const path = require('path');

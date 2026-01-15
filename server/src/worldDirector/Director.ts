@@ -8,13 +8,17 @@ import { ItemGenerator } from '../generation/generators/ItemGenerator';
 import { QuestGenerator } from '../generation/generators/QuestGenerator';
 import { RoomGenerator } from '../generation/generators/RoomGenerator';
 import { LLMService } from '../generation/llm/LLMService';
-import { ProposalStatus, ProposalType, NPCPayload, ItemPayload } from '../generation/proposals/schemas';
+import { ProposalStatus, ProposalType, NPCPayload, ItemPayload, RoomPayload } from '../generation/proposals/schemas';
 import { ItemRegistry } from '../services/ItemRegistry';
 import { NPCRegistry } from '../services/NPCRegistry';
 import { RoomRegistry } from '../services/RoomRegistry';
 import { PrefabFactory } from '../factories/PrefabFactory';
 import { Engine } from '../ecs/Engine';
 import { ChunkSystem } from '../world/ChunkSystem';
+import * as fs from 'fs';
+import * as path from 'path';
+import { Position } from '../components/Position';
+import { Loot } from '../components/Loot';
 
 export enum DirectorLogLevel {
     INFO = 'info',
@@ -63,7 +67,66 @@ export class WorldDirector {
         legendaryChance: 0.05
     };
 
-    // ... constructor ...
+    private configPath = path.join(process.cwd(), 'data', 'director_config.json');
+
+    constructor(io: Server, guardrails: GuardrailService, snapshots: SnapshotService, publisher: PublisherService, engine: Engine) {
+        this.io = io;
+        this.guardrails = guardrails;
+        this.snapshots = snapshots;
+        this.publisher = publisher;
+        this.engine = engine;
+        this.chunkSystem = new ChunkSystem(engine);
+        this.llm = new LLMService(guardrails.getConfig().llmProfiles);
+        this.adminNamespace = io.of('/admin');
+
+        // Initialize Generators
+        this.npcGen = new NPCGenerator();
+        this.itemGen = new ItemGenerator();
+        this.questGen = new QuestGenerator();
+        this.roomGen = new RoomGenerator();
+
+        this.loadConfig();
+        this.setupAdminSocket();
+
+        // Listen for config changes (manual file edits)
+        this.guardrails.onUpdate((config) => {
+            this.llm.updateConfig(config.llmProfiles);
+            this.log(DirectorLogLevel.INFO, 'LLM Profiles re-synced from disk.');
+            this.adminNamespace.emit('director:status', this.getStatus());
+        });
+
+        this.log(DirectorLogLevel.INFO, 'World Director initialized and standby.');
+
+        // Start the automation loop (it will respect isPaused)
+        this.startAutomationLoop();
+    }
+
+    private log(level: DirectorLogLevel, message: string, context?: any) {
+        const entry: DirectorLogEntry = {
+            timestamp: Date.now(),
+            level,
+            message,
+            context
+        };
+        this.logs.push(entry);
+        // Keep log size manageable
+        if (this.logs.length > 1000) this.logs.shift();
+
+        // Broadcast to admin
+        this.adminNamespace.emit('director:log', entry);
+    }
+
+    public pause() {
+        this.isPaused = true;
+        this.log(DirectorLogLevel.WARN, 'Director PAUSED.');
+        this.adminNamespace.emit('director:status', this.getStatus());
+    }
+
+    public resume() {
+        this.isPaused = false;
+        this.log(DirectorLogLevel.SUCCESS, 'Director RESUMED.');
+        this.adminNamespace.emit('director:status', this.getStatus());
+    }
 
     public async generateGlitchRun(): Promise<{ mobs: NPCPayload[], items: ItemPayload[] }> {
         this.log(DirectorLogLevel.INFO, 'Generating Glitch Run content...');
@@ -110,6 +173,112 @@ export class WorldDirector {
         return { mobs, items };
     }
 
+    public async generateBoss() {
+        this.log(DirectorLogLevel.INFO, 'Generating BOSS...');
+        try {
+            const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm, { generatedBy: 'Manual', subtype: 'BOSS' });
+            if (proposal && proposal.payload) {
+                const payload = proposal.payload as NPCPayload;
+                payload.tags = ['boss', 'aggressive'];
+                payload.behavior = 'aggressive';
+                // Boost stats for boss (World Boss scaling)
+                payload.stats.health = (payload.stats.health || 100) * 5;
+                payload.stats.attack = (payload.stats.attack || 10) * 2;
+                payload.stats.defense = (payload.stats.defense || 5) * 2;
+
+                // Generate Legendary Loot for Boss
+                const itemProposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm, { subtype: 'LEGENDARY' });
+                if (itemProposal && itemProposal.payload) {
+                    // Auto-approve the item so it exists in the registry for the boss to "hold"
+                    itemProposal.status = ProposalStatus.APPROVED;
+                    await this.publisher.publish(itemProposal);
+                    ItemRegistry.getInstance().reloadGeneratedItems();
+
+                    // Link item to boss equipment
+                    if (!payload.equipment) payload.equipment = [];
+                    payload.equipment.push(itemProposal.payload.id);
+
+                    this.log(DirectorLogLevel.INFO, `Linked legendary loot (${itemProposal.payload.id}) to BOSS proposal.`);
+                }
+
+                return proposal;
+            }
+        } catch (err) {
+            Logger.error('Director', `Failed to generate BOSS: ${err}`);
+        }
+        return null;
+    }
+
+    public async triggerWorldEvent(eventType: string) {
+        this.log(DirectorLogLevel.INFO, `Triggering World Event: ${eventType}`);
+
+        if (eventType === 'MOB_INVASION') {
+            // Spawn 10-20 mobs in random locations
+            const mobCount = 10 + Math.floor(Math.random() * 10);
+            this.log(DirectorLogLevel.WARN, `⚠️ MOB INVASION DETECTED! Spawning ${mobCount} entities...`);
+
+            this.io.emit('message', {
+                type: 'system',
+                content: `\n\n[WARNING] SYSTEM BREACH DETECTED. MASSIVE BIOLOGICAL SIGNATURES INBOUND.\n`
+            });
+
+            for (let i = 0; i < mobCount; i++) {
+                try {
+                    // Quick generation without proposals for events
+                    const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm, { generatedBy: 'Event:Invasion', subtype: 'MOB' });
+                    if (proposal && proposal.payload) {
+                        const payload = proposal.payload as NPCPayload;
+                        payload.tags = ['invasion_mob', 'aggressive'];
+                        payload.behavior = 'aggressive';
+
+                        // Auto-publish/spawn
+                        proposal.status = ProposalStatus.APPROVED;
+                        await this.publisher.publish(proposal);
+                        NPCRegistry.getInstance().reloadGeneratedNPCs();
+
+                        // Spawn in a random room (simplified logic: pick random coordinates)
+                        const x = 10 + Math.floor(Math.random() * 10) - 5;
+                        const y = 10 + Math.floor(Math.random() * 10) - 5;
+
+                        const npcEntity = PrefabFactory.createNPC(proposal.payload.id);
+                        if (npcEntity) {
+                            // Override position
+                            let pos = npcEntity.getComponent(Position);
+                            if (!pos) {
+                                pos = new Position(x, y);
+                                npcEntity.addComponent(pos);
+                            } else {
+                                pos.x = x;
+                                pos.y = y;
+                            }
+
+                            // 20% chance for rare loot on invasion mobs
+                            if (Math.random() < 0.2) {
+                                const itemProposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm, { subtype: 'RARE' });
+                                if (itemProposal && itemProposal.payload) {
+                                    itemProposal.status = ProposalStatus.APPROVED;
+                                    await this.publisher.publish(itemProposal);
+                                    ItemRegistry.getInstance().reloadGeneratedItems();
+                                    const itemEntity = PrefabFactory.createItem(itemProposal.payload.id);
+                                    if (itemEntity) {
+                                        this.engine.addEntity(itemEntity);
+                                        npcEntity.addComponent(new Loot([itemEntity.id]));
+                                        this.log(DirectorLogLevel.SUCCESS, `Added RARE loot to invasion mob.`);
+                                    }
+                                }
+                            }
+
+                            this.engine.addEntity(npcEntity);
+                            this.log(DirectorLogLevel.SUCCESS, `Spawned invasion mob at ${x},${y}`);
+                        }
+                    }
+                } catch (err) {
+                    Logger.error('Director', `Failed to spawn invasion mob: ${err}`);
+                }
+            }
+        }
+    }
+
     public getStatus() {
         return {
             paused: this.isPaused,
@@ -120,38 +289,45 @@ export class WorldDirector {
         };
     }
 
-    constructor(io: Server, guardrails: GuardrailService, snapshots: SnapshotService, publisher: PublisherService, engine: Engine) {
-        this.io = io;
-        this.guardrails = guardrails;
-        this.snapshots = snapshots;
-        this.publisher = publisher;
-        this.engine = engine;
-        this.chunkSystem = new ChunkSystem(engine);
-        this.llm = new LLMService(guardrails.getConfig().llmProfiles);
-        this.adminNamespace = io.of('/admin');
+    private loadConfig() {
+        try {
+            if (fs.existsSync(this.configPath)) {
+                const data = fs.readFileSync(this.configPath, 'utf-8');
+                const config = JSON.parse(data);
+                if (config.glitchConfig) {
+                    this.glitchConfig = { ...this.glitchConfig, ...config.glitchConfig };
+                    Logger.info('Director', 'Loaded configuration from disk.');
+                }
+            }
+        } catch (err) {
+            Logger.error('Director', `Failed to load config: ${err}`);
+        }
+    }
 
-        // Initialize Generators
-        this.npcGen = new NPCGenerator();
-        this.itemGen = new ItemGenerator();
-        this.questGen = new QuestGenerator();
-        this.roomGen = new RoomGenerator();
-
-        this.setupAdminSocket();
-
-        // Listen for config changes (manual file edits)
-        this.guardrails.onUpdate((config) => {
-            this.llm.updateConfig(config.llmProfiles);
-            this.log(DirectorLogLevel.INFO, 'LLM Profiles re-synced from disk.');
-            this.adminNamespace.emit('director:status', this.getStatus());
-        });
-
-        this.log(DirectorLogLevel.INFO, 'World Director initialized and standby.');
-
-        // Start the automation loop (it will respect isPaused)
-        this.startAutomationLoop();
+    private saveConfig() {
+        try {
+            const config = {
+                glitchConfig: this.glitchConfig
+            };
+            fs.writeFileSync(this.configPath, JSON.stringify(config, null, 4));
+            Logger.info('Director', 'Saved configuration to disk.');
+        } catch (err) {
+            Logger.error('Director', `Failed to save config: ${err}`);
+        }
     }
 
     private startAutomationLoop() {
+        if (this.automationInterval) clearInterval(this.automationInterval);
+
+        this.automationInterval = setInterval(async () => {
+            if (this.isPaused) return;
+
+            // Random Event Trigger (if Aggression is high)
+            if (this.personality.aggression.enabled && Math.random() < (this.personality.aggression.value * 0.01)) { // 1% chance per tick scaled by aggression
+                await this.triggerWorldEvent('MOB_INVASION');
+            }
+
+        }, 10000); // Check every 10 seconds
     }
 
     private setupAdminSocket() {
@@ -178,6 +354,7 @@ export class WorldDirector {
 
             socket.on('director:update_glitch_config', (config: any) => {
                 this.glitchConfig = { ...this.glitchConfig, ...config };
+                this.saveConfig();
                 this.log(DirectorLogLevel.INFO, 'Glitch Door configuration updated.');
                 this.adminNamespace.emit('director:status', this.getStatus());
             });
@@ -224,6 +401,19 @@ export class WorldDirector {
                             if (roomEntity) {
                                 this.engine.addEntity(roomEntity);
                                 this.log(DirectorLogLevel.SUCCESS, `Spawned new room: ${proposal.payload.name}`);
+
+                                // Spawn a random NPC in the new room
+                                const pos = roomEntity.getComponent(Position);
+                                if (pos) {
+                                    const npcType = Math.random() > 0.5 ? 'street samurai' : 'cyber thug';
+                                    const npc = PrefabFactory.createNPC(npcType);
+                                    if (npc) {
+                                        npc.addComponent(new Position(pos.x, pos.y));
+                                        this.engine.addEntity(npc);
+                                        PrefabFactory.equipNPC(npc, this.engine);
+                                        this.log(DirectorLogLevel.INFO, `Spawned ${npcType} in new room.`);
+                                    }
+                                }
                             }
                         }
 
@@ -254,7 +444,7 @@ export class WorldDirector {
                 this.adminNamespace.emit('director:proposals_update', this.proposals);
             });
 
-            socket.on('director:manual_trigger', async (data: { type: string }) => {
+            socket.on('director:manual_trigger', async (data: { type: string, payload?: any }) => {
                 this.log(DirectorLogLevel.INFO, `Manual trigger received: ${data.type}`);
 
                 let proposal;
@@ -267,8 +457,11 @@ export class WorldDirector {
                     case 'MOB':
                         proposal = await this.npcGen.generate(config, this.llm, { generatedBy: 'Manual', subtype: 'MOB' });
                         break;
+                    case 'BOSS':
+                        proposal = await this.generateBoss();
+                        break;
                     case 'ITEM':
-                        proposal = await this.itemGen.generate(config, this.llm, { generatedBy: 'Manual' });
+                        proposal = await this.itemGen.generate(config, this.llm, { generatedBy: 'Manual', ...data.payload });
                         break;
                     case 'QUEST':
                         proposal = await this.questGen.generate(config, this.llm, { generatedBy: 'Manual' });
@@ -276,6 +469,9 @@ export class WorldDirector {
                     case 'WORLD_EXPANSION':
                         proposal = await this.roomGen.generate(config, this.llm, { generatedBy: 'Manual' });
                         break;
+                    case 'EVENT':
+                        await this.triggerWorldEvent(data.payload?.eventType || 'MOB_INVASION');
+                        return; // Events handle themselves
                     default:
                         this.log(DirectorLogLevel.WARN, `Generator for ${data.type} not yet implemented.`);
                         return;
@@ -370,210 +566,52 @@ export class WorldDirector {
                     this.log(DirectorLogLevel.ERROR, `Failed to update NPC: ${data.id}`);
                 }
             });
-
-            // Snapshot Handlers
-            socket.on('snapshot:list', async () => {
-                const snapshots = await this.snapshots.listSnapshots();
-                socket.emit('snapshot:list_update', snapshots);
-            });
-
-            socket.on('snapshot:create', async (name: string) => {
-                try {
-                    const id = await this.snapshots.createSnapshot(name || 'manual');
-                    this.log(DirectorLogLevel.SUCCESS, `Snapshot created: ${id}`);
-                    const snapshots = await this.snapshots.listSnapshots();
-                    this.adminNamespace.emit('snapshot:list_update', snapshots);
-                } catch (err) {
-                    this.log(DirectorLogLevel.ERROR, `Failed to create snapshot: ${err}`);
-                }
-            });
-
-            socket.on('snapshot:restore', async (id: string) => {
-                try {
-                    await this.snapshots.restoreSnapshot(id);
-                    this.log(DirectorLogLevel.SUCCESS, `World restored to snapshot: ${id}`);
-                    // After restore, we should probably pause the director if it was running
-                    if (!this.isPaused) await this.pause();
-                } catch (err) {
-                    this.log(DirectorLogLevel.ERROR, `Failed to restore snapshot: ${err}`);
-                }
-            });
-
-            socket.on('snapshot:delete', async (id: string) => {
-                try {
-                    await this.snapshots.deleteSnapshot(id);
-                    this.log(DirectorLogLevel.INFO, `Snapshot deleted: ${id}`);
-                    const snapshots = await this.snapshots.listSnapshots();
-                    this.adminNamespace.emit('snapshot:list_update', snapshots);
-                } catch (err) {
-                    this.log(DirectorLogLevel.ERROR, `Failed to delete snapshot: ${err}`);
-                }
-            });
-
-            socket.on('disconnect', () => {
-                Logger.info('Director', `Admin disconnected: ${socket.id}`);
-            });
         });
     }
 
-    public log(level: DirectorLogLevel, message: string, context?: any) {
-        const entry: DirectorLogEntry = {
-            timestamp: Date.now(),
-            level,
-            message,
-            context
-        };
-        this.logs.push(entry);
-        if (this.logs.length > 1000) this.logs.shift();
-
-        this.adminNamespace.emit('director:log', entry);
-        Logger.info('Director', `[${level.toUpperCase()}] ${message}`);
-    }
-
-    public async pause() {
-        if (this.isPaused) return;
-        this.isPaused = true;
-        this.log(DirectorLogLevel.WARN, 'Automation HALTED by Admin.');
-        this.adminNamespace.emit('director:status', this.getStatus());
-    }
-
-    public async resume() {
-        if (!this.isPaused) return;
-
-        this.log(DirectorLogLevel.INFO, 'Resuming automation...');
-
-        // Auto-snapshot before starting if configured
-        if (this.guardrails.getConfig().features.autoSnapshotHighRisk) {
-            try {
-                this.log(DirectorLogLevel.INFO, 'Triggering auto-snapshot before resume...');
-                const snapId = await this.snapshots.createSnapshot('auto_resume');
-                this.log(DirectorLogLevel.SUCCESS, `Auto-snapshot created: ${snapId}`);
-            } catch (err) {
-                this.log(DirectorLogLevel.ERROR, 'Auto-snapshot failed! Aborting resume.', err);
-                return;
-            }
-        }
-
-        this.isPaused = false;
-        this.log(DirectorLogLevel.SUCCESS, 'Automation ACTIVE.');
-        this.adminNamespace.emit('director:status', this.getStatus());
-    }
-
-
-
     private async generateChunk(cx: number, cy: number) {
-        if (this.chunkSystem.isChunkGenerated(cx, cy)) {
-            this.log(DirectorLogLevel.WARN, `Chunk (${cx}, ${cy}) already generated.`);
-            return;
-        }
+        this.log(DirectorLogLevel.INFO, `Generating chunk at ${cx},${cy}`);
 
-        this.chunkSystem.markChunkGenerated(cx, cy);
-
-        // Generate a simple layout for this chunk
-        // 20x20 grid.
-        // We will generate a main street cross and some random buildings.
+        // Define chunk bounds (e.g. 20x20 area)
         const CHUNK_SIZE = 20;
         const startX = cx * CHUNK_SIZE;
         const startY = cy * CHUNK_SIZE;
 
-        // 1. Main Streets (Cross)
-        for (let i = 0; i < CHUNK_SIZE; i++) {
-            // Horizontal Street at Y=10 (relative)
-            await this.createAndPublishRoom(startX + i, startY + 10, 'street', 'Neon Highway');
+        // Generate 3-5 rooms in this chunk
+        const roomCount = 3 + Math.floor(Math.random() * 3);
 
-            // Vertical Street at X=10 (relative)
-            await this.createAndPublishRoom(startX + 10, startY + i, 'street', 'Neon Highway');
+        for (let i = 0; i < roomCount; i++) {
+            const rx = startX + Math.floor(Math.random() * CHUNK_SIZE);
+            const ry = startY + Math.floor(Math.random() * CHUNK_SIZE);
+
+            await this.createAndPublishRoom(rx, ry, 'street', 'Cyberpunk Street');
         }
 
-        // 2. Bridge to Hub (0,0) if adjacent
-        await this.bridgeToHub(cx, cy);
-
-        // 3. Random Buildings (Empty Shells)
-        // Generate 5-10 random buildings
-        const numBuildings = 5 + Math.floor(Math.random() * 5);
-        for (let i = 0; i < numBuildings; i++) {
-            const rx = Math.floor(Math.random() * CHUNK_SIZE);
-            const ry = Math.floor(Math.random() * CHUNK_SIZE);
-
-            // Don't overwrite streets (row 10 or col 10)
-            if (rx === 10 || ry === 10) continue;
-
-            await this.createAndPublishRoom(startX + rx, startY + ry, 'indoor', 'Empty Structure');
-        }
-
-        this.log(DirectorLogLevel.SUCCESS, `Chunk (${cx}, ${cy}) generated with basic layout.`);
-    }
-
-    private async bridgeToHub(cx: number, cy: number) {
-        // If we are adjacent to (0,0), we need to fill the gap in (0,0)'s roads.
-        // (0,0) roads end at index 2 and 17.
-        // Gap is at 0,1 and 18,19.
-
-        // Check if we are East of Hub (1, 0)
-        if (cx === 1 && cy === 0) {
-            this.log(DirectorLogLevel.INFO, "Bridging to Hub (East)...");
-            // Fill Hub's East gap (18,10) and (19,10)
-            await this.createAndPublishRoom(18, 10, 'street', 'Neon Highway');
-            await this.createAndPublishRoom(19, 10, 'street', 'Neon Highway');
-        }
-
-        // Check if we are West of Hub (-1, 0)
-        if (cx === -1 && cy === 0) {
-            this.log(DirectorLogLevel.INFO, "Bridging to Hub (West)...");
-            // Fill Hub's West gap (0,10) and (1,10)
-            await this.createAndPublishRoom(0, 10, 'street', 'Neon Highway');
-            await this.createAndPublishRoom(1, 10, 'street', 'Neon Highway');
-        }
-
-        // Check if we are South of Hub (0, 1)
-        if (cx === 0 && cy === 1) {
-            this.log(DirectorLogLevel.INFO, "Bridging to Hub (South)...");
-            // Fill Hub's South gap (10,18) and (10,19)
-            await this.createAndPublishRoom(10, 18, 'street', 'Neon Highway');
-            await this.createAndPublishRoom(10, 19, 'street', 'Neon Highway');
-        }
-
-        // Check if we are North of Hub (0, -1)
-        if (cx === 0 && cy === -1) {
-            this.log(DirectorLogLevel.INFO, "Bridging to Hub (North)...");
-            // Fill Hub's North gap (10,0) and (10,1)
-            await this.createAndPublishRoom(10, 0, 'street', 'Neon Highway');
-            await this.createAndPublishRoom(10, 1, 'street', 'Neon Highway');
-        }
+        this.chunkSystem.markChunkGenerated(cx, cy);
     }
 
     private async createAndPublishRoom(x: number, y: number, type: string, namePrefix: string) {
-        // Create a proposal directly to reuse the publishing logic, but skip validation/approval for speed
-        // Actually, we can just use RoomGenerator to make the proposal, then immediately publish it.
-
-        const proposal = await this.roomGen.generate(
-            this.guardrails.getConfig(),
-            undefined, // No LLM for speed
-            { x, y, generatedBy: 'Director:ManualChunk' }
-        );
-
-        // Override with basic info
-        (proposal.payload as any).name = `${namePrefix} ${x},${y}`;
-        (proposal.payload as any).description = "A placeholder location waiting for development.";
-        (proposal.payload as any).type = type as any;
-
-        // Force Approve
-        proposal.status = ProposalStatus.APPROVED;
-
-        // Publish
         try {
-            await this.publisher.publish(proposal);
+            const proposal = await this.roomGen.generate(this.guardrails.getConfig(), this.llm, {
+                generatedBy: 'ChunkSystem',
+                forceX: x,
+                forceY: y
+            });
 
-            // Reload registry so PrefabFactory can find the new room
-            RoomRegistry.getInstance().reloadGeneratedRooms();
+            if (proposal && proposal.payload) {
+                const payload = proposal.payload as RoomPayload;
+                payload.name = `${namePrefix} ${x},${y}`;
+                proposal.status = ProposalStatus.APPROVED;
+                await this.publisher.publish(proposal);
 
-            // Spawn
-            const roomEntity = PrefabFactory.createRoom(proposal.payload.id);
-            if (roomEntity) {
-                this.engine.addEntity(roomEntity);
+                // Spawn it
+                const roomEntity = PrefabFactory.createRoom(proposal.payload.id);
+                if (roomEntity) {
+                    this.engine.addEntity(roomEntity);
+                }
             }
         } catch (err) {
-            this.log(DirectorLogLevel.ERROR, `Failed to publish room at ${x},${y}: ${err}`);
+            this.log(DirectorLogLevel.ERROR, `Failed to generate room at ${x},${y}: ${err}`);
         }
     }
 }

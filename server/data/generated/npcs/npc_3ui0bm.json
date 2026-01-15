@@ -1,0 +1,38 @@
+{
+  "id": "npc_3ui0bm",
+  "name": "Limbspasm",
+  "description": "A horrifying fusion of rat and discarded cybernetics, the Limbspasm has multiple articulated limbs sprouting from its body – some organic, some mechanical, all twitching with erratic life. Its eyes are milky white, reflecting a corrupted digital signal.",
+  "stats": {
+    "health": 175,
+    "attack": 70,
+    "defense": 18
+  },
+  "behavior": "aggressive",
+  "faction": "Street",
+  "tags": [
+    "invasion_mob",
+    "aggressive"
+  ],
+  "dialogue": [
+    "Skreeeeee!",
+    "Click-whirr...",
+    "*Static crackle*",
+    "*Metallic scraping noise*",
+    "*Hissing static, followed by a distorted voice saying 'Access Denied'*",
+    "*Chirping sound, like corrupted data transfer*",
+    "*Mechanical clunk and whirring*",
+    "Screech!",
+    "*High-pitched digital whine*",
+    "*Short burst of electronic feedback*"
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "b05014cd-76fd-466d-bf7a-692776f59451",
+    "generatedAt": 1768423240655,
+    "publishedAt": 1768423240655,
+    "seed": "n93zsd",
+    "flavor": {
+      "rationale": "The Limbspasm is a product of the city's rampant cybernetic waste, scavenged by rats who have undergone spontaneous mutation. The rat's scavenging instincts combined with its ability to fuse inorganic materials has resulted in these grotesque creatures that now infest the sewers and alleys."
+    }
+  }
+}

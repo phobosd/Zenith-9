@@ -1,0 +1,38 @@
+{
+  "id": "npc_dox4t4",
+  "name": "Ironjaw Gnawer",
+  "description": "A rodent the size of a badger, the Ironjaw Gnawer's skin is covered in overlapping plates of chitinous armor fused with corroded metal scraps. Its long fangs are tipped with glowing green bio-luminescence.",
+  "stats": {
+    "health": 175,
+    "attack": 75,
+    "defense": 10
+  },
+  "behavior": "aggressive",
+  "faction": "Corporate",
+  "tags": [
+    "invasion_mob",
+    "aggressive"
+  ],
+  "dialogue": [
+    "Click-click",
+    "Gnawing sound",
+    "Screeching whine",
+    "Metal scraping on stone",
+    "Short, sharp hiss",
+    "Rapid clicking noise",
+    "Guttural growl",
+    "Chittering squeak",
+    "Metallic clatter",
+    "High-pitched shriek"
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "b16338f0-b540-4fdf-856b-0841e179f336",
+    "generatedAt": 1768423297882,
+    "publishedAt": 1768423297882,
+    "seed": "hsu71d",
+    "flavor": {
+      "rationale": "The Ironjaw Gnawer is a scavenger that has adapted to the harsh conditions of the city's sewers and dark alleys. Its armored plating protects it from physical attacks, while its fangs allow it to tear through metal and flesh alike as it hunts for food in these forgotten places."
+    }
+  }
+}

@@ -14,9 +14,11 @@ import { MessageFormatter } from '../utils/MessageFormatter';
 import { IEngine } from '../ecs/IEngine';
 import { Atmosphere } from '../components/Atmosphere';
 import { Portal } from '../components/Portal';
+import { PuzzleObject } from '../components/PuzzleObject';
 import { DungeonService } from '../services/DungeonService';
 import { Visuals } from '../components/Visuals';
 import { ParserUtils } from '../utils/ParserUtils';
+import { HealthDescriptor } from '../utils/HealthDescriptor';
 
 export class DescriptionService {
     /**
@@ -59,15 +61,40 @@ export class DescriptionService {
             terminalText = "\n" + MessageFormatter.wrap('terminal', "A Shop Terminal is here.");
         }
 
-        // Find Portals
+        // Find Portals - HIGHLIGHTED IN BRIGHT WHITE
         const portalsInRoom = engine.getEntitiesWithComponent(Portal).filter(e => {
             const pos = e.getComponent(Position);
             return pos && pos.x === playerPos.x && pos.y === playerPos.y;
         });
         const portalText = portalsInRoom.map(p => {
             const desc = p.getComponent(Description);
-            return desc ? `\n${desc.description}` : '';
+            return desc ? `\n${MessageFormatter.wrap('portal', desc.description)}` : '';
         }).join('');
+
+        // Find Puzzle Objects - HIGHLIGHTED IN WHITE
+        const puzzleObjects = engine.getEntitiesWithComponent(PuzzleObject).filter(e => {
+            const pos = e.getComponent(Position);
+            return pos && pos.x === playerPos.x && pos.y === playerPos.y;
+        });
+
+        let puzzleText = "";
+        if (puzzleObjects.length > 0) {
+            // Group puzzle objects by type
+            const table = engine.getEntitiesWithComponent(Description).find(e => {
+                const pos = e.getComponent(Position);
+                const desc = e.getComponent(Description);
+                return pos && desc && pos.x === playerPos.x && pos.y === playerPos.y && desc.title === "Stone Table";
+            });
+
+            if (table) {
+                const tableDesc = table.getComponent(Description);
+                puzzleText += `\n${MessageFormatter.wrap('puzzle', `A ${tableDesc?.title} stands in the center of the room.`)}`;
+            }
+
+            if (puzzleObjects.length > 0) {
+                puzzleText += `\n${MessageFormatter.wrap('puzzle', `Four ornate elemental busts rest on pedestals around the room.`)}`;
+            }
+        }
 
         // Calculate Exits
         const exits = [];
@@ -86,7 +113,7 @@ export class DescriptionService {
         const miniMap = this.generateMiniMap(playerPos, engine);
 
         return `${MessageFormatter.title(`[${roomDesc.title}]`)}
-${atmosphereText}<desc>${roomDesc.description}</desc>${terminalText}${portalText}
+${atmosphereText}<desc>${roomDesc.description}</desc>${terminalText}${portalText}${puzzleText}
 <exits>Exits: ${exits.join(', ')}</exits>
 ${miniMap}
 ${itemDescriptions}
@@ -312,6 +339,12 @@ ${npcDescriptions}`.trim();
 ${MessageFormatter.title(`[${npcComp.typeName}]`)}
 <desc>${npcComp.description}</desc>
 `.trim();
+
+        const combatStats = npc.getComponent(CombatStats);
+        if (combatStats) {
+            const status = HealthDescriptor.getStatusDescriptor(combatStats.hp, combatStats.maxHp);
+            desc += `\n\nStatus: They look <status>${status}</status>.`;
+        }
 
         const inventory = npc.getComponent(Inventory);
         if (inventory) {

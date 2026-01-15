@@ -58,17 +58,17 @@ export class CombatCalculator {
         let effectiveDefense = 0;
 
         // Evasion (Always applicable)
-        const evasionVal = (evasionSkill * 0.6) + (agi * 0.4);
+        const evasionVal = (evasionSkill * 0.8) + (agi * 0.6);
         effectiveDefense += evasionVal * (combatStats.evasion / 100);
 
         if (attackType === 'MELEE') {
             // Parry (Only vs Melee)
-            const parryVal = (parrySkill * 0.6) + (agi * 0.4);
+            const parryVal = (parrySkill * 0.8) + (agi * 0.6);
             effectiveDefense += parryVal * (combatStats.parry / 100);
         }
 
         // Shield (Applicable vs Both)
-        const shieldVal = (shieldSkill * 0.6) + (agi * 0.4);
+        const shieldVal = (shieldSkill * 0.8) + (agi * 0.6);
         effectiveDefense += shieldVal * (combatStats.shield / 100);
 
         // Balance modifier
@@ -108,7 +108,7 @@ export class CombatCalculator {
     static determineHitType(margin: number): HitType {
         if (margin > 15) return 'crushing';
         if (margin > 0) return 'solid';
-        if (margin > -10) return 'marginal';
+        if (margin > -5) return 'marginal';
         return 'miss';
     }
 

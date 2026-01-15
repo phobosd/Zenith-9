@@ -56,7 +56,8 @@ export class NPCRegistry {
     }
 
     public reloadGeneratedNPCs() {
-        this.loadGeneratedNPCs();
+        this.npcs.clear();
+        this.loadNPCs();
     }
 
     private loadGeneratedNPCs() {

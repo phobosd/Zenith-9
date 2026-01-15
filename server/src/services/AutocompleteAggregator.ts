@@ -87,6 +87,23 @@ export class AutocompleteAggregator {
                 if (!objects.includes(title)) {
                     objects.push(title);
                 }
+
+                // Add common aliases for puzzle objects
+                if (title.includes('bust')) {
+                    if (!objects.includes('bust')) objects.push('bust');
+                    if (!objects.includes('pedestals')) objects.push('pedestals');
+                    if (!objects.includes('pedestal')) objects.push('pedestal');
+
+                    // Add specific bust names
+                    if (title.includes('ignis') && !objects.includes('ignis')) objects.push('ignis');
+                    if (title.includes('aqua') && !objects.includes('aqua')) objects.push('aqua');
+                    if (title.includes('ventus') && !objects.includes('ventus')) objects.push('ventus');
+                    if (title.includes('terra') && !objects.includes('terra')) objects.push('terra');
+                }
+
+                if (title.includes('table')) {
+                    if (!objects.includes('table')) objects.push('table');
+                }
             }
         });
 

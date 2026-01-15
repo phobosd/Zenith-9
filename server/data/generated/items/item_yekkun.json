@@ -1,0 +1,24 @@
+{
+  "id": "item_yekkun",
+  "name": "Neural Echo",
+  "shortName": "neural",
+  "description": "A tiny vial containing nanites that temporarily enhance your brain's processing speed and memory recall. It smells faintly of ozone and scorched metal.",
+  "type": "consumable",
+  "rarity": "legendary",
+  "cost": 1000,
+  "weight": 1.9,
+  "attributes": {
+    "effect": "Heals [charge_level] HP (rounded up)",
+    "charges": 5,
+    "weight": 7
+  },
+  "_metadata": {
+    "proposalId": "af272d01-d665-43ef-8e8c-be9873f01419",
+    "generatedAt": 1768423056476,
+    "publishedAt": 1768423056476,
+    "seed": "30rdlk",
+    "flavor": {
+      "rationale": "Used by corporate executives, high-stakes gamblers, or anyone needing a short burst of enhanced cognitive function to gain an edge in negotiations or critical situations."
+    }
+  }
+}

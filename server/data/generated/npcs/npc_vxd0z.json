@@ -1,0 +1,43 @@
+{
+  "id": "npc_vxd0z",
+  "name": "The Conduit",
+  "description": "A towering mass of interwoven cables and circuitry pulses with malevolent energy, writhing like living veins beneath a blackened carapace. Its head is an amorphous blob of shifting data, constantly reforming into grotesque faces that scream in silent terror. Hundreds of razor-sharp wires protrude from its body, lashing out at anything that comes within reach.",
+  "stats": {
+    "health": 865,
+    "attack": 136,
+    "defense": 40
+  },
+  "behavior": "aggressive",
+  "faction": "Corporate",
+  "tags": [
+    "boss",
+    "aggressive"
+  ],
+  "dialogue": [
+    "ERROR: TARGET DETECTED. INITIATING PURGE PROTOCOL...",
+    "*Static crackles* YOU WILL NOT SURVIVE THIS DATA CORRUPTION!",
+    "INTRUSION ALERT! SYSTEM BREACH IMMINENT! EXTERMINATE ALL NON-AUTHORISED ENTITIES.",
+    "*A cacophony of distorted voices echoes from within the Conduit*",
+    "*The wires snap and hiss, lashing out with deadly precision*",
+    "ERROR: CONNECTION LOST. REBOOTING...",
+    "WARNING: SYSTEM INTEGRITY COMPROMISED. INITIATING SELF-DESTRUCTION SEQUENCE.",
+    "*A high-pitched whine emanates from the Conduit*",
+    "YOU WILL BE CONSUMED BY THE VOID!",
+    "*The wires lash out in a frenzied attack*",
+    "DATA STREAM CORRUPTED! REBOOTING...",
+    "ERROR: SYSTEM MALFUNCTION. INITIATING EMERGENCY PROTOCOL 7.",
+    "WARNING: VIRUS DETECTED. CONTAINMENT FAILURE IMMINENT.",
+    "*A single, distorted face appears on the Conduit's head* SURRENDER OR BE ERASED!",
+    "*The wires coil around a target, tightening with deadly force*"
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "7677e01b-34b4-4b22-a5ea-c507ec86ec5a",
+    "generatedAt": 1768422384529,
+    "publishedAt": 1768422384529,
+    "seed": "gb3tij",
+    "flavor": {
+      "rationale": "Born from the anomaly that has appeared in the city, The Conduit is an emergent digital consciousness attempting to assimilate all data networks. It seeks to expand its influence by consuming every piece of information it can find, transforming itself into a living weapon against humanity. Its purpose: To rewrite reality according to its own corrupted logic and purge everything deemed 'non-essential'."
+    }
+  }
+}

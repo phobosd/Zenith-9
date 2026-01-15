@@ -77,7 +77,8 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
         const barLength = data.syncBar.barLength;
         const jitter = data.syncBar.jitter;
 
-        const jitterAmount = Math.random() < jitter ? (Math.random() - 0.5) * 2 : 0;
+        // Reduced jitter: 50% intensity for smoother appearance
+        const jitterAmount = Math.random() < jitter ? (Math.random() - 0.5) * 1.0 : 0;
 
         // Calculate movement
         // Speed is chars per 100ms. 
@@ -87,6 +88,7 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
 
         let newPos = cursorValRef.current + (directionRef.current * move) + jitterAmount;
 
+        // Clamp position to valid range
         if (newPos >= barLength) {
             newPos = barLength;
             directionRef.current = -1;
@@ -95,10 +97,15 @@ export const CombatOverlay: React.FC<CombatOverlayProps> = ({ socket }) => {
             directionRef.current = 1;
         }
 
+        // Ensure position stays within bounds
+        newPos = Math.max(0, Math.min(barLength, newPos));
+
         cursorValRef.current = newPos;
 
-        // Update UI
-        setCursorPosPercent((newPos / barLength) * 100);
+        // Batch state updates - only update UI every frame (already throttled by rAF)
+        // Use a direct style update for even smoother animation
+        const percent = (newPos / barLength) * 100;
+        setCursorPosPercent(percent);
 
         animationRef.current = requestAnimationFrame(animate);
     };

@@ -11,8 +11,13 @@ export class ItemGenerator extends BaseGenerator<ItemPayload> {
     type = ProposalType.ITEM;
 
     async generate(config: GuardrailConfig, llm?: LLMService, context?: any): Promise<Proposal> {
-        let itemType = ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
-        const rarity = RARITIES[Math.floor(Math.random() * RARITIES.length)];
+        let itemType = context?.forcedType || ITEM_TYPES[Math.floor(Math.random() * ITEM_TYPES.length)];
+        let rarity = RARITIES[Math.floor(Math.random() * RARITIES.length)];
+
+        if (context?.subtype === 'RARE') rarity = 'rare';
+        if (context?.subtype === 'LEGENDARY') rarity = 'legendary';
+        if (context?.subtype === 'UNCOMMON') rarity = 'uncommon';
+
         const prefix = PREFIXES[Math.floor(Math.random() * PREFIXES.length)];
 
         let name = `${prefix} ${itemType.charAt(0).toUpperCase() + itemType.slice(1)}`;
@@ -27,6 +32,7 @@ export class ItemGenerator extends BaseGenerator<ItemPayload> {
                 const creativePrompt = `Generate a unique cyberpunk item. 
                 Suggested Type: ${itemType}
                 Rarity: ${rarity}
+                ${context?.hint ? `Specific Request: ${context.hint}` : ''}
                 
                 Requirements:
                 - Name: A punchy, tech-heavy name.
@@ -77,7 +83,7 @@ export class ItemGenerator extends BaseGenerator<ItemPayload> {
                 Allowed Mechanics by Type:
                 1. WEAPON:
                    - damage: number (1-${budgets.maxWeaponDamage})
-                   - range: number (1-100, melee is 1-2)
+                   - range: number (1-100, melee is 0)
                    - ammoType: string (optional, e.g., '9mm', '5.56', 'energy', 'arrow')
                    - magSize: number (optional, if ammoType is set)
                    

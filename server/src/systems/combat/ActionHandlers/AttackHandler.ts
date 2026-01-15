@@ -11,6 +11,7 @@ import { BodyPart, EngagementTier } from '../../../types/CombatTypes';
 import { CombatBuffer, CombatActionType } from '../../../components/CombatBuffer';
 import { Momentum } from '../../../components/Momentum';
 import { Item } from '../../../components/Item';
+import { Loot } from '../../../components/Loot';
 import { Stance, StanceType } from '../../../components/Stance';
 import { IsPersona } from '../../../components/IsPersona';
 import { WorldQuery } from '../../../utils/WorldQuery';
@@ -24,6 +25,7 @@ import { CombatLogger } from '../CombatLogger';
 import { WoundManager } from '../WoundManager';
 import { SequenceHandler } from './SequenceHandler';
 import { ReloadHandler } from './ReloadHandler';
+import { HealthDescriptor } from '../../../utils/HealthDescriptor';
 
 export class AttackHandler {
     private static ordinalNames = ["first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth"];
@@ -179,7 +181,7 @@ export class AttackHandler {
             return;
         }
 
-        if (weapon.range > 0 && weapon.ammoType && weapon.currentAmmo <= 0) {
+        if (weapon.range > 0 && weapon.ammoType && weapon.ammoType !== 'none' && weapon.currentAmmo <= 0) {
             messageService.info(attackerId, `Your ${weapon.name} is out of ammo!`);
             return;
         }
@@ -252,7 +254,7 @@ export class AttackHandler {
             return;
         }
 
-        combatStats.parry = Math.min(100, combatStats.parry + 20);
+        combatStats.parry = Math.min(120, combatStats.parry + 20);
         combatStats.isParrying = true; // Open active parry window
         messageService.combat(playerId, "You assume a defensive parrying stance!");
         CombatUtils.applyRoundtime(player, 2); // 2s RT for immediate parry
@@ -318,7 +320,9 @@ export class AttackHandler {
                 targetCombatStats.hp -= crushingDamage;
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.1);
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.2);
-                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}! You deal ${crushingDamage} damage!</combat-hit>\n`;
+                targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.2);
+                const crushSeverity = HealthDescriptor.getDamageDescriptor(crushingDamage);
+                combatLog += `<combat-hit>${flavor.hitLabel} You land a ${crushSeverity} on ${targetNPC?.typeName || 'the target'}!</combat-hit>\n`;
                 observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 combatLog += WoundManager.applyWoundToTarget(target, attackerCombatStats.targetLimb || BodyPart.Chest, 5);
                 combatLog += "\n[STUN] Target is reeling!";
@@ -327,7 +331,9 @@ export class AttackHandler {
                 const solidDamage = Math.floor((weapon.damage * 1.0 + (margin * 0.2)) * damageMultiplier);
                 targetCombatStats.hp -= solidDamage;
                 targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.05);
-                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}! You deal ${solidDamage} damage!</combat-hit>\n`;
+                targetCombatStats.balance = Math.max(0.0, targetCombatStats.balance - 0.05);
+                const solidSeverity = HealthDescriptor.getDamageDescriptor(solidDamage);
+                combatLog += `<combat-hit>${flavor.hitLabel} You land a ${solidSeverity} on ${targetNPC?.typeName || 'the target'}!</combat-hit>\n`;
                 combatLog += `Target loses balance!`;
                 observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
@@ -335,7 +341,9 @@ export class AttackHandler {
                 const marginalDamage = Math.floor((weapon.damage * 0.5) * damageMultiplier);
                 targetCombatStats.hp -= marginalDamage;
                 attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.05);
-                combatLog += `<combat-hit>${flavor.hitLabel} You ${flavor.playerAction}. You deal ${marginalDamage} damage.</combat-hit>\n`;
+                attackerCombatStats.balance = Math.min(1.0, attackerCombatStats.balance + 0.05);
+                const marginalSeverity = HealthDescriptor.getDamageDescriptor(marginalDamage);
+                combatLog += `<combat-hit>${flavor.hitLabel} You land a ${marginalSeverity} on ${targetNPC?.typeName || 'the target'}.</combat-hit>\n`;
                 combatLog += `You regain some momentum.`;
                 observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
@@ -392,9 +400,56 @@ export class AttackHandler {
             attackerCombatStats.engagementTier = EngagementTier.DISENGAGED;
             attackerCombatStats.targetId = null;
             attackerCombatStats.isHostile = false;
+
+            // Handle Loot Dropping
+            const loot = target.getComponent(Loot);
+            const inv = target.getComponent(Inventory);
+            const pos = target.getComponent(Position);
+
+            if (pos) {
+                const dropItem = (id: string | null) => {
+                    if (!id) return;
+                    const item = engine.getEntity(id);
+                    if (item) {
+                        // Special check for Street Samurai Katana drop rate
+                        if (targetNPC?.typeName === 'Street Samurai') {
+                            const weapon = item.getComponent(Weapon);
+                            if (weapon && weapon.name.toLowerCase().includes('katana')) {
+                                if (Math.random() > 0.2) { // 80% chance to NOT drop (destroy item)
+                                    engine.removeEntity(id);
+                                    return;
+                                }
+                            }
+                        }
+
+                        // Remove from any container/hand first (though they are dying, so it's fine)
+                        item.addComponent(new Position(pos.x, pos.y));
+                    }
+                };
+
+                // Drop items from Loot component
+                if (loot) {
+                    loot.itemEntityIds.forEach(id => dropItem(id));
+                    messageService.combat(attackerId, `<success>The ${targetNPC?.typeName || 'target'} dropped some loot!</success>`);
+                }
+
+                // Drop items from Inventory
+                if (inv) {
+                    dropItem(inv.leftHand);
+                    dropItem(inv.rightHand);
+                    inv.equipment.forEach(id => dropItem(id));
+                }
+            }
+
+            engine.removeEntity(target.id);
             engine.removeEntity(target.id);
         } else {
-            combatLog += `\n${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP | Balance: ${Math.floor(targetCombatStats.balance * 100)}%`;
+            if (target.hasComponent(NPC)) {
+                const status = HealthDescriptor.getStatusDescriptor(targetCombatStats.hp, targetCombatStats.maxHp);
+                combatLog += `\nStatus: ${targetNPC?.typeName || 'Target'} looks ${status}.`;
+            } else {
+                combatLog += `\n${targetNPC?.typeName || 'Target'}: ${targetCombatStats.hp}/${targetCombatStats.maxHp} HP | Balance: ${Math.floor(targetCombatStats.balance * 100)}%`;
+            }
         }
 
         combatLog += `\n</combat>`;
@@ -425,8 +480,20 @@ export class AttackHandler {
 
         if (!CombatUtils.checkRoundtime(npc, messageService, true)) return;
 
-        const attackerPower = npcStats.attack + (npcStats.balance * 20) + (Math.random() * 10);
-        const defenderPower = CombatCalculator.calculateDefenderPower(target, engine, 'MELEE');
+        const inventory = npc.getComponent(Inventory);
+        let weaponCategory = 'natural';
+        let isRanged = false;
+        if (inventory && inventory.rightHand) {
+            const weaponEntity = WorldQuery.getEntityById(engine, inventory.rightHand);
+            const weapon = weaponEntity?.getComponent(Weapon);
+            if (weapon) {
+                weaponCategory = weapon.category;
+                isRanged = weapon.range > 0;
+            }
+        }
+
+        const attackerPower = npcStats.attack + (npcStats.balance * 20) + (Math.random() * 5);
+        const defenderPower = CombatCalculator.calculateDefenderPower(target, engine, isRanged ? 'RANGED' : 'MELEE');
 
         const margin = attackerPower - defenderPower;
         let effectiveHitType = CombatCalculator.determineHitType(margin);
@@ -441,18 +508,13 @@ export class AttackHandler {
                 messageService.success(targetId, `\n[ACTIVE PARRY] You deflected the blow!`);
                 SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
             }
+            targetStats.isParrying = false; // Reset after one use
+            targetStats.parry = targetStats.baseParry; // Reset to stance value
         }
 
         let combatLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks you!\n`;
         let observerLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks another combatant!\n`;
 
-        let weaponCategory = 'natural';
-        const inventory = npc.getComponent(Inventory);
-        if (inventory && inventory.rightHand) {
-            const weaponEntity = WorldQuery.getEntityById(engine, inventory.rightHand);
-            const weapon = weaponEntity?.getComponent(Weapon);
-            if (weapon) weaponCategory = weapon.category;
-        }
 
         const flavor = CombatLogger.getAttackFlavor(weaponCategory, effectiveHitType);
 
@@ -483,11 +545,81 @@ export class AttackHandler {
             case 'marginal':
                 const marginalDamage = Math.floor(npcStats.attack * 0.3);
                 targetStats.hp -= marginalDamage;
-                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}. You take ${marginalDamage} damage.</combat-hit>\n`;
+
+                if (targetStats.parry > 50 && !isRanged) {
+                    combatLog += `<combat-hit>[PARRY] You partially deflect ${npcComp?.typeName}'s attack! You take ${marginalDamage} damage.</combat-hit>\n`;
+                    if (targetBuffer) SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
+
+                    let momentum = target.getComponent(Momentum);
+                    if (!momentum && target.getComponent(Inventory)?.rightHand) {
+                        const weaponEntity = WorldQuery.getEntityById(engine, target.getComponent(Inventory)!.rightHand!);
+                        const weaponName = weaponEntity?.getComponent(Weapon)?.name.toLowerCase() || '';
+                        if (weaponName.includes('katana') || weaponName.includes('kitana') || weaponName.includes('samurai')) {
+                            momentum = new Momentum();
+                            target.addComponent(momentum);
+                        }
+                    }
+                    if (momentum) {
+                        momentum.add(5);
+                        combatLog += `\n<success>[MOMENTUM] Defensive parry builds your flow! (+5)</success>`;
+                    }
+
+                } else if (targetStats.shield > 50) {
+                    combatLog += `<combat-hit>[BLOCK] You catch most of ${npcComp?.typeName}'s attack on your shield! You take ${marginalDamage} damage.</combat-hit>\n`;
+                    if (targetBuffer) SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
+
+                    const momentum = target.getComponent(Momentum);
+                    if (momentum) {
+                        momentum.add(2);
+                        combatLog += `\n<success>[MOMENTUM] Shield block maintains your presence. (+2)</success>`;
+                    }
+                } else {
+                    combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}. You take ${marginalDamage} damage.</combat-hit>\n`;
+                }
                 observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
             case 'miss':
-                combatLog += `<combat-miss>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}!</combat-miss>\n`;
+                if (targetStats.parry > 50 && !isRanged) {
+                    combatLog += `<combat-miss>[PARRY] You parry ${npcComp?.typeName}'s attack with your weapon!</combat-miss>\n`;
+                    if (targetBuffer) SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
+
+                    let momentum = target.getComponent(Momentum);
+                    if (!momentum && target.getComponent(Inventory)?.rightHand) {
+                        const weaponEntity = WorldQuery.getEntityById(engine, target.getComponent(Inventory)!.rightHand!);
+                        const weaponName = weaponEntity?.getComponent(Weapon)?.name.toLowerCase() || '';
+                        if (weaponName.includes('katana') || weaponName.includes('kitana') || weaponName.includes('samurai')) {
+                            momentum = new Momentum();
+                            target.addComponent(momentum);
+                        }
+                    }
+                    if (momentum) {
+                        momentum.add(10);
+                        combatLog += `\n<success>[MOMENTUM] Perfect parry! Your flow surges! (+10)</success>`;
+                    }
+
+                } else if (targetStats.evasion > 50) {
+                    combatLog += `<combat-miss>[EVADE] You skillfully dodge ${npcComp?.typeName}'s attack!</combat-miss>\n`;
+                    if (targetBuffer) SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
+
+                    const momentum = target.getComponent(Momentum);
+                    if (momentum) {
+                        momentum.add(5);
+                        combatLog += `\n<success>[MOMENTUM] Evasion keeps you in the flow. (+5)</success>`;
+                    }
+
+                } else if (targetStats.shield > 50) {
+                    combatLog += `<combat-miss>[BLOCK] You block ${npcComp?.typeName}'s attack with your shield!</combat-miss>\n`;
+                    if (targetBuffer) SequenceHandler.gainFlow(targetId, targetBuffer, messageService, io);
+
+                    const momentum = target.getComponent(Momentum);
+                    if (momentum) {
+                        momentum.add(5);
+                        combatLog += `\n<success>[MOMENTUM] Solid block! (+5)</success>`;
+                    }
+
+                } else {
+                    combatLog += `<combat-miss>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}!</combat-miss>\n`;
+                }
                 observerLog += `<combat-miss>${flavor.obsLabel}</combat-miss>\n`;
                 npcStats.balance = Math.max(0.0, npcStats.balance - 0.1);
                 break;

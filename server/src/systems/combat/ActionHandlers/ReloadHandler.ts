@@ -30,8 +30,8 @@ export class ReloadHandler {
             return;
         }
 
-        if (weapon.range === 0) {
-            messageService.info(playerId, `Your ${weapon.name} is a melee weapon and doesn't use ammo.`);
+        if (weapon.range === 0 || weapon.magSize === 0 || !weapon.ammoType || weapon.ammoType === 'none') {
+            messageService.info(playerId, `Your ${weapon.name} does not use ammo.`);
             return;
         }
 
@@ -56,8 +56,8 @@ export class ReloadHandler {
             return;
         }
 
-        if (weapon.range === 0) {
-            messageService.info(playerId, "You can't reload a melee weapon.");
+        if (weapon.range === 0 || weapon.magSize === 0 || !weapon.ammoType || weapon.ammoType === 'none') {
+            messageService.info(playerId, "You can't reload this weapon.");
             return;
         }
 

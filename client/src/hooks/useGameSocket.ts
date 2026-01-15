@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import { TerminalLine } from '../components/TerminalLineItem';
+import type { TerminalLine } from '../components/TerminalLineItem';
 
 const SOCKET_URL = 'http://localhost:3000';
 

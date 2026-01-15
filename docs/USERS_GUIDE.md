@@ -11,7 +11,8 @@ Welcome to Ouroboro, a cyberpunk text-based RPG. This guide will help you naviga
 6. [Cyberspace](#cyberspace)
 7. [The Glitch Zone](#the-glitch-zone-dungeon)
 8. [The Alchemist's Study](#the-alchemists-study)
-9. [God Commands](#god-commands-admindeveloper)
+9. [World Events & Bosses](#world-events--bosses)
+10. [God Commands](#god-commands-admindeveloper)
 
 ## Basic Commands
 
@@ -37,6 +38,7 @@ The world of Ouroboro is divided into several distinct sectors, each with its ow
 *   **Straylight**: The high-end district where the elite reside in gleaming towers of glass and chrome.
 *   **The Matrix (Cyberspace)**: A digital mirror of the physical world, accessible via `jack_in`. It contains specialized nodes like **Data-Stream Conduits** and **Encrypted Sub-Nodes**.
 *   **The Glitch Zone**: An unstable, procedurally generated dungeon accessed through the Glitch Door in the Central Plaza.
+*   **Dynamic Expansion**: The world of Ouroboro is constantly growing. New sectors, shops, and alleyways are added dynamically by the AI Director. Check your `map` frequently to discover new locations.
 
 ## NPC Behavior & Interaction
 
@@ -45,6 +47,7 @@ The citizens of Ouroboro are not static. They have their own lives and agendas.
 *   **Roaming**: Most NPCs are capable of moving between rooms. You might see a Street Samurai patrol the Chiba district or a Thug wander into the Central Plaza.
 *   **Barks**: NPCs will periodically "bark" dialogue lines. These lines reflect their personality, archetype, and current mood. A Ripperdoc might complain about the cost of medical supplies, while a Turing Police agent will issue stern warnings about illegal AI activity.
 *   **Hostility**: Not all NPCs are friendly. Some, like the Giant Rat or Cyber Thug, are aggressive and will attack on sight. Others may only become hostile if you attack them first.
+*   **Loot Dropping**: When an NPC is defeated, it will drop its inventory and any carried loot onto the ground. Look for messages like `<success>The [Target] dropped some loot!</success>` and use `look` to see what's available.
 
 For a detailed map and list of key locations, see the [Area Guide](AREAS.md).
 
@@ -214,7 +217,18 @@ Heavy hits can cause lasting damage:
 *   **System Shock**: Taking a crushing blow while executing a buffer can **Scramble** your sequence, turning your planned attacks into useless `stumbles`.
 *   **Malware**: Certain advanced enemies (like the Turing Police) can inject malware like `REBOOT.EXE` into your buffer, forcing a system shutdown.
 
-### 7. Specialized Gear
+### 7. NPC Health & Status
+In Ouroboro, you cannot see the exact Hit Points of your enemies. Instead, you must rely on visual cues and observation.
+
+*   **Visual Cues**: When you `look` at an NPC, their description will include a status line (e.g., "Status: They look Battered.").
+*   **Combat Feedback**: Your attacks will be described by their severity rather than raw numbers.
+    *   *Glancing Hit*: Minimal damage.
+    *   *Solid Hit*: Good damage.
+    *   *Massive Strike*: Heavy damage.
+    *   *Cataclysmic Strike*: Fatal or near-fatal damage.
+*   **Appraise**: Use the `appraise <target>` command to get a more detailed assessment of an enemy's condition, including specific wounds and fatigue levels.
+
+### 8. Specialized Gear
 Not all weapons are created equal. Some offer unique tactical advantages:
 
 *   **Smart-Guns**: Equipped with neural-link software, these weapons (like the **Smart-Pistol**) make the Sync Bar significantly easier to hit.
@@ -227,14 +241,14 @@ Not all weapons are created equal. Some offer unique tactical advantages:
         *   **Requirement**: 30+ Momentum (Peak state).
         *   **Effect**: Deals massive damage and bypasses standard defense checks. Consumes a portion of your momentum.
 
-### 8. Brawling (Unarmed Combat)
+### 9. Brawling (Unarmed Combat)
 If you find yourself without a weapon, you can rely on your fists. The **Brawling** skill governs your effectiveness with unarmed attacks.
 *   **Punch**: A standard strike. Balanced speed and damage.
 *   **Jab**: A quick, light blow. High accuracy but low damage.
 *   **Uppercut**: A powerful, rising strike. High damage but slower speed.
 *   **Headbutt**: A risky, close-range attack. High damage.
 
-### 9. Ammunition & Reloading
+### 10. Ammunition & Reloading
 Firearms require ammunition. When your magazine is empty, use `reload` to insert a fresh one.
 *   **Reload Speed**: Reloading takes time (Base: 5 seconds).
 *   **Skill Bonus**: Higher Marksmanship skill levels significantly reduce reload time for that weapon type.
@@ -310,6 +324,22 @@ A hidden chamber filled with ancient tech and mysterious artifacts. It contains 
 *   **Terra**: This bust is fused to its base and cannot be turned. It faces **Down**.
 *   **Interaction**: Use `turn <bust> <direction>` (e.g., `turn ignis west`).
 *   **Reward**: Solving the puzzle reveals a hidden path or grants access to rare archives.
+
+## World Events & Bosses
+
+The world of Ouroboro is dynamic and ever-changing. The AI Director may occasionally trigger large-scale events or manifest powerful entities.
+
+### ⚠️ World Events (Mob Invasions)
+When the city's security is breached, a **Mob Invasion** may occur.
+*   **Alerts**: You will receive a system-wide warning message when an invasion is detected.
+*   **The Threat**: 10-20 aggressive entities will spawn in random locations throughout the city.
+*   **Rewards**: Invasion mobs are more likely to carry **Rare** equipment than standard street thugs.
+
+### 💀 World Bosses
+Occasionally, a legendary entity known as a **Boss** will materialize.
+*   **Appearance**: Bosses are massive, terrifying versions of standard NPCs, often with unique titles and descriptions.
+*   **Difficulty**: Bosses have significantly higher health, attack, and defense. Do not engage them alone unless you are heavily geared.
+*   **Rewards**: Defeating a Boss is the most reliable way to obtain **Legendary** items, as they are guaranteed to drop high-quality loot.
 
 ## God Commands (Admin/Developer)
 

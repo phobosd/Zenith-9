@@ -204,6 +204,11 @@ export class PrefabFactory {
         entity.addComponent(new Description(def.name, def.description));
         entity.addComponent(new Atmosphere());
 
+        // We don't have an engine reference here to add NPCs directly, 
+        // so we'll rely on the caller to handle NPC spawning if needed,
+        // or we can add a 'spawns' property to the room entity if we had a component for it.
+        // However, the Director handles the engine.
+
         return entity;
     }
 

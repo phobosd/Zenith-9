@@ -27,14 +27,36 @@ export class Engine implements IEngine {
             this.addToIndex(type, entity.id);
         });
 
+        // Add to spatial index if it has position
+        const pos = entity.getComponent(Position);
+        if (pos) {
+            this.spatialIndex.add(entity.id, pos.x, pos.y);
+        }
+
         // Listen for future component changes
-        entity.on('componentAdded', (type: string) => this.addToIndex(type, entity.id));
-        entity.on('componentRemoved', (type: string) => this.removeFromIndex(type, entity.id));
+        entity.on('componentAdded', (type: string) => {
+            this.addToIndex(type, entity.id);
+            if (type === Position.type) {
+                const p = entity.getComponent(Position);
+                if (p) this.spatialIndex.add(entity.id, p.x, p.y);
+            }
+        });
+        entity.on('componentRemoved', (type: string) => {
+            this.removeFromIndex(type, entity.id);
+            // Note: We can't easily remove from spatial index here without knowing the old position
+            // But reindexSpatial will clean it up on next tick
+        });
     }
 
     removeEntity(entityId: string): void {
         const entity = this.entities.get(entityId);
         if (entity) {
+            // Remove from spatial index
+            const pos = entity.getComponent(Position);
+            if (pos) {
+                this.spatialIndex.remove(entityId, pos.x, pos.y);
+            }
+
             entity.components.forEach((_, type) => {
                 this.removeFromIndex(type, entityId);
             });

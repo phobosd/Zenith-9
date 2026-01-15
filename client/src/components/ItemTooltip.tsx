@@ -6,7 +6,7 @@ export interface ItemDetails {
     description: string;
     damage?: number;
     range?: number;
-    ammo?: number;
+    ammo?: string | number;
     weight?: number;
     attributes?: string;
     rarity?: string;

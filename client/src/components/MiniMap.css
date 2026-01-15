@@ -185,3 +185,35 @@
     color: #ff0000;
     text-shadow: 0 0 8px #ff0000;
 }
+/* Cyberpunk Accents for Minimap */
+.minimap-container::before {
+    content: '';
+    position: absolute;
+    top: 5px;
+    left: -4px;
+    width: 20px;
+    height: 3px;
+    background: #00f3ff;
+    transform: rotate(-45deg);
+    box-shadow: 0 0 10px #00f3ff;
+    z-index: 1001;
+}
+
+.minimap-container::after {
+    content: '';
+    position: absolute;
+    bottom: 5px;
+    right: -4px;
+    width: 20px;
+    height: 3px;
+    background: #00f3ff;
+    transform: rotate(-45deg);
+    box-shadow: 0 0 10px #00f3ff;
+    z-index: 1001;
+}
+
+.minimap-container.matrix-mode::before,
+.minimap-container.matrix-mode::after {
+    background: #00ff41;
+    box-shadow: 0 0 10px #00ff41;
+}

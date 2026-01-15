@@ -1,0 +1,23 @@
+{
+  "id": "item_lt549m",
+  "name": "Neuro-Tear",
+  "shortName": "neuro-tear",
+  "description": "A single dose of Neuro-Tear can rewrite memories and emotions. Its effects are powerful but temporary.",
+  "type": "consumable",
+  "rarity": "legendary",
+  "cost": 334,
+  "weight": 0.2,
+  "attributes": {
+    "effect": "Heals up to 50 HP",
+    "charges": 3
+  },
+  "_metadata": {
+    "proposalId": "07356cc0-4b7b-4d90-9b49-5f3993a43743",
+    "generatedAt": 1768422392062,
+    "publishedAt": 1768422392062,
+    "seed": "ox6b2b",
+    "flavor": {
+      "rationale": "Developed by a rogue corporation specializing in memory manipulation, Neuro-Tears were designed to erase traumatic experiences or instill false ones. They're highly restricted but occasionally find their way into the black market."
+    }
+  }
+}

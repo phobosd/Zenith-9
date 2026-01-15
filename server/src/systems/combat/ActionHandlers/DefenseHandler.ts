@@ -80,6 +80,12 @@ export class DefenseHandler {
                 messageService.error(playerId, `Unknown stance: ${stanceName}`);
                 return;
         }
+
+        // Update base values for resets
+        stats.baseEvasion = stats.evasion;
+        stats.baseParry = stats.parry;
+        stats.baseShield = stats.shield;
+
         messageService.success(playerId, `Stance set to ${stanceName.toUpperCase()}. (Evasion: ${stats.evasion}%, Parry: ${stats.parry}%, Shield: ${stats.shield}%)`);
     }
 }

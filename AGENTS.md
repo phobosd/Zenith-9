@@ -15,16 +15,28 @@ As an agent, you are responsible for maintaining the integrity of this knowledge
     - A **major mechanic** is added (e.g., the Combat Buffer, Flow State, or specialized weapon traits like Smart-Link).
     - A **lore element** or **world-building detail** that affects gameplay is established.
     - **Environmental effects** or hazards are added.
-            ItemGen[ItemGenerator]
-            QuestGen[QuestGenerator]
-            RoomGen[RoomGenerator]
-        end
-        
-        LLM[LLMService]
-        Guardrails[GuardrailService]
+
+## 🏗 System Architecture
+
+```mermaid
+graph TD
+    subgraph Core
+        Engine[ECS Engine]
+        Director[World Director]
     end
 
+    subgraph Generation
+        NPCGen[NPCGenerator]
+        ItemGen[ItemGenerator]
+        QuestGen[QuestGenerator]
+        RoomGen[RoomGenerator]
+    end
+    
+    LLM[LLMService]
+    Guardrails[GuardrailService]
+
     subgraph Persistence
+        Database[SQLite DB]
         FileSystem[JSON Files]
         Registries[Item/NPC/Room Registries]
     end
@@ -72,13 +84,34 @@ The "Generate Mob" feature is a specialized subset of NPC generation:
 - **Archetypes**: Selects from creature-specific archetypes (Vermin, Glitch Construct, etc.).
 - **Behavior**: Forces `aggressive` behavior.
 - **Dialogue**: Generates creature sounds instead of speech.
+- **Loot**: 20% chance to carry `RARE` items.
+
+- **Loot Dropping**: Integrated into `AttackHandler.ts`. When an NPC dies, it drops its `Inventory` and `Loot` component items to the ground.
+
+#### World Expansion & Room Generation
+The world grows dynamically through the `RoomGenerator`:
+- **Trigger**: `director:manual_trigger` with type `WORLD_EXPANSION` or clicking an empty cell on the Admin Map.
+- **Logic**:
+    1. **Coordinate Selection**: If triggered via the map, it uses the specific (x, y). If triggered via the "Expansion" button, it picks random coordinates between 0-100.
+    2. **Type Selection**: Randomly selects a theme (Street, Shop, Dungeon, Indoor).
+    3. **LLM Generation**: Generates a unique name and sensory-rich description.
+- **Approval**: New rooms appear as proposals. Upon approval, they are:
+    1. Saved to `server/data/generated/world_expansions/`.
+    2. Registered in the `RoomRegistry`.
+    3. Instantiated as live entities in the `Engine`.
+- **Exits**: Currently, rooms are generated as standalone nodes. Exits are typically handled by the `MovementSystem` which allows travel between adjacent coordinates (N/S/E/W) even if explicit "exit" components aren't present, provided a room exists at the target coordinates.
 
 ---
 
 ## 🛠 Golden Path Implementation Recipes
 
 ### 📦 Adding a New Item
-The game uses `server/data/items.json` as the primary item database. Items are loaded by `ItemRegistry` and instantiated by `PrefabFactory`.
+The game uses a **SQLite database** (`game.db`) as the primary item repository, seeded by `server/src/db/seed.ts`.
+- **Core Items**: Defined in `server/src/db/seed.ts`. To add a permanent item, add it here and restart the server (which re-runs the seed).
+- **Generated Items**: Stored as JSON in `server/data/generated/items/`.
+- **Active State**: `redis_dump.json` contains the *current* state of entities in the game world. Do not confuse this with item definitions.
+
+Items are loaded by `ItemRegistry` (from both SQLite and JSON) and instantiated by `PrefabFactory`.
 
 #### Item Types
 - **`item`**: General items (consumables, quest items, ammo)
@@ -240,6 +273,17 @@ Consumables are handled by the `InventorySystem.handleUse` method.
 2. **Effects**: Effects are hardcoded in `handleUse` based on the item name (e.g., `medkit`, `stimpack`).
 3. **Consumption**: Items are removed from the world and inventory using `consumeItem`.
 
+### 🩸 NPC Health & Feedback
+The game uses a **Descriptive Health System** for NPCs, hiding exact HP values from players.
+1. **Utility**: Use `HealthDescriptor.ts` to convert HP/Damage to strings.
+   - `getDamageDescriptor(damage)`: Returns severity (e.g., "Solid Hit").
+   - `getStatusDescriptor(hp, maxHp)`: Returns status (e.g., "Wounded").
+   - `getDetailedStatus(combatStats, maxFatigue)`: Returns status + fatigue.
+2. **Usage**:
+   - **Combat**: In `AttackHandler`, log severity instead of damage numbers.
+   - **Observation**: In `DescriptionService`, append status to NPC descriptions.
+   - **Tooltips**: In `index.ts`, send status string instead of "HP/MaxHP".
+
 ### 📡 Event-Driven Communication
 Use the `GameEventBus` to decouple systems:
 1. **Define Event**: Add to `GameEventType` and `GameEventPayloads` in `GameEventBus.ts`.
@@ -361,4 +405,10 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
 *   **Terminal Backlog**: Increased to 2500 lines in `client/src/components/Terminal.tsx`.
 *   **Item Rarity**: Added to `get-item-details` server response and displayed in `ItemTooltip.tsx`.
 *   **Guide Parsing**: Fixed `GuideOverlay.tsx` to correctly handle escaped pipes (`\|`) in markdown tables.
+*   **World Events & Bosses**: Implemented dynamic world events (Mob Invasions) and Boss generation with specialized archetypes and scaling.
+*   **Loot System**: Implemented a dynamic loot dropping system where NPCs drop their inventory and loot on death.
+*   **UI Polish**: Added cyberpunk-style diagonal corner accents to Tooltips, Minimap, and Status Bars (`StatusHUD.css`, `MiniMap.css`).
+*   **Inventory Logic**: Fixed item pickup to prioritize the right hand.
+*   **Visuals**: Reduced brightness of portal and puzzle object highlighting for better readability.
+*   **NPC Health System**: Replaced exact NPC HP with a descriptive system (Visual Cues, Damage Severity, Appraise Command).
 

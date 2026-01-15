@@ -54,6 +54,7 @@ import { WorldDirector } from './worldDirector/Director';
 import { GuardrailService } from './services/GuardrailService';
 import { SnapshotService } from './services/SnapshotService';
 import { PublisherService } from './services/PublisherService';
+import { HealthDescriptor } from './utils/HealthDescriptor';
 
 import { registerMovementCommands } from './commands/MovementCommands';
 import { registerCombatCommands } from './commands/CombatCommands';
@@ -201,6 +202,7 @@ const worldState = new WorldStateService(persistence);
 // Generate World
 const worldGen = new WorldGenerator(engine, 20, 20);
 worldGen.generate();
+engine.update(0); // Force spatial reindex so we can detect existing rooms
 
 // Load and Spawn Generated Expansions
 const roomRegistry = RoomRegistry.getInstance();
@@ -291,7 +293,7 @@ setInterval(() => {
                     rarity: leftHandItemComp.rarity,
                     damage: leftHandWeapon?.damage,
                     range: leftHandWeapon?.range,
-                    ammo: leftHandWeapon ? `${leftHandWeapon.currentAmmo}/${leftHandWeapon.magSize}` : undefined
+                    ammo: (leftHandWeapon && leftHandWeapon.range > 0 && leftHandWeapon.magSize > 0) ? `${leftHandWeapon.currentAmmo}/${leftHandWeapon.magSize}` : undefined
                 } : null,
                 rightHandDetails: rightHandItemComp ? {
                     name: rightHandItemComp.name,
@@ -301,7 +303,7 @@ setInterval(() => {
                     rarity: rightHandItemComp.rarity,
                     damage: rightHandWeapon?.damage,
                     range: rightHandWeapon?.range,
-                    ammo: rightHandWeapon ? `${rightHandWeapon.currentAmmo}/${rightHandWeapon.magSize}` : undefined
+                    ammo: (rightHandWeapon && rightHandWeapon.range > 0 && rightHandWeapon.magSize > 0) ? `${rightHandWeapon.currentAmmo}/${rightHandWeapon.magSize}` : undefined
                 } : null,
                 evasion: combatStats.evasion,
                 parry: combatStats.parry,
@@ -363,7 +365,8 @@ io.on('connection', (socket) => {
     const player = PlayerFactory.createPlayer(socket.id, engine);
 
     // Send initial autocomplete data
-    const roomAuto = AutocompleteAggregator.getRoomAutocomplete(player.getComponent(Position)!, engine);
+    const playerPos = player.getComponent(Position)!;
+    const roomAuto = AutocompleteAggregator.getRoomAutocomplete(playerPos, engine);
     socket.emit('autocomplete-update', roomAuto);
     const invAuto = AutocompleteAggregator.getInventoryAutocomplete(player, engine);
     socket.emit('autocomplete-update', invAuto);
@@ -477,7 +480,8 @@ io.on('connection', (socket) => {
                             damage: (entity.getComponent(Weapon) as any)?.damage || template?.extraData?.damage,
                             range: (entity.getComponent(Weapon) as any)?.range || template?.extraData?.range,
                             magSize: template?.extraData?.magSize,
-                            currentAmmo: template?.extraData?.currentAmmo // This might need actual ammo tracking logic
+                            currentAmmo: (entity.getComponent(Weapon) as any)?.currentAmmo || template?.extraData?.currentAmmo,
+                            hasAmmo: template?.extraData?.magSize > 0 && template?.extraData?.range > 0
                         },
                         attributes: template?.attributes
                     };
@@ -503,7 +507,7 @@ io.on('connection', (socket) => {
                 description: item.description,
                 damage: item.extraData?.damage,
                 range: item.extraData?.range,
-                ammo: item.extraData?.magSize ? `${item.extraData.currentAmmo || item.extraData.magSize}/${item.extraData.magSize}` : undefined,
+                ammo: (item.extraData?.magSize > 0 && item.extraData?.range > 0) ? `${item.extraData.currentAmmo || item.extraData.magSize}/${item.extraData.magSize}` : undefined,
                 weight: item.weight,
                 attributes: item.attributes,
                 rarity: item.rarity
@@ -549,7 +553,7 @@ io.on('connection', (socket) => {
                 name: npcComp?.typeName || "Unknown",
                 description: npcComp?.description || "No description available.",
                 isHostile: combatStats?.isHostile || false,
-                health: combatStats ? `${Math.ceil(combatStats.hp)}/${combatStats.maxHp}` : "Unknown",
+                health: combatStats ? HealthDescriptor.getStatusDescriptor(combatStats.hp, combatStats.maxHp) : "Unknown",
                 status: combatStats?.isHostile ? "Hostile" : "Neutral"
             };
 

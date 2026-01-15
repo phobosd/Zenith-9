@@ -18,10 +18,6 @@ export class LayoutGenerator {
         layout[cy - 1][cx + 1] = 2;
         layout[cy + 1][cx - 1] = 2;
         layout[cy + 1][cx + 1] = 2;
-        layout[cy - 1][cx - 1] = 2;
-        layout[cy - 1][cx + 1] = 2;
-        layout[cy + 1][cx - 1] = 2;
-        layout[cy + 1][cx + 1] = 2;
 
         // Shops
         layout[cy - 2][cx - 2] = 3; // Cyber-Implant Shop
@@ -54,9 +50,12 @@ export class LayoutGenerator {
             layout[cy + 4][x] = 1; // Connect Park top-right to Main St vertical
         }
 
-        // Alchemist's Study (Hidden Room)
+        // Alchemist's Study (Puzzle Room at 13, 10)
         layout[cy][cx + 3] = 7; // Alchemist's Study
         layout[cy][cx + 2] = 1; // Connecting street
+
+        // Portal Room (Glitch Door at center plaza 10, 10 for easy access)
+        layout[cy][cx] = 8; // Portal Room with Glitch Door
 
         return layout;
     }

@@ -6,6 +6,8 @@ import { WorldQuery } from '../../utils/WorldQuery';
 import { MessageService } from '../../services/MessageService';
 import { EngagementTier } from '../../types/CombatTypes';
 import { CombatUtils } from './CombatUtils';
+import { HealthDescriptor } from '../../utils/HealthDescriptor';
+import { Stats } from '../../components/Stats';
 
 export type HitType = 'crushing' | 'solid' | 'marginal' | 'miss';
 
@@ -157,10 +159,13 @@ export class CombatLogger {
 
         const tStats = target.getComponent(CombatStats);
         const npc = target.getComponent(NPC);
+        const statsComp = target.getComponent(Stats);
+        const maxFatigue = statsComp ? (statsComp.attributes.get('CON')?.value || 10) * 10 : 100;
+
         if (tStats && npc) {
-            const hpPercent = Math.floor((tStats.hp / tStats.maxHp) * 100);
+            const detailedStatus = HealthDescriptor.getDetailedStatus(tStats, maxFatigue);
             const balanceDesc = this.getBalanceDescription(tStats.balance);
-            messageService.info(playerId, `\n[APPRAISAL: ${npc.typeName}]\nCondition: ${hpPercent}% health\nBalance: ${balanceDesc}\n`);
+            messageService.info(playerId, `\n[APPRAISAL: ${npc.typeName}]\n${detailedStatus}\nBalance: ${balanceDesc}\n`);
         }
     }
 }

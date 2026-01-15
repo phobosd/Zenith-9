@@ -20,7 +20,7 @@
         "enableItems": true,
         "enableQuests": true,
         "enableExpansions": true,
-        "restrictedToGlitchArea": true
+        "restrictedToGlitchArea": false
     },
     "llmProfiles": {
         "default": {

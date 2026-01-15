@@ -77,6 +77,8 @@ export class ItemRegistry {
     }
 
     public reloadGeneratedItems() {
+        this.items.clear();
+        this.loadItems();
         this.loadGeneratedItems();
     }
 

@@ -1,0 +1,38 @@
+{
+  "id": "npc_qh4unr",
+  "name": "Sparkling Volatiles",
+  "description": "These creatures are small and vaguely rodent-like, their bodies warped into unnatural shapes by volatile techno-organic mutations. Coils of sparking wires protrude from them, twitching erratically as they discharge bursts of electricity. Their eyes glow with an unsettling blue light.",
+  "stats": {
+    "health": 215,
+    "attack": 70,
+    "defense": 20
+  },
+  "behavior": "aggressive",
+  "faction": "Street",
+  "tags": [
+    "invasion_mob",
+    "aggressive"
+  ],
+  "dialogue": [
+    "Zzzzzz...",
+    "Sizzle!",
+    "Crackling sound",
+    "Tink tink tink (metallic clicking)",
+    "Hissing sound",
+    "Short, high-pitched squeak",
+    "Rapid series of pops and crackles",
+    "Humming noise with an electrical undertone",
+    "Weak buzzing",
+    "Faint static"
+  ],
+  "canMove": true,
+  "_metadata": {
+    "proposalId": "4f965832-7301-412a-94da-f1c84122bff0",
+    "generatedAt": 1768423247859,
+    "publishedAt": 1768423247859,
+    "seed": "e3uej",
+    "flavor": {
+      "rationale": "The sewers are a hub for discarded technology. The Sparkling Volatiles have evolved to consume this tech, incorporating it into their bodies and gaining volatile energy boosts. They congregate in areas with high concentrations of discarded electronics and react aggressively to any perceived threat."
+    }
+  }
+}

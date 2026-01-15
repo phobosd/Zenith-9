@@ -534,6 +534,8 @@ export const AdminDashboard: React.FC = () => {
                         <div className="action-btn-group">
                             <button className="action-btn" onClick={() => triggerManualGen('NPC')}>Generate NPC</button>
                             <button className="action-btn" style={{ borderColor: '#ff4444', color: '#ff4444' }} onClick={() => triggerManualGen('MOB')}>Generate Mob</button>
+                            <button className="action-btn" style={{ borderColor: '#ff00ff', color: '#ff00ff', fontWeight: 'bold' }} onClick={() => triggerManualGen('BOSS')}>Create BOSS</button>
+                            <button className="action-btn" style={{ borderColor: '#00ffff', color: '#00ffff' }} onClick={() => triggerManualGen('EVENT')}>World Event</button>
                             <button className="action-btn" onClick={() => triggerManualGen('ITEM')}>Generate Item</button>
                             <button className="action-btn" onClick={() => triggerManualGen('QUEST')}>Generate Quest</button>
                             <button className="action-btn" onClick={() => triggerManualGen('WORLD_EXPANSION')}>Generate Room</button>
