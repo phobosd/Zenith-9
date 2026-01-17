@@ -13,6 +13,7 @@ import { ItemRegistry } from '../services/ItemRegistry';
 import { NPCRegistry } from '../services/NPCRegistry';
 import { RoomRegistry } from '../services/RoomRegistry';
 import { PrefabFactory } from '../factories/PrefabFactory';
+import { CompendiumService } from '../services/CompendiumService';
 import { Engine } from '../ecs/Engine';
 import { ChunkSystem } from '../world/ChunkSystem';
 import * as fs from 'fs';
@@ -199,6 +200,7 @@ export class WorldDirector {
                     itemProposal.status = ProposalStatus.APPROVED;
                     await this.publisher.publish(itemProposal);
                     ItemRegistry.getInstance().reloadGeneratedItems();
+                    CompendiumService.updateCompendium();
 
                     // Link item to boss equipment
                     if (!payload.equipment) payload.equipment = [];
@@ -242,6 +244,7 @@ export class WorldDirector {
                         await this.processProposalAssets(proposal);
                         await this.publisher.publish(proposal);
                         NPCRegistry.getInstance().reloadGeneratedNPCs();
+                        CompendiumService.updateCompendium();
 
                         // Spawn in a random room (simplified logic: pick random coordinates)
                         const x = 10 + Math.floor(Math.random() * 10) - 5;
@@ -266,6 +269,7 @@ export class WorldDirector {
                                     itemProposal.status = ProposalStatus.APPROVED;
                                     await this.publisher.publish(itemProposal);
                                     ItemRegistry.getInstance().reloadGeneratedItems();
+                                    CompendiumService.updateCompendium();
                                     const itemEntity = PrefabFactory.createItem(itemProposal.payload.id);
                                     if (itemEntity) {
                                         this.engine.addEntity(itemEntity);
@@ -403,7 +407,15 @@ export class WorldDirector {
                             NPCRegistry.getInstance().reloadGeneratedNPCs();
                         } else if (proposal.type === ProposalType.WORLD_EXPANSION) {
                             RoomRegistry.getInstance().reloadGeneratedRooms();
-                            // Spawn the new room immediately
+                        }
+
+                        // Update Compendium whenever an NPC or Item is published
+                        if (proposal.type === ProposalType.NPC || proposal.type === ProposalType.ITEM) {
+                            await CompendiumService.updateCompendium();
+                        }
+
+                        // Spawn the new room immediately
+                        if (proposal.type === ProposalType.WORLD_EXPANSION) {
                             const roomEntity = PrefabFactory.createRoom(proposal.payload.id);
                             if (roomEntity) {
                                 this.engine.addEntity(roomEntity);
@@ -545,6 +557,7 @@ export class WorldDirector {
                     const items = ItemRegistry.getInstance().getAllItems();
                     const uniqueItems = Array.from(new Map(items.map(item => [item.id, item])).values());
                     this.adminNamespace.emit('director:items_update', uniqueItems);
+                    CompendiumService.updateCompendium();
                 } else {
                     this.log(DirectorLogLevel.ERROR, `Failed to delete item: ${id}`);
                 }
@@ -556,6 +569,7 @@ export class WorldDirector {
                     const items = ItemRegistry.getInstance().getAllItems();
                     const uniqueItems = Array.from(new Map(items.map(item => [item.id, item])).values());
                     this.adminNamespace.emit('director:items_update', uniqueItems);
+                    CompendiumService.updateCompendium();
                 } else {
                     this.log(DirectorLogLevel.ERROR, `Failed to update item: ${data.id}`);
                 }
@@ -575,8 +589,21 @@ export class WorldDirector {
                     const npcs = NPCRegistry.getInstance().getAllNPCs();
                     const uniqueNPCs = Array.from(new Map(npcs.map(npc => [npc.id, npc])).values());
                     this.adminNamespace.emit('director:npcs_update', uniqueNPCs);
+                    CompendiumService.updateCompendium();
                 } else {
                     this.log(DirectorLogLevel.ERROR, `Failed to delete NPC: ${id}`);
+                }
+            });
+
+            socket.on('director:update_npc', (data: { id: string, updates: any }) => {
+                if (NPCRegistry.getInstance().updateNPC(data.id, data.updates)) {
+                    this.log(DirectorLogLevel.SUCCESS, `Updated NPC: ${data.id}`);
+                    const npcs = NPCRegistry.getInstance().getAllNPCs();
+                    const uniqueNPCs = Array.from(new Map(npcs.map(npc => [npc.id, npc])).values());
+                    this.adminNamespace.emit('director:npcs_update', uniqueNPCs);
+                    CompendiumService.updateCompendium();
+                } else {
+                    this.log(DirectorLogLevel.ERROR, `Failed to update NPC: ${data.id}`);
                 }
             });
 
@@ -603,6 +630,7 @@ export class WorldDirector {
                                 const npcs = NPCRegistry.getInstance().getAllNPCs();
                                 const uniqueNPCs = Array.from(new Map(npcs.map(n => [n.id, n])).values());
                                 this.adminNamespace.emit('director:npcs_update', uniqueNPCs);
+                                CompendiumService.updateCompendium();
                             } else {
                                 this.log(DirectorLogLevel.ERROR, `Failed to update NPC record for ${npc.name}`);
                             }
@@ -676,6 +704,7 @@ export class WorldDirector {
                     ItemRegistry.getInstance().reloadGeneratedItems();
                     NPCRegistry.getInstance().reloadGeneratedNPCs();
                     RoomRegistry.getInstance().reloadGeneratedRooms();
+                    CompendiumService.updateCompendium();
 
                     this.log(DirectorLogLevel.INFO, `System state restored to ${id}.`);
                 } catch (err) {
