@@ -19,9 +19,21 @@ export class ImageDownloader {
                 return null;
             }
 
-            const buffer = await response.arrayBuffer();
-            const filePath = path.join(this.ASSETS_DIR, filename);
+            // Verify it's actually an image
+            const contentType = response.headers.get('content-type');
+            if (contentType && !contentType.startsWith('image/')) {
+                Logger.error('ImageDownloader', `URL did not return an image. Content-Type: ${contentType}`);
+                return null;
+            }
 
+            const buffer = await response.arrayBuffer();
+
+            // If the buffer is suspiciously small (e.g., < 5KB), it might be an error page
+            if (buffer.byteLength < 5000) {
+                Logger.warn('ImageDownloader', `Downloaded file is suspiciously small (${buffer.byteLength} bytes). It might be a placeholder or error.`);
+            }
+
+            const filePath = path.join(this.ASSETS_DIR, filename);
             fs.writeFileSync(filePath, Buffer.from(buffer));
 
             Logger.info('ImageDownloader', `Downloaded image to ${filePath}`);

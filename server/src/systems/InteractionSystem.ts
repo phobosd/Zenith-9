@@ -10,6 +10,8 @@ import { PuzzleManager } from '../services/PuzzleManager';
 import { CommerceSystem } from '../services/CommerceSystem';
 import { MessageService } from '../services/MessageService';
 import { Position } from '../components/Position';
+import { MessageType } from '../types/MessageTypes';
+import { NPC } from '../components/NPC';
 
 export class InteractionSystem extends System {
     private io: Server;
@@ -105,5 +107,25 @@ export class InteractionSystem extends System {
 
     handleTurn(entityId: string, engine: IEngine, targetName: string, direction: string) {
         this.puzzleManager.handleTurn(entityId, engine, targetName, direction);
+    }
+
+    handleSay(entityId: string, engine: IEngine, message: string) {
+        const player = engine.getEntity(entityId);
+        if (!player) return;
+
+        const pos = player.getComponent(Position);
+        if (!pos) return;
+
+        const entitiesInRoom = engine.getEntitiesAt(pos.x, pos.y);
+
+        entitiesInRoom.forEach(entity => {
+            if (entity.id === entityId) {
+                this.messageService.send(entity.id, MessageType.INFO, `You say, "${message}"`);
+            } else {
+                // For now, we don't have player names, so we use "Someone"
+                // If it's an NPC, they might react to this later.
+                this.messageService.send(entity.id, MessageType.INFO, `Someone says, "${message}"`);
+            }
+        });
     }
 }

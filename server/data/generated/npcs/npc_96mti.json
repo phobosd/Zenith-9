@@ -35,5 +35,6 @@
       "rationale": "Originally engineered to scavenge for metals in the sewers, these Fangbinders were exposed to a concentrated nanite spill during an industrial accident. The volatile chemicals they secrete are now attracting other mutated creatures, creating packs and breeding grounds."
     }
   },
-  "role": "mob"
+  "role": "mob",
+  "portrait": "/assets/portraits/npc_96mti.jpg"
 }

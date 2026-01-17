@@ -64,6 +64,7 @@ export const NPCsTab: React.FC<NPCsTabProps> = ({
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
                     <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 1 }}>
                         <tr style={{ borderBottom: '1px solid #333', textAlign: 'left' }}>
+                            <th style={{ padding: '0.5rem', color: '#888', width: '50px' }}></th>
                             <th style={{ padding: '0.5rem', color: '#888' }}>ID</th>
                             <th style={{ padding: '0.5rem', color: '#888' }}>Name</th>
                             <th style={{ padding: '0.5rem', color: '#888' }}>Role</th>
@@ -80,6 +81,29 @@ export const NPCsTab: React.FC<NPCsTabProps> = ({
                             })
                             .map(npc => (
                                 <tr key={npc.id} style={{ borderBottom: '1px solid #222' }}>
+                                    <td style={{ padding: '0.5rem' }}>
+                                        <div style={{
+                                            width: '40px',
+                                            height: '40px',
+                                            borderRadius: '4px',
+                                            background: '#000',
+                                            border: '1px solid #333',
+                                            overflow: 'hidden',
+                                            display: 'flex',
+                                            justifyContent: 'center',
+                                            alignItems: 'center'
+                                        }}>
+                                            {npc.portrait ? (
+                                                <img
+                                                    src={npc.portrait}
+                                                    alt=""
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                />
+                                            ) : (
+                                                <div style={{ fontSize: '0.6rem', color: '#333' }}>N/A</div>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td style={{ padding: '0.5rem', fontFamily: 'monospace', color: '#666' }}>{npc.id}</td>
                                     <td style={{ padding: '0.5rem', color: '#fff' }}>{npc.name}</td>
                                     <td style={{ padding: '0.5rem', color: '#00ffff' }}>{npc.role}</td>

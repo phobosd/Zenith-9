@@ -145,32 +145,52 @@ export class NPCRegistry {
         Object.assign(npc, updates);
         this.npcs.set(id, npc);
 
-        // Try to update file if it's generated
+        const dataDir = path.join(process.cwd(), 'data');
+        const mainJsonPath = path.join(dataDir, 'npcs.json');
+        const generatedDir = path.join(dataDir, 'generated', 'npcs');
+
+        // 1. Try to update main npcs.json
         try {
-            const generatedDir = path.join(process.cwd(), 'data', 'generated', 'npcs');
-            if (!fs.existsSync(generatedDir)) return false;
-
-            const files = fs.readdirSync(generatedDir);
-            for (const file of files) {
-                const filePath = path.join(generatedDir, file);
-                const content = fs.readFileSync(filePath, 'utf-8');
-                const json = JSON.parse(content);
-
-                if (json.id === id) {
-                    if (updates.name) json.name = updates.name;
-                    if (updates.description) json.description = updates.description;
-                    if (updates.faction) json.faction = updates.faction;
-                    if (updates.role) json.role = updates.role;
-                    if (updates.stats) json.stats = updates.stats;
-                    if (updates.portrait !== undefined) json.portrait = updates.portrait;
-
-                    fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
-                    Logger.info('NPCRegistry', `Updated generated NPC file: ${file}`);
+            if (fs.existsSync(mainJsonPath)) {
+                const content = fs.readFileSync(mainJsonPath, 'utf-8');
+                const npcs = JSON.parse(content);
+                let found = false;
+                for (let i = 0; i < npcs.length; i++) {
+                    if (npcs[i].id === id) {
+                        Object.assign(npcs[i], updates);
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) {
+                    fs.writeFileSync(mainJsonPath, JSON.stringify(npcs, null, 4));
+                    Logger.info('NPCRegistry', `Updated hardcoded NPC in npcs.json: ${id}`);
                     return true;
                 }
             }
         } catch (err) {
-            Logger.warn('NPCRegistry', `Could not update file for NPC ${id}: ${err}`);
+            Logger.error('NPCRegistry', `Failed to update main npcs.json: ${err}`);
+        }
+
+        // 2. Try to update generated files
+        try {
+            if (fs.existsSync(generatedDir)) {
+                const files = fs.readdirSync(generatedDir);
+                for (const file of files) {
+                    const filePath = path.join(generatedDir, file);
+                    const content = fs.readFileSync(filePath, 'utf-8');
+                    const json = JSON.parse(content);
+
+                    if (json.id === id) {
+                        Object.assign(json, updates);
+                        fs.writeFileSync(filePath, JSON.stringify(json, null, 2));
+                        Logger.info('NPCRegistry', `Updated generated NPC file: ${file}`);
+                        return true;
+                    }
+                }
+            }
+        } catch (err) {
+            Logger.warn('NPCRegistry', `Could not update generated file for NPC ${id}: ${err}`);
         }
 
         return true;

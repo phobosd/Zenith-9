@@ -26,5 +26,6 @@
       "rationale": "Generated a Merchant to populate the area."
     }
   },
-  "role": "vendor"
+  "role": "vendor",
+  "portrait": "/assets/portraits/npc_dd86hm.jpg"
 }

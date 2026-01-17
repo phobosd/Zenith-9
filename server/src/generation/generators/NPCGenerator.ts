@@ -66,121 +66,57 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
         let behavior = archetype.behavior;
         let role = isBoss ? 'boss' : isMob ? 'mob' : 'civilian'; // Default role
 
-        // 1. Creative Pass: Narrative & Flavor
+        let stats = {
+            health: Math.floor(config.budgets.maxNPCHealth * archetype.healthMult * (0.8 + Math.random() * 0.4)),
+            attack: Math.floor(config.budgets.maxNPCAttack * archetype.attackMult * (0.8 + Math.random() * 0.4) * 0.2),
+            defense: Math.floor(config.budgets.maxNPCDefense * archetype.defenseMult * (0.8 + Math.random() * 0.4) * 0.2)
+        };
+
+        // 1. Combined Creative & Logic Pass
         if (llm) {
             try {
                 const mutation = ['Toxic', 'Radioactive', 'Crystalline', 'Shadow', 'Neon', 'Rust', 'Fungal', 'Digital', 'Volatile', 'Armored'][Math.floor(Math.random() * 10)];
                 const bodyPart = ['Claws', 'Fangs', 'Spines', 'Tentacles', 'Wires', 'Optics', 'Limbs', 'Maw'][Math.floor(Math.random() * 8)];
 
-                const creativePrompt = isBoss
-                    ? `Generate a TERRIFYING cyberpunk BOSS.
+                const combinedPrompt = `Generate a unique cyberpunk ${isBoss ? 'BOSS' : isMob ? 'creature' : 'NPC'}.
                 Archetype: ${archetype.name}
-                Mutation Trait: ${mutation}
-                Prominent Feature: ${bodyPart}
-                Current World Context: A massive anomaly has appeared in the city, birthing a legendary horror.
-                ${context?.existingNames ? `EXISTING NAMES (DO NOT USE): ${context.existingNames.join(', ')}` : ''}
+                Mutation/Trait: ${mutation}
+                Feature: ${bodyPart}
+                
+                System Constraints (MAX STATS):
+                - Max Health: ${config.budgets.maxNPCHealth}
+                - Max Attack: ${config.budgets.maxNPCAttack}
+                - Max Defense: ${config.budgets.maxNPCDefense}
                 
                 Requirements:
-                - Name: A POWERFUL, INTIMIDATING name (e.g., 'The ${mutation} ${bodyPart}', 'System-Breaker', 'Apex-${mutation}'). MUST NOT be in the existing names list.
-                - Description: 3-4 sentences describing its overwhelming presence, its ${mutation} aura, and its lethal ${bodyPart}.
-                - Behavior: MUST be 'aggressive'.
-                - Rationale: Why is this boss here? What is its purpose?
+                - Name: A gritty, unique name.
+                - Description: 2-3 sentences focusing on their appearance and ${mutation} traits.
+                - Behavior: [neutral, cautious, friendly, elusive, aggressive]. ${config.features.restrictedToGlitchArea || isMob || isBoss ? "MUST be 'aggressive'." : ""}
+                - Role: ['vendor', 'guard', 'civilian', 'mob', 'boss'].
+                - Stats: Provide health, attack, and defense within the limits.
+                - Rationale: Why are they here?
                 
-                Return ONLY a JSON object with fields: name, description, behavior, rationale.`
-                    : isMob
-                        ? `Generate a UNIQUE cyberpunk creature/mob.
-                Archetype: ${archetype.name}
-                Mutation Trait: ${mutation}
-                Prominent Feature: ${bodyPart}
-                Current World Context: The city sewers and dark alleys are infested with diverse techno-organic horrors.
-                ${context?.existingNames ? `EXISTING NAMES (DO NOT USE): ${context.existingNames.join(', ')}` : ''}
-                
-                Requirements:
-                - Name: A CREATIVE, UNIQUE creature name based on the Mutation Trait (e.g., '${mutation} Stalker', '${mutation} Leech', 'Razor-${bodyPart}'). DO NOT USE GENERIC NAMES. MUST NOT be in the existing names list.
-                - Description: 2-3 sentences describing its physical appearance, focusing on its ${mutation} nature and ${bodyPart}.
-                - Behavior: MUST be 'aggressive'.
-                - Rationale: Why is this specific creature here?
-                
-                Return ONLY a JSON object with fields: name, description, behavior, rationale.`
+                Return ONLY a JSON object with fields: name, description, behavior, role, rationale, stats: { health, attack, defense }.`;
 
-                        : `Generate a unique cyberpunk NPC. 
-                Archetype: ${archetype.name}
-                Current World Context: The city is under heavy corporate surveillance. The Matrix is leaking into reality.
-                ${config.features.restrictedToGlitchArea ? "IMPORTANT: This NPC is in a highly unstable 'Glitch Area' and MUST be hostile/aggressive." : ""}
-                ${context?.existingNames ? `EXISTING NAMES (DO NOT USE): ${context.existingNames.join(', ')}` : ''}
-                
-                Requirements:
-                - Name: A gritty cyberpunk name (e.g., 'Rat-Byte', 'Chrome-Jack'). MUST NOT be 'Sloane Vane'. MUST NOT be in the existing names list.
-                - Description: 2-3 sentences. Focus on their 'chrome' (cybernetics), their worn clothing, and their vibe.
-                - Behavior: Choose from [neutral, cautious, friendly, elusive, aggressive]. PREFER 'neutral' or 'cautious' unless the archetype suggests otherwise. ${config.features.restrictedToGlitchArea ? "MUST be 'aggressive'." : ""}
-                - Role: Choose from ['vendor', 'guard', 'civilian', 'mob']. Based on the archetype (${archetype.name}).
-                - Rationale: Why does this NPC exist in this specific district?
-                
-                Return ONLY a JSON object with fields: name, description, behavior, role, and rationale.`;
+                const res = await llm.chat(combinedPrompt, "You are a lead game designer for Zenith-9.", LLMRole.CREATIVE);
+                const data = LLMService.parseJson(res.text);
 
-                const creativeRes = await llm.chat(creativePrompt, "You are the lead narrative designer for Zenith-9.", LLMRole.CREATIVE);
-                const creativeData = LLMService.parseJson(creativeRes.text);
+                if (data.name) name = data.name;
+                if (data.description) description = data.description;
+                if (data.behavior) behavior = data.behavior;
+                if (data.rationale) rationale = data.rationale;
+                if (data.role) role = data.role;
+                if (data.stats) {
+                    stats.health = Math.max(1, Math.min(config.budgets.maxNPCHealth, data.stats.health || stats.health));
+                    stats.attack = Math.max(1, Math.min(config.budgets.maxNPCAttack, data.stats.attack || stats.attack));
+                    stats.defense = Math.max(1, Math.min(config.budgets.maxNPCDefense, data.stats.defense || stats.defense));
+                }
 
-                if (creativeData.name) name = creativeData.name;
-                if (creativeData.description) description = creativeData.description;
-                if (creativeData.behavior) behavior = creativeData.behavior;
-                if (creativeData.rationale) rationale = creativeData.rationale;
-                if (creativeData.role) role = creativeData.role;
-
-                // Final override if restricted
                 if (config.features.restrictedToGlitchArea || isMob || isBoss) {
-                    behavior = 'aggressive'; // Wait, user asked to turn OFF aggressive. But this is generator logic.
-                    // I should respect the previous change I made to turn off aggression?
-                    // The user said "turn off ALL aggressive NPCs in the world".
-                    // I previously changed the archetypes to be neutral/cautious.
-                    // But here I have explicit overrides.
-                    // I should probably remove this override or change it to 'cautious'.
-                    // However, the current task is just about roles.
-                    // I will leave the behavior override alone for now to avoid scope creep, or change it to 'cautious' if I want to be consistent.
-                    // The user's previous request was "turn off ALL aggressive NPCs".
-                    // So I SHOULD change this to 'cautious' or remove it.
-                    // But wait, the previous request was handled by modifying archetypes.
-                    // This block overrides behavior for glitch areas/mobs/bosses.
-                    // I should change this to 'cautious' to be safe.
-                    behavior = 'cautious';
+                    behavior = 'aggressive';
                 }
             } catch (err) {
-                console.error('NPC Creative Pass failed:', err);
-            }
-        }
-
-        // 2. Logic Pass: Stat Balancing
-        const budgets = config.budgets;
-        let stats = {
-            health: Math.floor(budgets.maxNPCHealth * archetype.healthMult * (0.8 + Math.random() * 0.4)),
-            attack: Math.floor(budgets.maxNPCAttack * archetype.attackMult * (0.8 + Math.random() * 0.4) * 0.2),
-            defense: Math.floor(budgets.maxNPCDefense * archetype.defenseMult * (0.8 + Math.random() * 0.4) * 0.2)
-        };
-
-        if (llm) {
-            try {
-                const logicPrompt = `Balance the stats for this NPC:
-                Name: ${name}
-                Description: ${description}
-                Archetype: ${archetype.name}
-                Behavior: ${behavior}
-                
-                System Constraints (MAX LIMITS):
-                - Max Health: ${budgets.maxNPCHealth}
-                - Max Attack: ${budgets.maxNPCAttack}
-                - Max Defense: ${budgets.maxNPCDefense}
-                
-                Return ONLY a JSON object with fields: health, attack, defense.
-                Ensure the stats reflect the NPC's description and archetype. An 'aggressive' NPC should generally have higher attack.`;
-
-                const logicRes = await llm.chat(logicPrompt, "You are a game balance engineer for Zenith-9. You ensure NPCs are challenging but fair.", LLMRole.LOGIC);
-                const logicData = LLMService.parseJson(logicRes.text);
-
-                if (logicData.health) stats.health = Math.max(1, Math.min(budgets.maxNPCHealth, logicData.health));
-                if (logicData.attack) stats.attack = Math.max(1, Math.min(budgets.maxNPCAttack, logicData.attack));
-                if (logicData.defense) stats.defense = Math.max(1, Math.min(budgets.maxNPCDefense, logicData.defense));
-            } catch (err) {
-                console.error('NPC Logic Pass failed:', err);
+                console.error('NPC Generation Pass failed:', err);
             }
         }
 

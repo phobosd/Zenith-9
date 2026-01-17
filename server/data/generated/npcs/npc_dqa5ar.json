@@ -35,5 +35,6 @@
       "rationale": "The Tentacle Burst is the result of years of unchecked experimental waste being dumped into the sewers. A unique combination of chemicals, nanobots, and genetic material caused a single cockroach to rapidly mutate, evolving its tentacles and volatile compound-injecting capabilities as a defense mechanism against predators in the sewer environment."
     }
   },
-  "role": "mob"
+  "role": "mob",
+  "portrait": "/assets/portraits/npc_dqa5ar.jpg"
 }

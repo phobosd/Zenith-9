@@ -57,6 +57,13 @@ For a detailed map and list of key locations, see the [Area Guide](AREAS.md).
 ### Movement
 Navigate the world using cardinal directions: `north` (`n`), `south` (`s`), `east` (`e`), `west` (`w`).
 
+### Communication
+Interact with other players and NPCs in your current location.
+*   **Say**: Speak to everyone in the room.
+    *   `say <message>` (e.g., `say Hello everyone!`)
+    *   **Shortcut**: Use the single quote `'` to speak quickly.
+    *   `'<message>` (e.g., `'Anyone got a spare medkit?`)
+
 ### Items
 *   **Get**: Pick up an item from the ground.
     *   `get <item name>` (e.g., `get medkit`)

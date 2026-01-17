@@ -10,6 +10,7 @@ const COMMANDS = [
     'wear', 'equip', 'remove', 'unequip', 'takeoff',
     'turn', 'rotate', 'jack_in', 'jack_out', 'jackin', 'jackout',
     'maneuver', 'man', 'target', 'stance', 'appraise', 'app',
+    'say',
     'advance', 'adv', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess', 'balance', 'bal',
     'dash', 'slash', 'parry', 'thrust', 'upload', 'execute',
     'punch', 'jab', 'headbutt', 'uppercut', 'iaijutsu', 'iai', 'slice'
@@ -82,6 +83,7 @@ export const useTerminalInput = (
         if (['remove', 'unequip', 'takeoff'].includes(cmd)) return "Usage: remove <item>";
         if (['jack_in', 'jackin'].includes(cmd)) return "Usage: jack_in";
         if (['jack_out', 'jackout'].includes(cmd)) return "Usage: jack_out";
+        if (cmd === 'say') return "Usage: say <message> or '<message>";
         if (cmd === 'dash') return "Usage: dash (Adds DASH to combat buffer)";
         if (cmd === 'slash') return "Usage: slash (Adds SLASH to combat buffer)";
         if (cmd === 'parry') return "Usage: parry (Adds PARRY to combat buffer)";

@@ -1,0 +1,27 @@
+{
+  "id": "npc_0jz2si",
+  "name": "Grit-Tooth",
+  "description": "His face is a patchwork of scarred flesh and cheap, chrome plating around his jaw, suggesting a past altercation. He wears a heavy, oil-stained synth-leather jacket over frayed combat fatigues, giving him a perpetually hunched, menacing silhouette. A single, flickering red optic implant replaces his left eye, constantly scanning his surroundings with a paranoid twitch.",
+  "stats": {
+    "health": 195,
+    "attack": 62,
+    "defense": 16
+  },
+  "behavior": "cautious",
+  "faction": "Street",
+  "role": "mob",
+  "tags": [
+    "thug"
+  ],
+  "canMove": true,
+  "portrait": "/assets/portraits/npc_0jz2si.jpg",
+  "_metadata": {
+    "proposalId": "3db93cf1-cea1-4b43-aada-5822c15ec86c",
+    "generatedAt": 1768619039758,
+    "publishedAt": 1768619091812,
+    "seed": "2x7xk8",
+    "flavor": {
+      "rationale": "Grit-Tooth and his crew operate in the forgotten underbelly districts, using the constant digital static and reality glitches from the leaking Matrix as cover to conduct their illicit activities, knowing the corporate surveillance struggles to parse the 'noise.' They prey on those disoriented by the leaks or scavenge unstable tech."
+    }
+  }
+}

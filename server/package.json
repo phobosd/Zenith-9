@@ -10,7 +10,8 @@
     "db:seed": "ts-node src/db/seed.ts",
     "snapshot:create": "ts-node src/scripts/snapshot.ts create",
     "snapshot:restore": "ts-node src/scripts/snapshot.ts restore",
-    "snapshot:list": "ts-node src/scripts/snapshot.ts list"
+    "snapshot:list": "ts-node src/scripts/snapshot.ts list",
+    "encrypt-key": "ts-node src/scripts/encrypt-key.ts"
   },
   "keywords": [],
   "author": "",

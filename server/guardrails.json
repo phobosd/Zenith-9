@@ -29,9 +29,7 @@
             "provider": "local",
             "baseUrl": "http://192.168.68.111:1234/v1",
             "model": "gemma-3-starshine-12b",
-            "roles": [
-                "CREATIVE"
-            ]
+            "roles": []
         },
         "profile_fmxkmf9": {
             "id": "profile_fmxkmf9",
@@ -39,30 +37,40 @@
             "provider": "local",
             "baseUrl": "http://192.168.68.111:1234/v1",
             "model": "deepseek-r1-distill-qwen-7b",
-            "roles": [
-                "LOGIC",
-                "DEFAULT"
-            ]
-        },
-        "profile_6ogpwt": {
-            "id": "profile_6ogpwt",
-            "name": "Gemini",
-            "provider": "gemini",
-            "baseUrl": "https://generativelanguage.googleapis.com/v1beta",
-            "model": "imagen-4.0-generate-001",
-            "roles": [],
-            "apiKey": ""
+            "roles": []
         },
         "profile_x1habh": {
             "id": "profile_x1habh",
             "name": "Pollinations (Image)",
             "provider": "pollinations",
-            "baseUrl": "https://gen.pollinations.ai",
+            "baseUrl": "https://image.pollinations.ai",
             "model": "flux",
             "roles": [
                 "IMAGE"
             ],
-            "apiKey": ""
+            "apiKey": "enc:ba58075bfaac66ad9d79391a29ccf18d:d9ae2c65696a5d88b5d5bc85c0c3c69c:c696293af695c40b30c59918"
+        },
+        "profile_q8fysj": {
+            "id": "profile_q8fysj",
+            "name": "Gemini (Text)",
+            "provider": "gemini",
+            "baseUrl": "https://generativelanguage.googleapis.com/v1",
+            "model": "gemini-2.5-flash",
+            "roles": [
+                "CREATIVE",
+                "LOGIC",
+                "DEFAULT"
+            ],
+            "apiKey": "enc:6320e4211d864132c1ca6b17a5c409f8:d0ab310863b7ee0f4e6ca0557d2bc54a:354dd4c515413c69d9f59b979b617344e97cebd6cc575f0031500caf39a69dbd59c8c5baa5a240"
+        },
+        "profile_imagen": {
+            "id": "profile_imagen",
+            "name": "Gemini Image (Spare)",
+            "provider": "gemini",
+            "baseUrl": "https://generativelanguage.googleapis.com/v1",
+            "model": "imagen-4.0-generate-001",
+            "roles": [],
+            "apiKey": "enc:e5c6891d624d3cb0e0b76b3ddc1edc4f:a12be9e8e3d4dc87f2bfdd27dc9e97f4:c9d77fb4bf86d6c534b37d9a"
         }
     },
     "bannedWords": [

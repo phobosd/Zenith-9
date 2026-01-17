@@ -239,6 +239,7 @@ export class WorldDirector {
 
                         // Auto-publish/spawn
                         proposal.status = ProposalStatus.APPROVED;
+                        await this.processProposalAssets(proposal);
                         await this.publisher.publish(proposal);
                         NPCRegistry.getInstance().reloadGeneratedNPCs();
 
@@ -290,7 +291,7 @@ export class WorldDirector {
             paused: this.isPaused,
             personality: this.personality,
             glitchConfig: this.glitchConfig, // Expose config
-            guardrails: this.guardrails.getConfig(),
+            guardrails: this.guardrails.getSafeConfig(),
             proposals: this.proposals
         };
     }
@@ -498,6 +499,7 @@ export class WorldDirector {
                 }
 
                 if (proposal) {
+                    await this.processProposalAssets(proposal);
                     this.proposals.push(proposal);
                     this.log(DirectorLogLevel.INFO, `Draft created: ${proposal.type} - ${proposal.id}`);
                     this.adminNamespace.emit('director:proposals_update', this.proposals);
@@ -738,6 +740,17 @@ export class WorldDirector {
             }
         } catch (err) {
             this.log(DirectorLogLevel.ERROR, `Failed to generate room at ${x},${y}: ${err}`);
+        }
+    }
+
+    private async processProposalAssets(proposal: any) {
+        if (proposal && proposal.payload && proposal.payload.portrait && proposal.payload.portrait.startsWith('http')) {
+            const filename = `${proposal.payload.id}.jpg`;
+            this.log(DirectorLogLevel.INFO, `Downloading asset for ${proposal.payload.id}...`);
+            const localPath = await ImageDownloader.downloadImage(proposal.payload.portrait, filename);
+            if (localPath) {
+                proposal.payload.portrait = localPath;
+            }
         }
     }
 }

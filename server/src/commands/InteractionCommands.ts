@@ -157,4 +157,19 @@ export const registerInteractionCommands = (registry: CommandRegistry) => {
             ctx.systems.interaction.handleTurn(ctx.socketId, ctx.engine, targetName, direction);
         }
     });
+
+    registry.register({
+        name: 'say',
+        aliases: ["'"],
+        description: 'Say something to everyone in the room',
+        execute: (ctx) => {
+            const message = ctx.args.join(' ');
+            if (!message) {
+                ctx.messageService.info(ctx.socketId, 'Say what?');
+                return;
+            }
+            ctx.systems.interaction.handleSay(ctx.socketId, ctx.engine, message);
+        },
+        ignoresRoundtime: true
+    });
 };

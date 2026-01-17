@@ -35,5 +35,6 @@
       "rationale": "Spark-Optics are the result of a failed bioengineering experiment that sought to enhance the night vision capabilities of sewer rats. The unstable mutation resulted in hyper-sensitive optics with unpredictable behavior, causing them to lash out at anything within their limited field of view."
     }
   },
-  "role": "mob"
+  "role": "mob",
+  "portrait": "/assets/portraits/npc_mvz657.jpg"
 }

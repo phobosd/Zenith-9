@@ -125,10 +125,12 @@
             "defense": 5
         },
         "canMove": false,
-        "role": "civilian"
+        "role": "civilian",
+        "portrait": "/assets/portraits/fixer.jpg"
     },
     {
         "id": "turing_police",
+        "portrait": "/assets/portraits/turing_police.jpg",
         "name": "Turing Police",
         "description": "A stern agent in a grey polycarbon suit, wearing a badge that signifies their authority over artificial intelligences. They carry a heavy taser-prod and a specialized scanner for detecting rogue code.",
         "dialogue": [
@@ -166,10 +168,12 @@
             "ice",
             "passive"
         ],
-        "role": "guard"
+        "role": "guard",
+        "portrait": "/assets/portraits/white_ice.jpg"
     },
     {
         "id": "black_ice",
+        "portrait": "/assets/portraits/black_ice.jpg",
         "name": "Black ICE",
         "description": "A dark, swirling vortex of malevolent code. It is an aggressive intrusion countermeasure designed to physically damage the brain of any hacker it encounters.",
         "dialogue": [

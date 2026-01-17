@@ -211,17 +211,22 @@ export class LLMService {
 
     private async generatePollinationsImage(profile: LLMProfile, prompt: string): Promise<string> {
         try {
-            // Pollinations.ai has moved to gen.pollinations.ai
-            // Format: https://gen.pollinations.ai/image/{prompt}?width={w}&height={h}&model={model}&key={apiKey}
-            const encodedPrompt = encodeURIComponent(prompt);
+            // Clean up prompt: remove trailing punctuation, internal question marks, and limit length
+            let cleanPrompt = prompt.trim()
+                .replace(/\?/g, "") // Remove all question marks
+                .replace(/[.,!?;:]+$/, ""); // Remove trailing punctuation
+
+            if (cleanPrompt.length > 800) {
+                cleanPrompt = cleanPrompt.substring(0, 800);
+            }
+
+            const encodedPrompt = encodeURIComponent(cleanPrompt);
             const width = 1024;
             const height = 1024;
             const model = profile.model || 'flux';
-            const apiKey = profile.apiKey || '';
 
-            // Construct the URL with the API key for the new system
-            const baseUrl = profile.baseUrl.includes('gen.pollinations.ai') ? profile.baseUrl : 'https://gen.pollinations.ai';
-            const imageUrl = `${baseUrl}/image/${encodedPrompt}?width=${width}&height=${height}&nologo=true&model=${model}${apiKey ? `&key=${apiKey}` : ''}`;
+            // Use the reliable image.pollinations.ai endpoint for direct image fetching
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=${model}&nologo=true`;
 
             Logger.info('LLMService', `Generated Pollinations URL: ${imageUrl}`);
             return imageUrl;
@@ -233,68 +238,63 @@ export class LLMService {
 
     private async generateGeminiImage(profile: LLMProfile, prompt: string): Promise<string> {
         try {
-            // Gemini image generation (Imagen 3/4) via Google AI Studio
-            // Some models use :generateImages (Imagen 3), others use :predict (Imagen 4 / Vertex-style)
             const modelId = profile.model.includes('imagen') ? profile.model : 'imagen-3.0-generate-001';
 
-            // Determine endpoint and body based on model
-            const isPredict = modelId.includes('imagen-4') || profile.model.includes('predict');
-            const method = isPredict ? 'predict' : 'generateImages';
-            const url = `${profile.baseUrl}/models/${modelId}:${method}?key=${profile.apiKey}`;
+            // Try the preferred method first based on model name
+            const isImagen4 = modelId.includes('imagen-4');
+            const methods = isImagen4 ? ['predict', 'generateImages'] : ['generateImages', 'predict'];
 
-            Logger.info('LLMService', `Attempting Gemini Image Gen [${method}]: ${url}`);
+            for (const method of methods) {
+                const url = `${profile.baseUrl}/models/${modelId}:${method}?key=${profile.apiKey}`;
+                Logger.info('LLMService', `Attempting Gemini Image Gen [${method}]: ${modelId}`);
 
-            const body = isPredict ? {
-                instances: [{ prompt }],
-                parameters: { sampleCount: 1 }
-            } : {
-                prompt: prompt,
-                number_of_images: 1,
-                safety_filter_level: "BLOCK_MEDIUM_AND_ABOVE",
-                person_generation: "ALLOW_ADULT"
-            };
+                const body = method === 'predict' ? {
+                    instances: [{ prompt }],
+                    parameters: { sampleCount: 1 }
+                } : {
+                    prompt: prompt,
+                    number_of_images: 1,
+                    safety_filter_level: "BLOCK_MEDIUM_AND_ABOVE",
+                    person_generation: "ALLOW_ADULT"
+                };
 
-            let response = await fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(body)
-            });
-
-            if (!response.ok) {
-                const error = await response.text();
-                Logger.error('LLMService', `Gemini Image Error (${response.status}): ${error}`);
-
-                // If it was a 404 and we tried generateImages, try predict as a fallback
-                if (response.status === 404 && method === 'generateImages') {
-                    const fallbackUrl = `${profile.baseUrl}/models/${modelId}:predict?key=${profile.apiKey}`;
-                    Logger.info('LLMService', `Retrying with predict endpoint: ${fallbackUrl}`);
-
-                    response = await fetch(fallbackUrl, {
+                try {
+                    const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            instances: [{ prompt }],
-                            parameters: { sampleCount: 1 }
-                        })
+                        body: JSON.stringify(body)
                     });
+
+                    if (!response.ok) {
+                        const error = await response.text();
+                        Logger.warn('LLMService', `Gemini Image [${method}] failed (${response.status}): ${error.substring(0, 200)}`);
+                        continue; // Try next method
+                    }
+
+                    const data = await response.json();
+
+                    // Handle :generateImages response (Imagen 3 style)
+                    if (data.images && data.images[0] && data.images[0].imageRawBase64) {
+                        Logger.info('LLMService', `Successfully generated image via ${method} (imageRawBase64)`);
+                        return `data:image/png;base64,${data.images[0].imageRawBase64}`;
+                    }
+
+                    // Handle :predict response (Imagen 4 / Vertex style)
+                    if (data.predictions && data.predictions[0]) {
+                        const pred = data.predictions[0];
+                        const base64 = pred.bytesBase64Encoded || pred.imageRawBase64 || (typeof pred === 'string' ? pred : null);
+                        if (base64) {
+                            Logger.info('LLMService', `Successfully generated image via ${method} (predictions)`);
+                            return `data:image/png;base64,${base64}`;
+                        }
+                    }
+
+                    Logger.warn('LLMService', `Gemini Image [${method}] returned no recognizable image data. Keys: ${Object.keys(data)}`);
+                } catch (err) {
+                    Logger.error('LLMService', `Error during Gemini Image [${method}]: ${err}`);
                 }
             }
 
-            if (!response.ok) return "";
-
-            const data = await response.json();
-
-            // Handle :generateImages response (Imagen 3 style)
-            if (data.images && data.images[0] && data.images[0].imageRawBase64) {
-                return `data:image/png;base64,${data.images[0].imageRawBase64}`;
-            }
-
-            // Handle :predict response (Imagen 4 / Vertex style)
-            if (data.predictions && data.predictions[0] && data.predictions[0].bytesBase64Encoded) {
-                return `data:image/png;base64,${data.predictions[0].bytesBase64Encoded}`;
-            }
-
-            Logger.error('LLMService', `Gemini Image response missing image data. Response: ${JSON.stringify(data)}`);
             return "";
         } catch (err) {
             Logger.error('LLMService', `Gemini image generation failed: ${err}`);

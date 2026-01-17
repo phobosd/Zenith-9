@@ -58,7 +58,14 @@ export class CommandRegistry {
     }
 
     execute(input: string, context: CommandContext) {
-        const parts = input.trim().split(/\s+/);
+        let normalizedInput = input.trim();
+
+        // Handle shortcuts
+        if (normalizedInput.startsWith("'")) {
+            normalizedInput = "say " + normalizedInput.substring(1);
+        }
+
+        const parts = normalizedInput.split(/\s+/);
         const commandName = parts[0].toLowerCase();
         const args = parts.slice(1);
         context.args = args; // Update args in context

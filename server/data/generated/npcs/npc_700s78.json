@@ -1,0 +1,27 @@
+{
+  "id": "npc_700s78",
+  "name": "Suture",
+  "description": "Suture's face is a canvas of old burns and new scars, punctuated by a single, multi-spectrum optical implant that hums faintly. A worn, grease-stained lab coat, haphazardly patched with mismatched tech fabric, covers their gaunt frame, hinting at a life spent in the shadows. Their presence is a quiet hum of weary competence, always observing, always calculating.",
+  "stats": {
+    "health": 160,
+    "attack": 35,
+    "defense": 10
+  },
+  "behavior": "cautious",
+  "faction": "Corporate",
+  "role": "vendor",
+  "tags": [
+    "street doc"
+  ],
+  "canMove": true,
+  "portrait": "/assets/portraits/npc_700s78.jpg",
+  "_metadata": {
+    "proposalId": "7faa1254-5ce9-4dd0-a441-836e25309a85",
+    "generatedAt": 1768618484969,
+    "publishedAt": 1768618535765,
+    "seed": "2tv9yh",
+    "flavor": {
+      "rationale": "Suture operates out of necessity in the grim, overlooked sectors of the city, far from corporate-sanctioned clinics. Their illicit medical expertise is crucial for those suffering from the physical ravages of the leaking Matrix or the brutal realities of street life, ensuring the downtrodden have a place to mend when official channels fail and corporate surveillance makes legitimate care dangerous."
+    }
+  }
+}

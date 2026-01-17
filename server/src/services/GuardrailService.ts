@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { Logger } from '../utils/Logger';
+import { Encryption } from '../utils/Encryption';
+
 
 export enum LLMRole {
     CREATIVE = 'CREATIVE',
@@ -74,7 +76,19 @@ export class GuardrailService {
             try {
                 const data = fs.readFileSync(this.configPath, 'utf8');
                 const loaded = JSON.parse(data);
+
+                // Decrypt API keys in profiles
+                if (loaded.llmProfiles) {
+                    for (const id in loaded.llmProfiles) {
+                        const profile = loaded.llmProfiles[id];
+                        if (profile.apiKey) {
+                            profile.apiKey = Encryption.secureDecrypt(profile.apiKey);
+                        }
+                    }
+                }
+
                 // Deep merge defaults with loaded config
+
                 return {
                     ...defaults,
                     ...loaded,
@@ -133,11 +147,64 @@ export class GuardrailService {
         return this.config;
     }
 
+    public getSafeConfig(): any {
+        // Deep clone to avoid modifying the original
+        const safeConfig = JSON.parse(JSON.stringify(this.config));
+        if (safeConfig.llmProfiles) {
+            for (const id in safeConfig.llmProfiles) {
+                const profile = safeConfig.llmProfiles[id];
+                if (profile.apiKey) {
+                    // Mask the key: show only first 4 and last 4 chars if long enough
+                    const key = profile.apiKey;
+                    if (key.length > 10) {
+                        profile.apiKey = `${key.substring(0, 4)}****${key.substring(key.length - 4)}`;
+                    } else {
+                        profile.apiKey = '********';
+                    }
+                }
+            }
+        }
+        return safeConfig;
+    }
+
     public saveConfig(newConfig: GuardrailConfig) {
+        // Handle masked keys from UI: if a key is masked, restore the original from memory
+        if (newConfig.llmProfiles) {
+            for (const id in newConfig.llmProfiles) {
+                const newProfile = newConfig.llmProfiles[id];
+                const oldProfile = this.config.llmProfiles[id];
+
+                if (newProfile.apiKey && newProfile.apiKey.includes('****')) {
+                    // This is a masked key from the UI, restore the real one
+                    if (oldProfile && oldProfile.apiKey) {
+                        newProfile.apiKey = oldProfile.apiKey;
+                    }
+                }
+            }
+        }
+
         this.config = newConfig;
+
         try {
-            fs.writeFileSync(this.configPath, JSON.stringify(this.config, null, 4));
-            Logger.info('GuardrailService', 'Config saved to disk.');
+            // Clone config to avoid encrypting the in-memory version used by the app
+            const configToSave = JSON.parse(JSON.stringify(this.config));
+
+            // Encrypt API keys in profiles before saving
+            if (configToSave.llmProfiles) {
+                for (const id in configToSave.llmProfiles) {
+                    const profile = configToSave.llmProfiles[id];
+                    if (profile.apiKey && !Encryption.isEncrypted(profile.apiKey)) {
+                        Logger.info('GuardrailService', `Encrypting API key for profile: ${profile.name}`);
+                        profile.apiKey = Encryption.secureEncrypt(profile.apiKey);
+                    }
+                }
+            }
+
+            fs.writeFileSync(this.configPath, JSON.stringify(configToSave, null, 4));
+            Logger.info('GuardrailService', 'Config saved to disk (with encryption).');
+
+            // Re-sync LLM Service
+            this.onUpdateCallbacks.forEach(cb => cb(this.config));
         } catch (err) {
             Logger.error('GuardrailService', `Failed to save config: ${err}`);
         }
