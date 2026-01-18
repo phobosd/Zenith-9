@@ -60,7 +60,7 @@ export class WorldDirector {
     private proposals: any[] = []; // Pending content proposals
     private personality = {
         chaos: { value: 0.2, enabled: true },
-        aggression: { value: 0.3, enabled: true },
+        aggression: { value: 0.0, enabled: false },
         expansion: { value: 0.1, enabled: true }
     };
 
@@ -92,20 +92,38 @@ export class WorldDirector {
         this.questGen = new QuestGenerator();
         this.roomGen = new RoomGenerator();
 
-        this.loadConfig();
-        this.setupAdminSocket();
-
-        // Listen for config changes (manual file edits)
-        this.guardrails.onUpdate((config) => {
-            this.llm.updateConfig(config.llmProfiles);
-            this.log(DirectorLogLevel.INFO, 'LLM Profiles re-synced from disk.');
-            this.adminNamespace.emit('director:status', this.getStatus());
-        });
-
-        this.log(DirectorLogLevel.INFO, 'World Director initialized and standby.');
-
+        // Start the automation loop (it will respect isPaused)
         // Start the automation loop (it will respect isPaused)
         this.startAutomationLoop();
+
+        this.loadConfig();
+        this.setupAdminSocket();
+        this.setupEventListeners();
+    }
+
+    private async setupEventListeners() {
+        const { GameEventBus, GameEventType } = await import('../utils/GameEventBus');
+        const { CharacterService } = await import('../services/CharacterService');
+
+        GameEventBus.getInstance().subscribe(GameEventType.PLAYER_CONNECTED, async () => {
+            const charService = CharacterService.getInstance();
+            const characters = charService.getAllCharacters();
+            const enriched = characters.map(c => ({
+                ...c,
+                online: !!charService.getActiveEntityByCharId(c.id, this.engine)
+            }));
+            this.adminNamespace.emit('director:characters_update', enriched);
+        });
+
+        GameEventBus.getInstance().subscribe(GameEventType.PLAYER_DISCONNECTED, async () => {
+            const charService = CharacterService.getInstance();
+            const characters = charService.getAllCharacters();
+            const enriched = characters.map(c => ({
+                ...c,
+                online: !!charService.getActiveEntityByCharId(c.id, this.engine)
+            }));
+            this.adminNamespace.emit('director:characters_update', enriched);
+        });
     }
 
     private log(level: DirectorLogLevel, message: string, context?: any) {
@@ -334,19 +352,57 @@ export class WorldDirector {
             if (this.isPaused) return;
 
             // Random Event Trigger (if Aggression is high)
-            if (this.personality.aggression.enabled && Math.random() < (this.personality.aggression.value * 0.01)) { // 1% chance per tick scaled by aggression
-                await this.triggerWorldEvent('MOB_INVASION');
+            if (this.personality.aggression.enabled && Math.random() < (this.personality.aggression.value * 0.01)) {
+                // await this.triggerWorldEvent('MOB_INVASION');
             }
 
         }, 10000); // Check every 10 seconds
     }
 
     private setupAdminSocket() {
+        this.adminNamespace.use(async (socket: Socket, next: (err?: any) => void) => {
+            const token = socket.handshake.auth.token;
+            if (!token) {
+                Logger.warn('Director', `Admin connection rejected: No token from ${socket.id}`);
+                return next(new Error('Authentication error: No token provided'));
+            }
+
+            try {
+                const { AuthService } = await import('../services/AuthService');
+                const user = AuthService.getInstance().verifyToken(token);
+
+                if (!user) {
+                    Logger.warn('Director', `Admin connection rejected: Invalid token from ${socket.id}`);
+                    return next(new Error('Authentication error: Invalid token'));
+                }
+
+                if (user.role !== 'god' && user.role !== 'admin') {
+                    Logger.warn('Director', `Admin connection rejected: User ${user.username} has insufficient permissions (${user.role})`);
+                    return next(new Error('Authentication error: Insufficient permissions'));
+                }
+
+                // Attach user to socket
+                (socket as any).user = user;
+                next();
+            } catch (err) {
+                Logger.error('Director', `Auth middleware error: ${err}`);
+                next(new Error('Internal server error during auth'));
+            }
+        });
+
         this.adminNamespace.on('connection', (socket: Socket) => {
             Logger.info('Director', `Admin connected: ${socket.id}`);
 
             // Send current state
-            socket.emit('director:status', this.getStatus());
+            try {
+                Logger.info('Director', `Admin ${socket.id} - fetching status...`);
+                const status = this.getStatus();
+                Logger.info('Director', `Admin ${socket.id} - status fetched. Sending...`);
+                socket.emit('director:status', status);
+                Logger.info('Director', `Admin ${socket.id} - status sent.`);
+            } catch (err) {
+                Logger.error('Director', `Failed to get or send status to admin ${socket.id}:`, err);
+            }
 
             // Send recent logs
             this.logs.slice(-50).forEach(log => socket.emit('director:log', log));
@@ -371,7 +427,10 @@ export class WorldDirector {
             });
 
             socket.on('director:update_guardrail', (update: any) => {
-                const config = this.guardrails.getConfig();
+                // Deep clone to avoid mutating the reference held by GuardrailService
+                // This is critical so that saveConfig() can compare new vs old to restore masked keys
+                const config = JSON.parse(JSON.stringify(this.guardrails.getConfig()));
+
                 if (update.requireHumanApproval !== undefined) config.features.requireHumanApproval = update.requireHumanApproval;
                 if (update.autoSnapshotHighRisk !== undefined) config.features.autoSnapshotHighRisk = update.autoSnapshotHighRisk;
                 if (update.enableNPCs !== undefined) config.features.enableNPCs = update.enableNPCs;
@@ -385,7 +444,8 @@ export class WorldDirector {
                 }
                 if (update.llmProfiles !== undefined) {
                     config.llmProfiles = update.llmProfiles;
-                    this.llm.updateConfig(config.llmProfiles);
+                    // Note: We do NOT call this.llm.updateConfig here.
+                    // this.guardrails.saveConfig() triggers the onUpdate callback which handles it.
                 }
                 this.guardrails.saveConfig(config);
                 this.log(DirectorLogLevel.INFO, `Guardrails updated: ${JSON.stringify(update)}`);
@@ -424,7 +484,7 @@ export class WorldDirector {
                                 // Spawn a random NPC in the new room
                                 const pos = roomEntity.getComponent(Position);
                                 if (pos) {
-                                    const npcType = Math.random() > 0.5 ? 'street samurai' : 'cyber thug';
+                                    const npcType = 'street vendor'; // Only non-aggressive
                                     const npc = PrefabFactory.createNPC(npcType);
                                     if (npc) {
                                         npc.addComponent(new Position(pos.x, pos.y));
@@ -546,8 +606,13 @@ export class WorldDirector {
             // Item & NPC Management
             socket.on('director:get_items', () => {
                 const items = ItemRegistry.getInstance().getAllItems();
+                Logger.info('Director', `Admin ${socket.id} requested items. Found ${items.length} in registry.`);
                 // Filter duplicates (since registry stores by id, name, shortName)
                 const uniqueItems = Array.from(new Map(items.map(item => [item.id, item])).values());
+                Logger.info('Director', `Sending ${uniqueItems.length} unique items to admin ${socket.id}.`);
+                if (uniqueItems.length > 0) {
+                    Logger.info('Director', `First item: ID=${uniqueItems[0].id}, Name=${uniqueItems[0].name}, ShortName=${uniqueItems[0].shortName}`);
+                }
                 socket.emit('director:items_update', uniqueItems);
             });
 
@@ -577,9 +642,9 @@ export class WorldDirector {
 
             socket.on('director:get_npcs', () => {
                 const npcs = NPCRegistry.getInstance().getAllNPCs();
-                this.log(DirectorLogLevel.INFO, `Client requested NPCs. Found ${npcs.length} total.`);
+                Logger.info('Director', `Admin ${socket.id} requested NPCs. Found ${npcs.length} total.`);
                 const uniqueNPCs = Array.from(new Map(npcs.map(npc => [npc.id, npc])).values());
-                this.log(DirectorLogLevel.INFO, `Sending ${uniqueNPCs.length} unique NPCs.`);
+                Logger.info('Director', `Sending ${uniqueNPCs.length} unique NPCs to admin ${socket.id}.`);
                 socket.emit('director:npcs_update', uniqueNPCs);
             });
 
@@ -698,20 +763,12 @@ export class WorldDirector {
                 try {
                     this.log(DirectorLogLevel.WARN, `RESTORING SNAPSHOT: ${id}. System will be temporarily unavailable.`);
                     await this.snapshots.restoreSnapshot(id);
-                    this.log(DirectorLogLevel.SUCCESS, `Snapshot ${id} restored successfully. RESTARTING REGISTRIES.`);
-
-                    // Reload all registries after restore
-                    ItemRegistry.getInstance().reloadGeneratedItems();
-                    NPCRegistry.getInstance().reloadGeneratedNPCs();
-                    RoomRegistry.getInstance().reloadGeneratedRooms();
-                    CompendiumService.updateCompendium();
-
-                    this.log(DirectorLogLevel.INFO, `System state restored to ${id}.`);
+                    this.log(DirectorLogLevel.SUCCESS, `Snapshot ${id} restored successfully. Server is RESTARTING to apply changes.`);
+                    this.log(DirectorLogLevel.INFO, `System state restored to ${id}. Admin connection will drop momentarily.`);
                 } catch (err) {
                     this.log(DirectorLogLevel.ERROR, `Failed to restore snapshot: ${err}`);
                 }
             });
-
             socket.on('snapshot:delete', async (id: string) => {
                 try {
                     await this.snapshots.deleteSnapshot(id);
@@ -722,6 +779,430 @@ export class WorldDirector {
                 } catch (err) {
                     this.log(DirectorLogLevel.ERROR, `Failed to delete snapshot: ${err}`);
                 }
+            });
+
+            // User Management
+            socket.on('director:get_users', async () => {
+                const { AuthService } = await import('../services/AuthService');
+                const users = AuthService.getInstance().getAllUsers();
+                socket.emit('director:users_update', users);
+            });
+
+            socket.on('director:update_user_role', async (data: { userId: number, role: string }) => {
+                const { AuthService } = await import('../services/AuthService');
+                if (AuthService.getInstance().updateUserRole(data.userId, data.role)) {
+                    this.log(DirectorLogLevel.SUCCESS, `Updated user ${data.userId} role to ${data.role}`);
+                    const users = AuthService.getInstance().getAllUsers();
+                    this.adminNamespace.emit('director:users_update', users);
+                } else {
+                    this.log(DirectorLogLevel.ERROR, `Failed to update user ${data.userId} role.`);
+                }
+            });
+
+            socket.on('director:update_user_password', async (data: { userId: number, password: string }) => {
+                const { AuthService } = await import('../services/AuthService');
+                if (await AuthService.getInstance().updateUserPassword(data.userId, data.password)) {
+                    this.log(DirectorLogLevel.SUCCESS, `Updated password for user ${data.userId}`);
+                } else {
+                    this.log(DirectorLogLevel.ERROR, `Failed to update password for user ${data.userId}.`);
+                }
+            });
+
+            socket.on('director:delete_user', async (userId: number) => {
+                const { AuthService } = await import('../services/AuthService');
+                if (AuthService.getInstance().deleteUser(userId)) {
+                    this.log(DirectorLogLevel.SUCCESS, `Deleted user ${userId}`);
+                    const users = AuthService.getInstance().getAllUsers();
+                    this.adminNamespace.emit('director:users_update', users);
+                } else {
+                    this.log(DirectorLogLevel.ERROR, `Failed to delete user ${userId}.`);
+                }
+            });
+
+            // Character Management
+            socket.on('director:get_characters', async () => {
+                const { CharacterService } = await import('../services/CharacterService');
+                const charService = CharacterService.getInstance();
+                const characters = charService.getAllCharacters();
+
+                const enriched = characters.map(c => ({
+                    ...c,
+                    online: !!charService.getActiveEntityByCharId(c.id, this.engine)
+                }));
+
+                socket.emit('director:characters_update', enriched);
+            });
+
+            socket.on('director:update_character_stats', async (data: { charId: number, stats: any, skills?: any, reputation?: any }) => {
+                const { CharacterService } = await import('../services/CharacterService');
+                const { Stats } = await import('../components/Stats');
+                const { Reputation } = await import('../components/Reputation');
+
+                const charService = CharacterService.getInstance();
+                const activeEntity = charService.getActiveEntityByCharId(data.charId, this.engine);
+
+                if (activeEntity) {
+                    const statsComp = activeEntity.getComponent(Stats);
+                    if (statsComp) {
+                        // Attributes
+                        for (const [key, value] of Object.entries(data.stats)) {
+                            if (statsComp.attributes.has(key)) {
+                                statsComp.attributes.get(key)!.value = Number(value);
+                            }
+                        }
+                        // Skills
+                        if (data.skills) {
+                            for (const [key, value] of Object.entries(data.skills)) {
+                                if (statsComp.skills.has(key)) {
+                                    const skill = statsComp.skills.get(key)!;
+                                    skill.level = Number(value);
+                                    skill.maxUses = skill.level * 10;
+                                } else {
+                                    statsComp.addSkill(key, Number(value));
+                                }
+                            }
+                        }
+                    }
+
+                    if (data.reputation) {
+                        let repComp = activeEntity.getComponent(Reputation);
+                        if (!repComp) {
+                            repComp = new Reputation();
+                            activeEntity.addComponent(repComp);
+                        }
+                        for (const [faction, value] of Object.entries(data.reputation)) {
+                            repComp.factions.set(faction, Number(value));
+                        }
+                    }
+
+                    this.log(DirectorLogLevel.SUCCESS, `Updated active data for character ${data.charId}`);
+                } else {
+                    const char = charService.getCharacterById(data.charId);
+                    if (char) {
+                        const jsonData = JSON.parse(char.data);
+                        // Ensure components structure exists
+                        if (!jsonData.components) jsonData.components = {};
+
+                        const tempStats = new Stats();
+                        if (jsonData.components.Stats) {
+                            tempStats.fromJSON(jsonData.components.Stats);
+                        }
+
+                        // Attributes
+                        for (const [key, value] of Object.entries(data.stats)) {
+                            if (tempStats.attributes.has(key)) {
+                                tempStats.attributes.get(key)!.value = Number(value);
+                            }
+                        }
+
+                        // Skills
+                        if (data.skills) {
+                            for (const [key, value] of Object.entries(data.skills)) {
+                                if (tempStats.skills.has(key)) {
+                                    const skill = tempStats.skills.get(key)!;
+                                    skill.level = Number(value);
+                                    skill.maxUses = skill.level * 10;
+                                } else {
+                                    tempStats.addSkill(key, Number(value));
+                                }
+                            }
+                        }
+
+                        jsonData.components.Stats = tempStats.toJSON();
+
+                        if (data.reputation) {
+                            const tempRep = new Reputation();
+                            if (jsonData.components.Reputation) {
+                                tempRep.fromJSON(jsonData.components.Reputation);
+                            }
+                            for (const [faction, value] of Object.entries(data.reputation)) {
+                                tempRep.factions.set(faction, Number(value));
+                            }
+                            jsonData.components.Reputation = tempRep.toJSON();
+                        }
+
+                        charService.saveCharacter(data.charId, jsonData);
+                        this.log(DirectorLogLevel.SUCCESS, `Updated offline data for character ${data.charId}`);
+                    } else {
+                        this.log(DirectorLogLevel.ERROR, `Character ${data.charId} not found.`);
+                    }
+                }
+
+                // Refresh list
+                const characters = charService.getAllCharacters();
+                const enriched = characters.map(c => ({
+                    ...c,
+                    online: !!charService.getActiveEntityByCharId(c.id, this.engine)
+                }));
+                socket.emit('director:characters_update', enriched);
+            });
+
+            socket.on('director:update_character_inventory', async (data: { charId: number, inventory: any }) => {
+                const { CharacterService } = await import('../services/CharacterService');
+                const { Inventory } = await import('../components/Inventory');
+                const { Container } = await import('../components/Container');
+                const { Item } = await import('../components/Item');
+                const { PersistenceManager } = await import('../persistence/PersistenceManager');
+
+                const charService = CharacterService.getInstance();
+                const activeEntity = charService.getActiveEntityByCharId(data.charId, this.engine);
+
+                if (activeEntity) {
+                    // --- ACTIVE CHARACTER LOGIC ---
+                    const inv = activeEntity.getComponent(Inventory);
+                    if (!inv) {
+                        this.log(DirectorLogLevel.ERROR, `Character ${data.charId} has no inventory component.`);
+                        return;
+                    }
+
+                    const updateSlot = (currentId: string | null, newItemId: string | null, setFn: (id: string | null) => void) => {
+                        if (currentId) this.engine.removeEntity(currentId);
+                        if (newItemId) {
+                            const newItem = PrefabFactory.createItem(newItemId);
+                            if (newItem) {
+                                this.engine.addEntity(newItem);
+                                setFn(newItem.id);
+                            } else setFn(null);
+                        } else setFn(null);
+                    };
+
+                    // Hands
+                    if (data.inventory.rightHand !== undefined) updateSlot(inv.rightHand, data.inventory.rightHand, (id) => inv.rightHand = id);
+                    if (data.inventory.leftHand !== undefined) updateSlot(inv.leftHand, data.inventory.leftHand, (id) => inv.leftHand = id);
+
+                    // Equipment
+                    if (data.inventory.equipment) {
+                        for (const [slot, itemId] of Object.entries(data.inventory.equipment)) {
+                            if (slot === 'back') continue;
+                            const currentId = inv.equipment.get(slot) || null;
+                            updateSlot(currentId, itemId as string, (id) => {
+                                if (id) inv.equipment.set(slot, id);
+                                else inv.equipment.delete(slot);
+                            });
+                        }
+                    }
+
+                    // Backpack
+                    if (data.inventory.backpack) {
+                        let backpackId = inv.equipment.get('back');
+                        let backpack = backpackId ? this.engine.getEntity(backpackId) : null;
+
+                        if (!backpack && (data.inventory.backpack as string[]).length > 0) {
+                            const newBackpack = PrefabFactory.createItem('backpack');
+                            if (newBackpack) {
+                                this.engine.addEntity(newBackpack);
+                                inv.equipment.set('back', newBackpack.id);
+                                backpack = newBackpack;
+                            }
+                        }
+
+                        if (backpack) {
+                            const container = backpack.getComponent(Container);
+                            if (container) {
+                                for (const itemId of container.items) this.engine.removeEntity(itemId);
+                                container.items = [];
+                                for (const itemTemplateId of (data.inventory.backpack as string[])) {
+                                    const newItem = PrefabFactory.createItem(itemTemplateId);
+                                    if (newItem) {
+                                        this.engine.addEntity(newItem);
+                                        container.items.push(newItem.id);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    this.log(DirectorLogLevel.SUCCESS, `Updated active inventory for character ${data.charId}`);
+
+                } else {
+                    // --- OFFLINE CHARACTER LOGIC ---
+                    const char = charService.getCharacterById(data.charId);
+                    if (!char) {
+                        this.log(DirectorLogLevel.ERROR, `Character ${data.charId} not found.`);
+                        return;
+                    }
+
+                    const persistence = new PersistenceManager();
+                    const jsonData = JSON.parse(char.data);
+                    if (!jsonData.components) jsonData.components = {};
+
+                    // Reconstruct Inventory Component
+                    const tempInv = new Inventory();
+                    if (jsonData.components.Inventory) tempInv.fromJSON(jsonData.components.Inventory);
+
+                    const updateOfflineSlot = async (currentId: string | null, newItemId: string | null, setFn: (id: string | null) => void) => {
+                        // In a real system we might delete the old entity from DB, but for now we just orphan it
+                        if (newItemId) {
+                            const newItem = PrefabFactory.createItem(newItemId);
+                            if (newItem) {
+                                await persistence.saveEntity(newItem.id, newItem.toJSON());
+                                setFn(newItem.id);
+                            } else setFn(null);
+                        } else setFn(null);
+                    };
+
+                    // Hands
+                    if (data.inventory.rightHand !== undefined) await updateOfflineSlot(tempInv.rightHand, data.inventory.rightHand, (id) => tempInv.rightHand = id);
+                    if (data.inventory.leftHand !== undefined) await updateOfflineSlot(tempInv.leftHand, data.inventory.leftHand, (id) => tempInv.leftHand = id);
+
+                    // Equipment
+                    if (data.inventory.equipment) {
+                        for (const [slot, itemId] of Object.entries(data.inventory.equipment)) {
+                            if (slot === 'back') continue;
+                            const currentId = tempInv.equipment.get(slot) || null;
+                            await updateOfflineSlot(currentId, itemId as string, (id) => {
+                                if (id) tempInv.equipment.set(slot, id);
+                                else tempInv.equipment.delete(slot);
+                            });
+                        }
+                    }
+
+                    // Backpack
+                    if (data.inventory.backpack) {
+                        let backpackId = tempInv.equipment.get('back');
+                        // We need to fetch the backpack entity to update its container
+                        let backpackData = backpackId ? await persistence.getEntity(backpackId) : null;
+
+                        if (!backpackData && (data.inventory.backpack as string[]).length > 0) {
+                            const newBackpack = PrefabFactory.createItem('backpack');
+                            if (newBackpack) {
+                                await persistence.saveEntity(newBackpack.id, newBackpack.toJSON());
+                                tempInv.equipment.set('back', newBackpack.id);
+                                backpackData = newBackpack.toJSON();
+                            }
+                        }
+
+                        if (backpackData && backpackData.components && backpackData.components.Container) {
+                            const container = new Container(0); // Size doesn't matter for reconstruction
+                            container.fromJSON(backpackData.components.Container);
+
+                            // Clear and rebuild items
+                            container.items = [];
+                            for (const itemTemplateId of (data.inventory.backpack as string[])) {
+                                const newItem = PrefabFactory.createItem(itemTemplateId);
+                                if (newItem) {
+                                    await persistence.saveEntity(newItem.id, newItem.toJSON());
+                                    container.items.push(newItem.id);
+                                }
+                            }
+
+                            // Save updated backpack
+                            backpackData.components.Container = container.toJSON();
+                            await persistence.saveEntity(backpackData.id, backpackData);
+                        }
+                    }
+
+                    // Save Character
+                    jsonData.components.Inventory = tempInv.toJSON();
+                    charService.saveCharacter(data.charId, jsonData);
+                    this.log(DirectorLogLevel.SUCCESS, `Updated offline inventory for character ${data.charId}`);
+                }
+            });
+
+            socket.on('director:get_character_inventory', async (charId: number) => {
+                const { CharacterService } = await import('../services/CharacterService');
+                const { Inventory } = await import('../components/Inventory');
+                const { Container } = await import('../components/Container');
+                const { Item } = await import('../components/Item');
+                const { PersistenceManager } = await import('../persistence/PersistenceManager');
+
+                const charService = CharacterService.getInstance();
+                const activeEntity = charService.getActiveEntityByCharId(charId, this.engine);
+
+                const resolveItemName = async (id: string | null, persistence?: any): Promise<string | null> => {
+                    if (!id) return null;
+
+                    // Try engine first
+                    const entity = this.engine.getEntity(id);
+                    if (entity) {
+                        const item = entity.getComponent(Item);
+                        const result = item ? (item.shortName || item.name) : null;
+                        this.log(DirectorLogLevel.INFO, `Resolving item ${id} (Online): Found Item? ${!!item}, shortName: ${item?.shortName}, name: ${item?.name} -> Returning: ${result}`);
+                        return result ? result.toLowerCase() : null;
+                    }
+
+                    // Try DB if persistence provided
+                    if (persistence) {
+                        const data = await persistence.getEntity(id);
+                        if (data && data.components && data.components.Item) {
+                            const itemData = data.components.Item;
+                            const result = itemData.shortName || itemData.name;
+                            this.log(DirectorLogLevel.INFO, `Resolving item ${id} (Offline): Found Item Data? Yes, shortName: ${itemData.shortName}, name: ${itemData.name} -> Returning: ${result}`);
+                            return result ? result.toLowerCase() : null;
+                        } else {
+                            this.log(DirectorLogLevel.WARN, `Resolving item ${id} (Offline): Entity or Item component not found.`);
+                        }
+                    }
+                    return null;
+                };
+
+                const result: any = {
+                    rightHand: null,
+                    leftHand: null,
+                    equipment: {},
+                    backpack: []
+                };
+
+                if (activeEntity) {
+                    const inv = activeEntity.getComponent(Inventory);
+                    if (inv) {
+                        result.rightHand = await resolveItemName(inv.rightHand);
+                        result.leftHand = await resolveItemName(inv.leftHand);
+                        for (const [slot, id] of inv.equipment.entries()) {
+                            if (slot === 'back') continue;
+                            const name = await resolveItemName(id);
+                            if (name) result.equipment[slot] = name;
+                        }
+                        const backpackId = inv.equipment.get('back');
+                        if (backpackId) {
+                            const backpack = this.engine.getEntity(backpackId);
+                            const container = backpack?.getComponent(Container);
+                            if (container) {
+                                for (const id of container.items) {
+                                    const name = await resolveItemName(id);
+                                    if (name) result.backpack.push(name);
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // Offline
+                    const char = charService.getCharacterById(charId);
+                    if (!char) {
+                        socket.emit('director:character_inventory', { error: 'Character not found' });
+                        return;
+                    }
+
+                    const persistence = new PersistenceManager();
+                    const jsonData = JSON.parse(char.data);
+                    if (jsonData.components && jsonData.components.Inventory) {
+                        const tempInv = new Inventory();
+                        tempInv.fromJSON(jsonData.components.Inventory);
+
+                        result.rightHand = await resolveItemName(tempInv.rightHand, persistence);
+                        result.leftHand = await resolveItemName(tempInv.leftHand, persistence);
+
+                        for (const [slot, id] of tempInv.equipment.entries()) {
+                            if (slot === 'back') continue;
+                            const name = await resolveItemName(id, persistence);
+                            if (name) result.equipment[slot] = name;
+                        }
+
+                        const backpackId = tempInv.equipment.get('back');
+                        if (backpackId) {
+                            const backpackData = await persistence.getEntity(backpackId);
+                            if (backpackData && backpackData.components && backpackData.components.Container) {
+                                const container = new Container(0);
+                                container.fromJSON(backpackData.components.Container);
+                                for (const id of container.items) {
+                                    const name = await resolveItemName(id, persistence);
+                                    if (name) result.backpack.push(name);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                socket.emit('director:character_inventory', { charId, inventory: result });
             });
         });
     }

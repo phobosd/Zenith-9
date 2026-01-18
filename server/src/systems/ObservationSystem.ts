@@ -49,7 +49,7 @@ export class ObservationSystem extends System {
         }
 
         // Default Look (Room)
-        const fullDescription = DescriptionService.describeRoom(playerPos, engine);
+        const fullDescription = DescriptionService.describeRoom(playerPos, engine, entityId);
         this.messageService.roomDesc(entityId, fullDescription);
 
         this.refreshAutocomplete(entityId, engine);

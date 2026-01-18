@@ -1,37 +1,47 @@
-import { createClient } from 'redis';
+import { DatabaseService } from '../services/DatabaseService';
 import { Logger } from '../utils/Logger';
 
 export class PersistenceManager {
-    private client;
+    private db = DatabaseService.getInstance().getDb();
 
     constructor() {
-        this.client = createClient({
-            url: 'redis://localhost:6379'
-        });
-
-        this.client.on('error', (err) => Logger.error('Persistence', 'Redis Client Error', err));
+        // SQLite is initialized in DatabaseService
     }
 
     async connect() {
-        await this.client.connect();
-        Logger.info('Persistence', 'Connected to Redis');
+        // No-op for SQLite, but kept for compatibility with existing calls
+        Logger.info('Persistence', 'SQLite Persistence Ready');
     }
 
     async saveEntity(entityId: string, data: any) {
-        await this.client.set(`entity:${entityId}`, JSON.stringify(data));
+        const stmt = this.db.prepare('INSERT OR REPLACE INTO world_entities (id, data, last_updated) VALUES (?, ?, CURRENT_TIMESTAMP)');
+        stmt.run(entityId, JSON.stringify(data));
     }
 
     async getEntity(entityId: string) {
-        const data = await this.client.get(`entity:${entityId}`);
-        return data ? JSON.parse(data) : null;
+        const row = this.db.prepare('SELECT data FROM world_entities WHERE id = ?').get(entityId) as any;
+        return row ? JSON.parse(row.data) : null;
+    }
+
+    async getAllEntities(): Promise<any[]> {
+        const rows = this.db.prepare('SELECT data FROM world_entities').all() as any[];
+        return rows.map(row => JSON.parse(row.data));
+    }
+
+    hasEntities(): boolean {
+        const row = this.db.prepare('SELECT COUNT(*) as count FROM world_entities').get() as any;
+        return row.count > 0;
     }
 
     async saveWorldState(entities: any[]) {
-        // Save all entities in a transaction
-        const multi = this.client.multi();
-        entities.forEach(entity => {
-            multi.set(`entity:${entity.id}`, JSON.stringify(entity));
+        const insert = this.db.prepare('INSERT OR REPLACE INTO world_entities (id, data, last_updated) VALUES (?, ?, CURRENT_TIMESTAMP)');
+
+        const transaction = this.db.transaction((entities) => {
+            for (const entity of entities) {
+                insert.run(entity.id, JSON.stringify(entity));
+            }
         });
-        await multi.exec();
+
+        transaction(entities);
     }
 }

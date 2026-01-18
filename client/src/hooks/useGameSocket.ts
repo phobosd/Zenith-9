@@ -7,14 +7,7 @@ const SOCKET_URL = 'http://localhost:3000';
 export const useGameSocket = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [lines, setLines] = useState<TerminalLine[]>([]);
-    const [playerStats, setPlayerStats] = useState<any>({
-        hp: 100,
-        maxHp: 100,
-        stance: 'standing',
-        engagement: 'disengaged',
-        leftHand: 'Empty',
-        rightHand: 'Empty'
-    });
+    const [playerStats, setPlayerStats] = useState<any>(null);
     const [autocompleteData, setAutocompleteData] = useState<{
         spawnables: string[];
         roomObjects: string[];
@@ -25,12 +18,20 @@ export const useGameSocket = () => {
         equipped: string[];
         stats: string[];
         skills: string[];
-    }>({ spawnables: [], roomObjects: [], roomItems: [], roomNPCs: [], inventory: [], containers: [], equipped: [], stats: [], skills: [] });
+        archetypes: string[];
+    }>({ spawnables: [], roomObjects: [], roomItems: [], roomNPCs: [], inventory: [], containers: [], equipped: [], stats: [], skills: [], archetypes: [] });
 
     const [terminalData, setTerminalData] = useState<any>(null);
     const [guideContent, setGuideContent] = useState<string | null>(null);
     const [isMatrixMode, setIsMatrixMode] = useState(false);
     const [miniMapData, setMiniMapData] = useState<any>(null);
+
+    // Auth State
+    const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('zenith_token'));
+    const [user, setUser] = useState<any>(null);
+    const [token, setToken] = useState<string | null>(localStorage.getItem('zenith_token'));
+    const [hasCharacter, setHasCharacter] = useState(false);
+    const [authError, setAuthError] = useState('');
 
     const addLine = useCallback((newLine: TerminalLine) => {
         setLines(prev => {
@@ -52,28 +53,90 @@ export const useGameSocket = () => {
 
         newSocket.on('connect', () => {
             addSystemLine('Connected to Zenith-9 Server...');
-            // Request initial map data
-            setTimeout(() => {
-                newSocket.emit('command', 'map');
-            }, 500);
+
+            const savedToken = localStorage.getItem('zenith_token');
+            if (savedToken) {
+                newSocket.emit('auth:verify', { token: savedToken });
+            }
         });
 
         newSocket.on('disconnect', () => {
             addSystemLine('Disconnected from server.');
+            setIsAuthenticated(false);
+        });
+
+        // --- AUTH HANDLERS ---
+        newSocket.on('auth:login_result', (result: any) => {
+            console.log('Auth login result:', result);
+            if (result.success) {
+                setToken(result.token);
+                setUser(result.user);
+                setHasCharacter(result.hasCharacter);
+                setIsAuthenticated(true);
+                setAuthError('');
+                localStorage.setItem('zenith_token', result.token);
+
+                if (result.hasCharacter) {
+                    newSocket.emit('game:start', { token: result.token });
+                }
+            } else {
+                // If verification failed, clear everything so user can log in again
+                setAuthError(result.message || 'Login failed');
+                setIsAuthenticated(false);
+                setToken(null);
+                setUser(null);
+                setHasCharacter(false);
+                localStorage.removeItem('zenith_token');
+            }
+        });
+
+        newSocket.on('auth:register_result', (result: any) => {
+            console.log('Auth register result:', result);
+            if (result.success) {
+                setAuthError('');
+                // Signal success to UI (handled via authError being empty? No, need explicit success)
+                // We can reuse authError to send a success message if we want, or add a new state.
+                // Let's use a specific event or state.
+                // For now, let's just set a temporary success flag or message.
+                setAuthError('Registration successful! Please login.');
+                // Wait, authError is displayed as error. 
+            } else {
+                setAuthError(result.message || 'Registration failed');
+            }
+        });
+
+        newSocket.on('char:create_result', (result: any) => {
+            console.log('Char create result:', result);
+            if (result.success) {
+                setHasCharacter(true);
+                setAuthError('');
+                const savedToken = localStorage.getItem('zenith_token');
+                if (savedToken) {
+                    newSocket.emit('game:start', { token: savedToken });
+                }
+            } else {
+                setAuthError(result.message || 'Character creation failed');
+            }
+        });
+
+        newSocket.on('auth:logout', () => {
+            console.log('Logout signal received from server.');
+            localStorage.removeItem('zenith_token');
+            setToken(null);
+            setUser(null);
+            setIsAuthenticated(false);
+            setHasCharacter(false);
+            addSystemLine('Neural link severed. Logged out safely.');
         });
 
         newSocket.on('message', (message: string | any) => {
             if (typeof message === 'string') {
                 addSystemLine(message);
             } else {
-                // Update mini-map if this is map data
                 if (message.type === 'map' && message.payload) {
                     setMiniMapData(message.payload);
-                    // Don't add map to terminal output - it's only for the mini-map
                     return;
                 }
-
-                // Handle structured message
                 addLine({
                     id: (message.timestamp || Date.now()).toString() + Math.random(),
                     text: message.content,
@@ -83,16 +146,17 @@ export const useGameSocket = () => {
             }
         });
 
-        newSocket.on('autocomplete-data', (data: { spawnables: string[], stats?: string[], skills?: string[] }) => {
+        newSocket.on('autocomplete-data', (data: any) => {
             setAutocompleteData(prev => ({
                 ...prev,
                 spawnables: data.spawnables,
                 stats: data.stats || [],
-                skills: data.skills || []
+                skills: data.skills || [],
+                archetypes: data.archetypes || []
             }));
         });
 
-        newSocket.on('autocomplete-update', (data: { type: 'room' | 'inventory', items?: string[], objects?: string[], containers?: string[], npcs?: string[], equipped?: string[] }) => {
+        newSocket.on('autocomplete-update', (data: any) => {
             if (data.type === 'room') {
                 setAutocompleteData(prev => ({
                     ...prev,
@@ -111,38 +175,25 @@ export const useGameSocket = () => {
         });
 
         newSocket.on('stats-update', (data: any) => {
+            console.log('Stats update received:', data);
             setPlayerStats(data);
-        });
-
-        newSocket.on('inventory-data', (data: any) => {
-            addLine({
-                id: Date.now().toString() + Math.random(),
-                text: '',
-                type: 'inventory' as any,
-                data: data
-            });
-        });
-
-        newSocket.on('score-data', (data: any) => {
-            addLine({
-                id: Date.now().toString() + Math.random(),
-                text: '',
-                type: 'score' as any,
-                data: data
-            });
-        });
-
-        newSocket.on('sheet-data', (data: any) => {
-            addLine({
-                id: Date.now().toString() + Math.random(),
-                text: '',
-                type: 'sheet' as any,
-                data: data
-            });
+            setHasCharacter(true); // Ensure overlay is gone if we have stats
         });
 
         newSocket.on('terminal-data', (data: any) => {
             setTerminalData(data);
+        });
+
+        newSocket.on('sheet-data', (data: any) => {
+            addLine({ id: Date.now().toString(), text: '', type: 'sheet', data });
+        });
+
+        newSocket.on('score-data', (data: any) => {
+            addLine({ id: Date.now().toString(), text: '', type: 'score', data });
+        });
+
+        newSocket.on('inventory-data', (data: any) => {
+            addLine({ id: Date.now().toString(), text: '', type: 'inventory', data });
         });
 
         newSocket.on('open-guide', (data: { content: string }) => {
@@ -151,12 +202,10 @@ export const useGameSocket = () => {
 
         newSocket.on('cyberspace-state', (data: { active: boolean }) => {
             setIsMatrixMode(data.active);
-            // Refresh map data to reflect new mode
             newSocket.emit('command', 'map');
         });
 
         newSocket.on('position-update', () => {
-            // Request fresh map data
             newSocket.emit('command', 'map');
         });
 
@@ -174,6 +223,11 @@ export const useGameSocket = () => {
         guideContent,
         isMatrixMode,
         miniMapData,
+        isAuthenticated,
+        user,
+        token,
+        hasCharacter,
+        authError,
         addLine,
         addSystemLine,
         setTerminalData,

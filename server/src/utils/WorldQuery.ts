@@ -7,6 +7,8 @@ import { Terminal } from '../components/Terminal';
 import { PuzzleObject } from '../components/PuzzleObject';
 import { IEngine } from '../ecs/IEngine';
 
+import { Role } from '../components/Role';
+
 export class WorldQuery {
     /**
      * Find an entity by its unique ID.
@@ -48,5 +50,12 @@ export class WorldQuery {
      */
     static findPuzzleObjectsAt(engine: IEngine, x: number, y: number): Entity[] {
         return engine.getEntitiesAt(x, y).filter(e => e.hasComponent(PuzzleObject));
+    }
+
+    /**
+     * Find all players at the specified coordinates.
+     */
+    static findPlayersAt(engine: IEngine, x: number, y: number): Entity[] {
+        return engine.getEntitiesAt(x, y).filter(e => e.hasComponent(Role));
     }
 }

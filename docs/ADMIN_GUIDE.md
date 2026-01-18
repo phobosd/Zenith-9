@@ -51,6 +51,8 @@ graph TD
 ### 1. Director Control
 The main "Director" tab provides high-level control over the AI's autonomy.
 
+![Director Control Dashboard](assets/admin_dashboard_main.png)
+
 *   **Emergency Stop / Resume**: A large toggle button to instantly pause or resume all automated generation loops. Use this if the AI starts generating undesirable content.
 *   **Personality Settings**: Adjust the "Personality" of the Director.
     *   **Chaos**: Influences the randomness and unpredictability of events.
@@ -79,6 +81,8 @@ When `Require Human Approval` is enabled, all AI-generated content appears here 
 ### 4. LLM Configuration
 Manage the connections to Large Language Models.
 
+![LLM Configuration](assets/admin_dashboard_llm.png)
+
 *   **Profiles**: Create different profiles for different tasks (e.g., a "Creative" profile using GPT-4 for descriptions, and a "Logic" profile using a local Llama-3 model for stats).
 *   **Roles**: Assign roles (Creative, Logic, Default) to specific profiles to optimize cost and performance.
 
@@ -91,6 +95,9 @@ A visual grid representing the game world.
 
 ### 6. Item & NPC Management
 Direct access to the game's registries.
+
+![Item Registry](assets/admin_dashboard_items.png)
+![NPC Registry](assets/admin_dashboard_npcs.png)
 
 *   **Items / NPCs Tabs**: View a list of all currently loaded items and NPCs.
 *   **Search**: Filter the list by name or type.

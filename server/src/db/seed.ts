@@ -740,6 +740,274 @@ const items: ItemSeed[] = [
         type: 'item',
         rarity: 'Uncommon',
         extra_data: JSON.stringify({})
+    },
+    // ===== NEW STANDARD ITEMS =====
+    {
+        id: 'pistol_9mm',
+        name: 'pistol_9mm',
+        short_name: '9mm Pistol',
+        description: 'A reliable, matte-black 9mm semi-automatic pistol. The workhorse of the sprawl, favored for its balance of weight and stopping power.',
+        weight: 1.0,
+        size: 'Small',
+        legality: 'Restricted',
+        attributes: 'Ranged Weapon; Reliable and easy to conceal.',
+        cost: 450,
+        type: 'weapon',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            damage: 22,
+            range: 15,
+            minTier: 'missile',
+            maxTier: 'missile',
+            momentumImpact: 0.2,
+            roundtime: 2,
+            ammoType: '9mm',
+            magSize: 15,
+            difficulty: { speed: 1.0, zoneSize: 4, jitter: 0.1 }
+        })
+    },
+    {
+        id: 'mag_pistol_9mm',
+        name: 'mag_pistol_9mm',
+        short_name: '9mm Magazine',
+        description: 'A standard 15-round magazine for 9mm pistols. The steel casing is cold to the touch.',
+        weight: 0.2,
+        size: 'Small',
+        legality: 'Restricted',
+        attributes: 'Ammunition; 15 rounds of 9mm.',
+        cost: 40,
+        type: 'item',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            isMagazine: true,
+            capacity: 15,
+            currentAmmo: 15,
+            ammoType: '9mm'
+        })
+    },
+    {
+        id: 'ammo_9mm_loose',
+        name: 'ammo_9mm_loose',
+        short_name: 'Loose 9mm Rounds',
+        description: 'A handful of loose 9mm cartridges. They jingle in your pocket like copper-clad promises.',
+        weight: 0.1,
+        size: 'Tiny',
+        legality: 'Restricted',
+        attributes: 'Ammunition; Loose rounds.',
+        cost: 10,
+        type: 'item',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            ammoType: '9mm',
+            quantity: 20
+        })
+    },
+    {
+        id: 'tactical_shirt',
+        name: 'tactical shirt',
+        short_name: 'Tactical Shirt',
+        description: 'A lightweight, moisture-wicking shirt reinforced with thin poly-mesh fibers. It offers basic protection without sacrificing mobility.',
+        weight: 0.5,
+        size: 'Small',
+        legality: 'Legal',
+        attributes: 'Torso Armor; Light and breathable.',
+        cost: 120,
+        type: 'armor',
+        slot: 'torso',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            defense: 2,
+            penalty: 0,
+            slot: 'torso'
+        })
+    },
+    {
+        id: 'heavy_jacket',
+        name: 'heavy jacket',
+        short_name: 'Heavy Leather Jacket',
+        description: 'A thick, weathered leather jacket with concealed ceramic plating in the shoulders and chest. It smells of old rain and burnt ozone.',
+        weight: 2.5,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Torso Armor; Sturdy and stylish.',
+        cost: 650,
+        type: 'armor',
+        slot: 'torso',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            defense: 12,
+            penalty: 2,
+            slot: 'torso'
+        })
+    },
+    {
+        id: 'cargo_pants',
+        name: 'cargo pants',
+        short_name: 'Cargo Pants',
+        description: 'Rugged pants with more pockets than you have things to fill them with. The knees are reinforced with synthetic padding.',
+        weight: 0.8,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Leg Armor; Practical and durable.',
+        cost: 80,
+        type: 'armor',
+        slot: 'legs',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            defense: 2,
+            penalty: 0,
+            slot: 'legs'
+        })
+    },
+    {
+        id: 'armored_slacks',
+        name: 'armored slacks',
+        short_name: 'Armored Slacks',
+        description: 'High-end corporate wear woven with liquid-armor filaments. They look like silk but stop a knife as well as kevlar.',
+        weight: 1.2,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Leg Armor; Discreet protection.',
+        cost: 1200,
+        type: 'armor',
+        slot: 'legs',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            defense: 10,
+            penalty: 1,
+            slot: 'legs'
+        })
+    },
+    {
+        id: 'combat_boots',
+        name: 'combat boots',
+        short_name: 'Combat Boots',
+        description: 'Heavy-duty boots with steel toes and acid-resistant soles. They leave deep, authoritative treads in the grime of the city.',
+        weight: 1.5,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Foot Armor; Solid and reliable.',
+        cost: 150,
+        type: 'armor',
+        slot: 'feet',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            defense: 3,
+            penalty: 1,
+            slot: 'feet'
+        })
+    },
+    {
+        id: 'kinetic_dampeners',
+        name: 'kinetic dampeners',
+        short_name: 'Kinetic Dampener Boots',
+        description: 'Sleek, high-tech boots equipped with micro-servos that absorb impact and enhance sprinting. They hum softly when you move.',
+        weight: 1.0,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Foot Armor; Enhances mobility.',
+        cost: 2200,
+        type: 'armor',
+        slot: 'feet',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            defense: 6,
+            penalty: 0,
+            slot: 'feet'
+        })
+    },
+    {
+        id: 'street_cap',
+        name: 'street cap',
+        short_name: 'Street Cap',
+        description: 'A simple baseball cap with a faded logo. It keeps the neon glare out of your eyes and helps you blend into the crowd.',
+        weight: 0.1,
+        size: 'Small',
+        legality: 'Legal',
+        attributes: 'Head Armor; Low profile.',
+        cost: 20,
+        type: 'armor',
+        slot: 'head',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            defense: 1,
+            penalty: 0,
+            slot: 'head'
+        })
+    },
+    {
+        id: 'ballistic_helmet',
+        name: 'ballistic helmet',
+        short_name: 'Ballistic Helmet',
+        description: 'A matte-grey tactical helmet with a built-in comms array. It feels heavy and secure, a literal shell against the world.',
+        weight: 1.2,
+        size: 'Medium',
+        legality: 'Restricted',
+        attributes: 'Head Armor; Serious protection.',
+        cost: 950,
+        type: 'armor',
+        slot: 'head',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            defense: 15,
+            penalty: 2,
+            slot: 'head'
+        })
+    },
+    {
+        id: 'stealth_belt',
+        name: 'stealth belt',
+        short_name: 'Stealth Utility Belt',
+        description: 'A specialized belt made of non-reflective material. It features silent-release buckles and a small, integrated signal scrambler.',
+        weight: 0.6,
+        size: 'Small',
+        legality: 'Restricted',
+        attributes: 'Waist Armor; Discreet and functional.',
+        cost: 1800,
+        type: 'armor',
+        slot: 'waist',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            defense: 4,
+            penalty: 0,
+            slot: 'waist'
+        })
+    },
+    {
+        id: 'messenger_bag',
+        name: 'messenger bag',
+        short_name: 'Messenger Bag',
+        description: 'A worn, waterproof messenger bag with a single cross-body strap. It has seen better days, but the stitching still holds.',
+        weight: 0.8,
+        size: 'Medium',
+        legality: 'Legal',
+        attributes: 'Container; 15kg capacity.',
+        cost: 60,
+        type: 'container',
+        slot: 'back',
+        rarity: 'Common',
+        extra_data: JSON.stringify({
+            capacity: 15,
+            slot: 'back'
+        })
+    },
+    {
+        id: 'tactical_backpack',
+        name: 'tactical backpack',
+        short_name: 'Tactical Backpack',
+        description: 'A high-capacity military backpack with modular attachment points and a built-in hydration bladder.',
+        weight: 1.5,
+        size: 'Large',
+        legality: 'Legal',
+        attributes: 'Container; 40kg capacity.',
+        cost: 450,
+        type: 'container',
+        slot: 'back',
+        rarity: 'Rare',
+        extra_data: JSON.stringify({
+            capacity: 40,
+            slot: 'back'
+        })
     }
 ];
 

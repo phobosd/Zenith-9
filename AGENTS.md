@@ -34,6 +34,14 @@ The `server/` directory contains PowerShell scripts for managing the server proc
 - Changes to `package.json` dependencies
 - Changes to configuration files outside `src/`
 - When the server crashes or hangs
+- When a manual database reset is required
+
+### 👑 Special Entities
+
+- **`pho`**: This is a **God Character**. 
+    - **Role**: Automatically assigned the `god` role upon registration.
+    - **Persistence**: Hard-coded protection in `AuthService.ts` prevents this user from being deleted via admin tools or scripts.
+    - **Purpose**: Primary administrative and testing persona.
 
 ## 🏗 System Architecture
 
@@ -401,7 +409,7 @@ Puzzles follow the **State-Check Pattern**:
 | **Runtime** | Node.js | ^20.x |
 | **Language** | TypeScript | ~5.9.3 |
 | **Communication** | Socket.io | ^4.8.3 |
-| **Database** | Redis | ^5.10.0 |
+| **Database** | SQLite (better-sqlite3) | ^11.x |
 | **Frontend** | React | ^19.2.0 |
 | **Build Tool** | Vite | ^7.2.4 |
 | **Validation** | Zod | ^3.x |
@@ -420,15 +428,34 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
 
 ---
 
-### Recent Modifications (2026-01-14)
-*   **Terminal Backlog**: Increased to 2500 lines in `client/src/components/Terminal.tsx`.
-*   **Item Rarity**: Added to `get-item-details` server response and displayed in `ItemTooltip.tsx`.
-*   **Guide Parsing**: Fixed `GuideOverlay.tsx` to correctly handle escaped pipes (`\|`) in markdown tables.
-*   **World Events & Bosses**: Implemented dynamic world events (Mob Invasions) and Boss generation with specialized archetypes and scaling.
-*   **Loot System**: Implemented a dynamic loot dropping system where NPCs drop their inventory and loot on death.
-*   **UI Polish**: Added cyberpunk-style diagonal corner accents to Tooltips, Minimap, and Status Bars (`StatusHUD.css`, `MiniMap.css`).
-*   **Inventory Logic**: Fixed item pickup to prioritize the right hand.
-*   **Visuals**: Reduced brightness of portal and puzzle object highlighting for better readability.
-*   **NPC Health System**: Replaced exact NPC HP with a descriptive system (Visual Cues, Damage Severity, Appraise Command).
-*   **Combat Refactoring**: Split `AttackHandler.ts` into `PlayerAttackHandler.ts` and `NPCAttackHandler.ts` to prepare for advanced AI behaviors and separate concerns.
+### Recent Modifications (2026-01-17)
+*   **Authentication System**: Implemented `AuthService` (JWT/Bcrypt) and `DatabaseService` (SQLite) for persistent user accounts.
+*   **Character Creation**: Added `CharacterService` with archetypes (Street Samurai, Netrunner, Gutter Punk) and persistent storage.
+*   **Multiplayer Presence**: Updated `MovementSystem` and `ObservationSystem` to handle real-time room presence and player visibility.
+*   **Social Commands**: Added `say`, `link` (global), and `emote` commands.
+*   **UI Overlays**: Created `AuthOverlay.tsx` for login/registration and character initialization.
+*   **Phase 5 Mechanics**:
+    *   **Reputation**: Added `Reputation` component to track faction standing.
+    *   **Heat**: Implemented `HeatSystem` and component to track law enforcement attention.
+    *   **Humanity**: Added `Humanity` component to track cyberware costs and cyberpsychosis risk.
+*   **Phase 6 Security**:
+    *   **Rate Limiting**: Implemented `RateLimiter` middleware to prevent command spam.
+    *   **RBAC**: Added `Role` component and implemented Role-Based Access Control for admin commands.
+    *   **Admin Security**: Implemented JWT-based authentication for the `/admin` socket namespace. Only users with `god` or `admin` roles can connect.
+    *   **User Management**: Added backend support and Frontend UI (`UsersTab`) for listing/editing users, and managing their Characters (Stats, Reputation).
+
+### Persistence Update
+*   **SQLite**: Now the primary source of truth for Users, Characters, and World Entities.
+*   **Redis**: Reserved for pub/sub and transient session data (if needed), but core persistence is now SQLite-based.
+
+### Authentication & Character Flow
+1.  **Connection**: Socket connects, but no entity is spawned.
+2.  **Auth**: Client uses `auth:login` or `auth:register`.
+3.  **Character**: If no character exists, client uses `char:create` with an archetype.
+4.  **Game Start**: Client emits `game:start` with JWT. Server instantiates the character from DB and spawns the entity.
+
+### Social System
+*   **Rooms**: Players are grouped into Socket.io rooms based on coordinates (`room:x:y`).
+*   **Presence**: Arrival/Departure messages are broadcast to the room.
+*   **Visibility**: `look` command and room descriptions now include other players.
 

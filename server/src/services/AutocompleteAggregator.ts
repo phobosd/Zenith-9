@@ -61,6 +61,20 @@ export class AutocompleteAggregator {
             }
         });
 
+        // Find other players in the room
+        const { Role } = require('../components/Role');
+        const players = engine.getEntitiesWithComponent(Role);
+        players.forEach(player => {
+            const pos = player.getComponent(Position);
+            const desc = player.getComponent(Description);
+            if (pos && desc && pos.x === playerPos.x && pos.y === playerPos.y) {
+                const playerName = desc.title.toLowerCase();
+                if (!objects.includes(playerName)) {
+                    objects.push(playerName);
+                }
+            }
+        });
+
         // Find Terminals
         const terminals = WorldQuery.findTerminalsAt(engine, playerPos.x, playerPos.y);
         terminals.forEach(terminal => {
@@ -147,10 +161,10 @@ export class AutocompleteAggregator {
 
         return {
             type: 'room',
-            objects: objects,
-            items: groundItems,
-            containers: groundContainers,
-            npcs: npcs_list
+            objects: Array.from(new Set(objects)),
+            items: Array.from(new Set(groundItems)),
+            containers: Array.from(new Set(groundContainers)),
+            npcs: Array.from(new Set(npcs_list))
         };
     }
 
@@ -232,9 +246,9 @@ export class AutocompleteAggregator {
 
         return {
             type: 'inventory',
-            items: invItems.filter(n => n !== 'empty' && n !== 'unknown'),
+            items: Array.from(new Set(invItems)),
             containers: Array.from(new Set(containers)),
-            equipped: equipped
+            equipped: Array.from(new Set(equipped))
         };
     }
 }

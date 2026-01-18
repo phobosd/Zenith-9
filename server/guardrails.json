@@ -27,17 +27,23 @@
             "id": "default",
             "name": "Creative",
             "provider": "local",
-            "baseUrl": "http://192.168.68.111:1234/v1",
+            "baseUrl": "http://192.168.68.98:1234/",
             "model": "gemma-3-starshine-12b",
-            "roles": []
+            "roles": [
+                "IMAGE"
+            ],
+            "apiKey": ""
         },
         "profile_fmxkmf9": {
             "id": "profile_fmxkmf9",
             "name": "Logic",
             "provider": "local",
-            "baseUrl": "http://192.168.68.111:1234/v1",
+            "baseUrl": "http://192.168.68.98:1234/v1",
             "model": "deepseek-r1-distill-qwen-7b",
-            "roles": []
+            "roles": [
+                "DEFAULT",
+                "LOGIC"
+            ]
         },
         "profile_x1habh": {
             "id": "profile_x1habh",
@@ -48,7 +54,7 @@
             "roles": [
                 "IMAGE"
             ],
-            "apiKey": "enc:ba58075bfaac66ad9d79391a29ccf18d:d9ae2c65696a5d88b5d5bc85c0c3c69c:c696293af695c40b30c59918"
+            "apiKey": "enc:96c79559479a05a41900091b314434df:e8ffe6886d85443d44d9df141544d3b3:3769156094f843ea244a8801fc022af642931a3d9b5246f484e6ac86626e8ade9a8d3d"
         },
         "profile_q8fysj": {
             "id": "profile_q8fysj",
@@ -56,12 +62,8 @@
             "provider": "gemini",
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "gemini-2.5-flash",
-            "roles": [
-                "CREATIVE",
-                "LOGIC",
-                "DEFAULT"
-            ],
-            "apiKey": "enc:6320e4211d864132c1ca6b17a5c409f8:d0ab310863b7ee0f4e6ca0557d2bc54a:354dd4c515413c69d9f59b979b617344e97cebd6cc575f0031500caf39a69dbd59c8c5baa5a240"
+            "roles": [],
+            "apiKey": "enc:29635f48965ba0d83da3a5142c1b325c:9ca46582a83a40f731d60fb71fea3a24:a3c0f21d9f16a31c36d11d662d40007674de6b7de19d7701839b6cb81590233fa9dcdef942214e"
         },
         "profile_imagen": {
             "id": "profile_imagen",
@@ -70,7 +72,7 @@
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "imagen-4.0-generate-001",
             "roles": [],
-            "apiKey": "enc:e5c6891d624d3cb0e0b76b3ddc1edc4f:a12be9e8e3d4dc87f2bfdd27dc9e97f4:c9d77fb4bf86d6c534b37d9a"
+            "apiKey": "enc:39d7a2bd8cf4eca1dddea0773b60d869:b3b9ce122189152f4ccdac36da2e3159:25db08c14e39b1ad4adbf9fc"
         }
     },
     "bannedWords": [

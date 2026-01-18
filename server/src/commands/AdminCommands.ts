@@ -11,6 +11,7 @@ import { NPC } from '../components/NPC';
 import { EngagementTier } from '../types/CombatTypes';
 import { Description } from '../components/Description';
 import { Item } from '../components/Item';
+import { Role } from '../components/Role';
 
 export const registerAdminCommands = (registry: CommandRegistry) => {
     registry.register({
@@ -21,6 +22,17 @@ export const registerAdminCommands = (registry: CommandRegistry) => {
             const subCommand = ctx.args[0];
             if (!subCommand) {
                 ctx.messageService.info(ctx.socketId, 'Usage: god <spawn> <type>');
+                return;
+            }
+
+            // RBAC Check
+            const player = ctx.engine.getEntity(ctx.socketId);
+            if (!player) return;
+
+            
+            const role = player.getComponent(Role);
+            if (!role || (role.value !== 'admin' && role.value !== 'god')) {
+                ctx.messageService.error(ctx.socketId, "You do not have permission to use this command.");
                 return;
             }
 

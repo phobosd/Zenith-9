@@ -22,6 +22,9 @@ interface StatusProps {
         parry?: number;
         shield?: number;
         aggression?: number;
+        heat?: number;
+        humanity?: number;
+        reputation?: Record<string, number>;
     } | null;
 }
 
@@ -87,6 +90,18 @@ export const CombatStatusDisplay: React.FC<StatusProps> = ({ stats }) => {
                 <div className="status-label">ENGAGEMENT</div>
                 <div className="status-value">{stats.engagement}</div>
             </div>
+            {stats.heat !== undefined && stats.heat > 0 && (
+                <div className="status-box heat">
+                    <div className="status-label">HEAT</div>
+                    <div className="status-value">{stats.heat}</div>
+                </div>
+            )}
+            {stats.humanity !== undefined && stats.humanity < 100 && (
+                <div className="status-box humanity">
+                    <div className="status-label">HUMANITY</div>
+                    <div className="status-value">{stats.humanity}</div>
+                </div>
+            )}
         </div>
     );
 };

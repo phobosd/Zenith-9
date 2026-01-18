@@ -110,13 +110,17 @@ export class PrefabFactory {
         // Try to find by ID first (exact match), then by name (fuzzy/exact)
         let def = registry.getItem(name);
 
+        // If not found, try searching by shortName or name in the all items list
+        if (!def) {
+            const allItems = registry.getAllItems();
+            def = allItems.find(i => i.name.toLowerCase() === name.toLowerCase() || i.shortName.toLowerCase() === name.toLowerCase());
+        }
+
         // If not found by ID, try to find by name in the registry (ItemRegistry handles this via its map)
 
         if (def) {
-            // For armor items, get slot from extraData
-            const itemSlot = def.type === 'armor' && def.extraData?.slot
-                ? def.extraData.slot
-                : (def.slot || null);
+            // Get slot from either def.slot or extraData.slot (for all item types)
+            const itemSlot = def.slot || def.extraData?.slot || null;
 
             // Use name as the display name, and shortName as the internal slug/alias
             entity.addComponent(new Item(def.name, def.description, def.weight, 1, def.size, def.legality, def.attributes, def.shortName, itemSlot, def.rarity || 'common'));
@@ -345,6 +349,7 @@ export class PrefabFactory {
                     false
                 ));
                 entity.addComponent(new CombatStats(60, 10, 5));
+                entity.addComponent(new Visuals('F', 'cyan', 0, '/assets/portraits/fixer.jpg'));
                 break;
             case 'turing police':
                 entity.addComponent(new NPC(

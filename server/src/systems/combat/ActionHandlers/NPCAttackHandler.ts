@@ -2,6 +2,7 @@ import { Entity } from '../../../ecs/Entity';
 import { IEngine } from '../../../ecs/IEngine';
 import { Server } from 'socket.io';
 import { CombatStats } from '../../../components/CombatStats';
+import { Description } from '../../../components/Description';
 import { Weapon } from '../../../components/Weapon';
 import { Inventory } from '../../../components/Inventory';
 import { Position } from '../../../components/Position';
@@ -69,10 +70,13 @@ export class NPCAttackHandler {
             targetStats.parry = targetStats.baseParry; // Reset to stance value
         }
 
-        let combatLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks you!\n`;
-        let observerLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks another combatant!\n`;
+        const targetDesc = target.getComponent(Description);
+        const targetName = targetDesc?.title || "Someone";
 
         const flavor = CombatLogger.getAttackFlavor(weaponCategory, effectiveHitType);
+
+        let combatLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks YOU with a <combat-hit>${flavor.hitLabel}</combat-hit>! `;
+        let observerLog = `\n<combat><error>${npcComp?.typeName || 'The enemy'}</error> attacks ${targetName} with a <combat-hit>${flavor.hitLabel}</combat-hit>! `;
 
         if (targetBuffer && targetBuffer.isExecuting && (effectiveHitType === 'solid' || effectiveHitType === 'crushing')) {
             if (Math.random() < (effectiveHitType === 'crushing' ? 0.7 : 0.3)) {
@@ -87,11 +91,13 @@ export class NPCAttackHandler {
                 targetStats.hp -= crushingDamage;
                 npcStats.balance = Math.min(1.0, npcStats.balance + 0.1);
                 targetStats.balance = Math.max(0.0, targetStats.balance - 0.3);
-                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}! You take ${crushingDamage} damage!</combat-hit>\n`;
+
+                const crushingMsg = `${flavor.npcAction}! You take ${crushingDamage} damage!\n`;
+                combatLog += crushingMsg;
+                observerLog += `${flavor.npcAction}! ${targetName} takes ${crushingDamage} damage!\n`;
 
                 const npcName = npcComp?.typeName || 'The enemy';
                 combatLog += CombatLogger.getNPCCriticalHitFlavor(npcName);
-                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 combatLog += WoundManager.applyWoundToTarget(target, BodyPart.Chest, 5);
                 break;
             case 'solid':
@@ -99,8 +105,9 @@ export class NPCAttackHandler {
                 targetStats.hp -= solidDamage;
                 npcStats.balance = Math.min(1.0, npcStats.balance + 0.08);
                 targetStats.balance = Math.max(0.0, targetStats.balance - 0.15);
-                combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}! You take ${solidDamage} damage!</combat-hit>\n`;
-                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
+
+                combatLog += `${flavor.npcAction}! You take ${solidDamage} damage!\n`;
+                observerLog += `${flavor.npcAction}! ${targetName} takes ${solidDamage} damage!\n`;
                 break;
             case 'marginal':
                 const marginalDamage = Math.floor(npcStats.attack * 0.3);
@@ -137,9 +144,9 @@ export class NPCAttackHandler {
                     }
                     targetStats.balance = Math.min(1.0, targetStats.balance + 0.05);
                 } else {
-                    combatLog += `<combat-hit>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}. You take ${marginalDamage} damage.</combat-hit>\n`;
+                    combatLog += `${flavor.npcAction}. You take ${marginalDamage} damage.\n`;
+                    observerLog += `${flavor.npcAction}. ${targetName} takes ${marginalDamage} damage.\n`;
                 }
-                observerLog += `<combat-hit>${flavor.obsLabel}</combat-hit>\n`;
                 break;
             case 'miss':
                 if (targetStats.parry > 50 && !isRanged) {
@@ -184,9 +191,9 @@ export class NPCAttackHandler {
                     targetStats.balance = Math.min(1.0, targetStats.balance + 0.05);
 
                 } else {
-                    combatLog += `<combat-miss>${flavor.hitLabel} ${npcComp?.typeName} ${flavor.npcAction}!</combat-miss>\n`;
+                    combatLog += `${flavor.npcAction}!\n`;
+                    observerLog += `${flavor.npcAction}!\n`;
                 }
-                observerLog += `<combat-miss>${flavor.obsLabel}</combat-miss>\n`;
                 npcStats.balance = Math.max(0.0, npcStats.balance - 0.1);
                 break;
         }
@@ -200,6 +207,9 @@ export class NPCAttackHandler {
             return e.hasComponent(CombatStats) && !e.hasComponent(NPC) && ePos?.x === npcPos.x && ePos?.y === npcPos.y && e.id !== targetId;
         });
         for (const observer of playersInRoom) messageService.combat(observer.id, observerLog);
+
+        // Trigger combat assessment update
+        CombatLogger.sendCombatState(targetId, engine, io);
 
         CombatUtils.applyRoundtime(npc, 4);
     }

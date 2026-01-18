@@ -11,6 +11,8 @@ interface SheetData {
         feet: string;
         hands: string;
     };
+    name: string;
+    reputation?: Record<string, number>;
 }
 
 interface Props {
@@ -20,7 +22,7 @@ interface Props {
 export const SheetDisplay: React.FC<Props> = ({ data }) => {
     return (
         <div className="inventory-display">
-            <div className="inventory-header">CHARACTER SHEET</div>
+            <div className="inventory-header">CHARACTER SHEET: {data.name.toUpperCase()}</div>
             <div className="inventory-grid">
                 <div className="inventory-section">
                     <div className="section-title">ATTRIBUTES:</div>
@@ -51,6 +53,20 @@ export const SheetDisplay: React.FC<Props> = ({ data }) => {
                         </div>
                     </div>
                 </div>
+
+                {data.reputation && Object.keys(data.reputation).length > 0 && (
+                    <div className="inventory-section">
+                        <div className="section-title">REPUTATION:</div>
+                        <div className="backpack-list">
+                            {Object.entries(data.reputation).map(([faction, value]) => (
+                                <div key={faction} className="inventory-item stat-row">
+                                    <span className="stat-label">{faction}:</span>
+                                    <span className="stat-value">{value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

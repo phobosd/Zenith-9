@@ -38,6 +38,12 @@ A revolutionary timing-based combat system that rewards skill and precision:
 - **Living Ecosystem**: NPCs with dynamic dialogue, unique behaviors, and AI-driven life cycles.
 - **MMO Foundation**: Built for high-concurrency multiplayer with Redis-backed persistence.
 
+### 🌀 The Glitch Door (Procedural Dungeons)
+Located in the heart of the Central Plaza (10,10), the **Glitch Door** offers a gateway to unstable, procedurally generated reality pockets.
+- **Roguelike Runs**: Enter a temporary instance filled with "Glitch" enemies and distorted environments.
+- **High Risk, High Reward**: Survive the instability to find unique `[GLITCH]` prefixed items with legendary stats.
+- **AI-Generated Content**: The World Director generates unique mobs and loot for each run, ensuring no two delves are the same.
+
 ---
 
 ## 📖 Technical Documentation
@@ -145,7 +151,10 @@ graph TD
 ### Tech Stack
 - **Frontend**: React + TypeScript + Socket.io-client
 - **Backend**: Node.js + TypeScript + Socket.io
-- **Database**: Redis (for persistence)
+- **Database**: 
+    - **Redis**: For real-time world state and active entity persistence.
+    - **SQLite**: For persistent user accounts and character data.
+- **Authentication**: JWT-based with Bcrypt password hashing.
 - **Architecture**: Entity Component System (ECS)
 - **AI Integration**: Custom LLM Service with Guardrails
 
@@ -155,6 +164,8 @@ Zenith-9 includes a comprehensive Admin Dashboard for real-time world management
 - **Content Registry**: Search, edit, and delete Items and NPCs live.
 - **AI Director**: Manually trigger generation of new content (NPCs, Mobs, Items, Quests, Rooms).
 - **Review Pipeline**: Approve or reject AI-generated content before it enters the game.
+- **User Management**: Manage user accounts, roles, and permissions.
+- **Security**: Role-Based Access Control (RBAC) and JWT authentication for admin actions.
 - **Snapshots**: Backup and restore the entire world state.
 
 For a detailed guide on using the dashboard, see the [Admin Guide](./docs/ADMIN_GUIDE.md).

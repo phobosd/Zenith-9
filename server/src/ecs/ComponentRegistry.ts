@@ -23,6 +23,13 @@ import { Cyberware } from '../components/Cyberware';
 import { Portal } from '../components/Portal';
 import { Visuals } from '../components/Visuals';
 import { Momentum } from '../components/Momentum';
+import { Reputation } from '../components/Reputation';
+import { Heat } from '../components/Heat';
+import { Humanity } from '../components/Humanity';
+import { Role } from '../components/Role';
+import { CombatBuffer } from '../components/CombatBuffer';
+import { Roundtime } from '../components/Roundtime';
+import { LogoutTimer } from '../components/LogoutTimer';
 
 export class ComponentRegistry {
     private static components: Map<string, ComponentClass<any>> = new Map();
@@ -60,5 +67,12 @@ export class ComponentRegistry {
         this.register('Portal', Portal);
         this.register('Visuals', Visuals);
         this.register('Momentum', Momentum);
+        this.register('Reputation', Reputation);
+        this.register('Heat', Heat);
+        this.register('Humanity', Humanity);
+        this.register('Role', Role);
+        this.register('CombatBuffer', CombatBuffer);
+        this.register('Roundtime', Roundtime);
+        this.register('LogoutTimer', LogoutTimer);
     }
 }

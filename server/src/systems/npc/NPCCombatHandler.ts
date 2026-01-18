@@ -11,6 +11,7 @@ import { Inventory } from '../../components/Inventory';
 import { Weapon } from '../../components/Weapon';
 import { Stats } from '../../components/Stats';
 import { CombatUtils } from '../combat/CombatUtils';
+import { CombatLogger } from '../combat/CombatLogger';
 
 export class NPCCombatHandler {
     static onPlayerMoved(playerId: string, x: number, y: number, engine: IEngine, messageService: MessageService) {
@@ -159,6 +160,9 @@ export class NPCCombatHandler {
                         if ([EngagementTier.POLEARM, EngagementTier.MELEE, EngagementTier.CLOSE_QUARTERS].includes(combatStats.engagementTier)) {
                             targetCombatStats.engagementTier = combatStats.engagementTier;
                             messageService.combat(target.id, `<advance>You are now engaged with ${npcComp.typeName} at <range>${combatStats.engagementTier}</range> range!</advance>`);
+
+                            // Trigger combat assessment update
+                            CombatLogger.sendCombatState(target.id, engine, combatSystem.io);
                         }
 
                         // Apply Roundtime for advancing (4 seconds)

@@ -8,6 +8,7 @@ import { CombatBufferDisplay } from './CombatBufferDisplay';
 import { CombatDisplay } from './CombatDisplay';
 import { TerminalLineItem } from './TerminalLineItem';
 import { TerminalInput } from './TerminalInput';
+import { AuthOverlay } from './AuthOverlay';
 import { useGameSocket } from '../hooks/useGameSocket';
 import { useTerminalInput } from '../hooks/useTerminalInput';
 import './Terminal.css';
@@ -22,6 +23,9 @@ export const Terminal: React.FC = () => {
         guideContent,
         isMatrixMode,
         miniMapData,
+        isAuthenticated,
+        hasCharacter,
+        authError,
         setTerminalData,
         setGuideContent,
         addSystemLine
@@ -49,8 +53,23 @@ export const Terminal: React.FC = () => {
         }
     }, [lines]);
 
+    // Focus input when auth is completed
+    useEffect(() => {
+        if (isAuthenticated && hasCharacter) {
+            const input = document.querySelector('.terminal-input') as HTMLInputElement;
+            if (input) input.focus();
+        }
+    }, [isAuthenticated, hasCharacter]);
+
     return (
         <div className={`terminal-container ${isMatrixMode ? 'matrix-mode' : ''} ${isGlitching ? 'glitch-active' : ''}`}>
+            {socket && (!isAuthenticated || !hasCharacter) && (
+                <AuthOverlay
+                    socket={socket}
+                    archetypes={autocompleteData.archetypes}
+                    externalError={authError}
+                />
+            )}
             {playerStats && (
                 <div className="top-status-bar">
                     <HandsDisplay stats={playerStats} />

@@ -18,7 +18,7 @@ export class ContainerHandler {
         if (!inventory) return;
 
         let targetItemName = itemName.toLowerCase();
-        let targetContainerName = 'backpack';
+        let targetContainerName = '';
 
         const inMatch = targetItemName.match(/^(.+?)\s+in\s+(.+)$/);
         if (inMatch) {
@@ -29,6 +29,22 @@ export class ContainerHandler {
         if (targetItemName === 'can') targetItemName = 'beer can';
 
         const { index: itemIndex, name: targetItemNameParsed } = ParserUtils.parseOrdinal(targetItemName);
+
+        // If no container specified, default to whatever is in the 'back' slot
+        if (!targetContainerName) {
+            const backpackId = inventory.equipment.get('back');
+            if (backpackId) {
+                const backpack = WorldQuery.getEntityById(engine, backpackId);
+                const itemComp = backpack?.getComponent(Item);
+                if (itemComp) {
+                    targetContainerName = itemComp.name;
+                }
+            }
+        }
+
+        // Fallback to 'backpack' if still empty (legacy behavior/guide)
+        if (!targetContainerName) targetContainerName = 'backpack';
+
         const { index: containerIndex, name: targetContainerNameParsed } = ParserUtils.parseOrdinal(targetContainerName);
 
         const itemMatches: { id: string, source: 'left' | 'right' }[] = [];

@@ -9,7 +9,7 @@ import { ParseMessage } from './InteractiveText';
 export interface TerminalLine {
     id: string;
     text: string;
-    type: 'output' | 'input' | 'system' | 'inventory' | 'score' | 'sheet' | 'terminal' | 'map' | 'info' | 'error' | 'success' | 'action' | 'combat' | 'room_desc';
+    type: 'output' | 'input' | 'system' | 'inventory' | 'score' | 'sheet' | 'terminal' | 'map' | 'info' | 'error' | 'success' | 'action' | 'combat' | 'room_desc' | 'global' | 'emote' | 'chat' | 'whisper';
     data?: any;
 }
 

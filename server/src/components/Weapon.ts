@@ -27,9 +27,9 @@ export class Weapon extends Component {
     roundtime: number; // Base roundtime in seconds
 
     constructor(
-        name: string,
-        category: string,
-        damage: number,
+        name: string = "Unknown Weapon",
+        category: string = "melee",
+        damage: number = 0,
         range: number = 0,
         ammoType: string | null = null,
         magazineType: string | null = null,

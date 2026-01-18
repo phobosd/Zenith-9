@@ -7,7 +7,9 @@ export enum GameEventType {
     COMBAT_START = 'COMBAT_START',
     COMBAT_END = 'COMBAT_END',
     ITEM_PICKED_UP = 'ITEM_PICKED_UP',
-    ITEM_DROPPED = 'ITEM_DROPPED'
+    ITEM_DROPPED = 'ITEM_DROPPED',
+    PLAYER_CONNECTED = 'PLAYER_CONNECTED',
+    PLAYER_DISCONNECTED = 'PLAYER_DISCONNECTED'
 }
 
 export interface GameEventPayloads {
@@ -18,6 +20,8 @@ export interface GameEventPayloads {
     [GameEventType.COMBAT_END]: { attackerId: string, targetId: string, winnerId?: string };
     [GameEventType.ITEM_PICKED_UP]: { entityId: string, itemId: string };
     [GameEventType.ITEM_DROPPED]: { entityId: string, itemId: string };
+    [GameEventType.PLAYER_CONNECTED]: { playerId: string, characterId: number, username: string };
+    [GameEventType.PLAYER_DISCONNECTED]: { playerId: string };
 }
 
 export class GameEventBus {

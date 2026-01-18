@@ -139,8 +139,9 @@ export class ItemGenerator extends BaseGenerator<ItemPayload> {
             ? Math.round((1 + Math.random() * 4) * 10) / 10
             : Math.round((0.1 + Math.random() * 1.9) * 10) / 10;
 
-        // 3. Portrait Pass: AI Image Generation (via Pollinations.ai)
+        // 3. Portrait Pass: AI Image Generation (via Pollinations.ai) - DISABLED
         let portrait = "";
+        /*
         if (llm) {
             try {
                 const portraitPrompt = `Create a highly detailed image generation prompt for a "realistic 3D digital art" icon of the following cyberpunk item:
@@ -160,6 +161,7 @@ export class ItemGenerator extends BaseGenerator<ItemPayload> {
                 console.error('Item Portrait Pass failed:', err);
             }
         }
+        */
 
         const payload: ItemPayload = {
             id: `item_${Math.random().toString(36).substring(7)}`,

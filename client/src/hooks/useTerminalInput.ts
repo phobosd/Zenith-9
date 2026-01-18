@@ -10,10 +10,13 @@ const COMMANDS = [
     'wear', 'equip', 'remove', 'unequip', 'takeoff',
     'turn', 'rotate', 'jack_in', 'jack_out', 'jackin', 'jackout',
     'maneuver', 'man', 'target', 'stance', 'appraise', 'app',
-    'say',
+    'say', 'link', 'emote', 'whisper', 'who', 'give',
     'advance', 'adv', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess', 'balance', 'bal',
     'dash', 'slash', 'parry', 'thrust', 'upload', 'execute',
-    'punch', 'jab', 'headbutt', 'uppercut', 'iaijutsu', 'iai', 'slice'
+    'punch', 'jab', 'headbutt', 'uppercut', 'iaijutsu', 'iai', 'slice',
+    // Emotes
+    'nod', 'grin', 'laugh', 'shrug', 'wave', 'bow', 'salute', 'glare', 'smirk',
+    'sigh', 'frown', 'chuckle', 'wink', 'jack', 'glitch'
 ];
 
 interface AutocompleteData {
@@ -320,6 +323,25 @@ export const useTerminalInput = (
                 const search = parts.slice(1).join(' ');
                 matches = autocompleteData.inventory.filter(s => matchCandidate(s, search));
                 baseString = rawParts[0] + ' ';
+            } else if (cmd === 'give') {
+                // Parse: give <item> to <player>
+                const toIndex = parts.indexOf('to');
+
+                if (toIndex === -1) {
+                    // Before "to" - autocomplete item from hands or suggest "to"
+                    const search = parts.slice(1).join(' ');
+                    // Only show items currently in hands (not full inventory)
+                    matches = autocompleteData.inventory.filter(s => matchCandidate(s, search));
+                    if ('to'.startsWith(search.toLowerCase()) && search.length > 0) {
+                        matches.push('to');
+                    }
+                    baseString = rawParts[0] + ' ';
+                } else {
+                    // After "to" - autocomplete player names
+                    const search = parts.slice(toIndex + 1).join(' ');
+                    matches = autocompleteData.roomObjects.filter(s => matchCandidate(s, search));
+                    baseString = rawParts.slice(0, toIndex + 1).join(' ') + ' ';
+                }
             }
         }
         return { matches, baseString };

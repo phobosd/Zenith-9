@@ -10,6 +10,7 @@ export interface ItemDetails {
     weight?: number;
     attributes?: string;
     rarity?: string;
+    portrait?: string;
 }
 
 export const ItemTooltip: React.FC<{ details: ItemDetails; visible?: boolean; style?: React.CSSProperties }> = ({ details, visible, style }) => {
@@ -33,6 +34,11 @@ export const ItemTooltip: React.FC<{ details: ItemDetails; visible?: boolean; st
     return (
         <div className="item-tooltip" style={combinedStyle}>
             <div className="tooltip-header" style={{ color: getRarityColor(details.rarity) }}>{details.name}</div>
+            {details.portrait && (
+                <div className="tooltip-portrait">
+                    <img src={details.portrait} alt={details.name} style={{ width: '100%', height: 'auto', borderRadius: '4px', marginBottom: '0.5rem' }} />
+                </div>
+            )}
             <div className="tooltip-desc">{details.description}</div>
             <div className="tooltip-stats">
                 {details.rarity && <div className="tooltip-stat" style={{ color: getRarityColor(details.rarity), textTransform: 'capitalize' }}>{details.rarity}</div>}

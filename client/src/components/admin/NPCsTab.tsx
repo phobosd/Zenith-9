@@ -247,6 +247,58 @@ export const NPCsTab: React.FC<NPCsTabProps> = ({
                                         />
                                     </div>
                                 </div>
+
+                                {/* Stats Section */}
+                                <div style={{ marginTop: '1rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
+                                    <label style={{ display: 'block', color: '#00ffff', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Combat Stats</label>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Health</label>
+                                            <input
+                                                type="number"
+                                                value={editingNPC.stats?.health || 100}
+                                                onChange={(e) => setEditingNPC({
+                                                    ...editingNPC,
+                                                    stats: {
+                                                        ...editingNPC.stats,
+                                                        health: parseInt(e.target.value) || 0
+                                                    }
+                                                })}
+                                                style={{ width: '100%', background: '#222', border: '1px solid #444', color: '#fff', padding: '0.5rem' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Attack</label>
+                                            <input
+                                                type="number"
+                                                value={editingNPC.stats?.attack || 10}
+                                                onChange={(e) => setEditingNPC({
+                                                    ...editingNPC,
+                                                    stats: {
+                                                        ...editingNPC.stats,
+                                                        attack: parseInt(e.target.value) || 0
+                                                    }
+                                                })}
+                                                style={{ width: '100%', background: '#222', border: '1px solid #444', color: '#fff', padding: '0.5rem' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Defense</label>
+                                            <input
+                                                type="number"
+                                                value={editingNPC.stats?.defense || 0}
+                                                onChange={(e) => setEditingNPC({
+                                                    ...editingNPC,
+                                                    stats: {
+                                                        ...editingNPC.stats,
+                                                        defense: parseInt(e.target.value) || 0
+                                                    }
+                                                })}
+                                                style={{ width: '100%', background: '#222', border: '1px solid #444', color: '#fff', padding: '0.5rem' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* Right Column: Portrait */}

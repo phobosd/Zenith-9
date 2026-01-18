@@ -38,7 +38,10 @@ export class Entity extends EventEmitter {
     toJSON() {
         const componentsObj: any = {};
         this.components.forEach((component, type) => {
-            componentsObj[type] = component;
+            // Never serialize LogoutTimer
+            if (type !== 'LogoutTimer') {
+                componentsObj[type] = component;
+            }
         });
         return {
             id: this.id,

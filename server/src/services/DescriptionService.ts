@@ -22,9 +22,9 @@ import { HealthDescriptor } from '../utils/HealthDescriptor';
 
 export class DescriptionService {
     /**
-     * Generates a full room description including title, description, exits, mini-map, items, and NPCs.
+     * Generates a full room description including title, description, exits, mini-map, items, NPCs, and other players.
      */
-    static describeRoom(playerPos: Position, engine: IEngine): string {
+    static describeRoom(playerPos: Position, engine: IEngine, viewerId?: string): string {
         const room = WorldQuery.findRoomAt(engine, playerPos.x, playerPos.y);
         if (!room) return "You are in a void.";
 
@@ -32,7 +32,8 @@ export class DescriptionService {
         if (!roomDesc) return "This room has no description.";
 
         // Find items in the room
-        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
+        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y)
+            .filter(e => !e.hasComponent(PuzzleObject) && !e.hasComponent(Portal) && !e.hasComponent(Terminal));
         const itemDescriptions = itemsInRoom.map(item => {
             const itemComp = item.getComponent(Item);
             return itemComp ? `There is a ${MessageFormatter.item(itemComp.name, item.id, itemComp.rarity)} here.` : '';
@@ -53,6 +54,15 @@ export class DescriptionService {
             }
             return '';
         }).filter(s => s !== '').join('\n');
+
+        // Find other players in the room
+        const playersInRoom = WorldQuery.findPlayersAt(engine, playerPos.x, playerPos.y);
+        const playerDescriptions = playersInRoom
+            .filter(p => p.id !== viewerId)
+            .map(p => {
+                const desc = p.getComponent(Description);
+                return `<player id="${p.id}">${desc?.title || "Someone"} is standing here.</player>`;
+            }).join('\n');
 
         // Find Terminals in the room
         const terminalsInRoom = WorldQuery.findTerminalsAt(engine, playerPos.x, playerPos.y);
@@ -117,7 +127,8 @@ ${atmosphereText}<desc>${roomDesc.description}</desc>${terminalText}${portalText
 <exits>Exits: ${exits.join(', ')}</exits>
 ${miniMap}
 ${itemDescriptions}
-${npcDescriptions}`.trim();
+${npcDescriptions}
+${playerDescriptions}`.trim();
     }
 
     /**
@@ -355,25 +366,27 @@ ${MessageFormatter.title(`[${npcComp.typeName}]`)}
         const inventory = npc.getComponent(Inventory);
         if (inventory) {
             const equipmentList: string[] = [];
-            const getItemName = (id: string | null) => {
+            const getItemFormatted = (id: string | null) => {
                 if (!id) return null;
                 const item = WorldQuery.getEntityById(engine, id);
-                return item?.getComponent(Item)?.name;
+                const itemComp = item?.getComponent(Item);
+                if (!itemComp) return null;
+                return MessageFormatter.item(itemComp.name, item!.id, itemComp.rarity);
             };
 
-            const rightHand = getItemName(inventory.rightHand);
-            if (rightHand) equipmentList.push(`<cyan>Right Hand:</cyan> <item>${rightHand}</item>`);
+            const rightHand = getItemFormatted(inventory.rightHand);
+            if (rightHand) equipmentList.push(`<cyan>Right Hand:</cyan> ${rightHand}`);
 
-            const leftHand = getItemName(inventory.leftHand);
-            if (leftHand) equipmentList.push(`<cyan>Left Hand:</cyan> <item>${leftHand}</item>`);
+            const leftHand = getItemFormatted(inventory.leftHand);
+            if (leftHand) equipmentList.push(`<cyan>Left Hand:</cyan> ${leftHand}`);
 
             inventory.equipment.forEach((itemId, slot) => {
-                const name = getItemName(itemId);
-                if (name) {
+                const formatted = getItemFormatted(itemId);
+                if (formatted) {
                     let slotName = slot;
                     if (slot.startsWith('pocket')) slotName = 'Pocket';
                     else slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
-                    equipmentList.push(`<cyan>${slotName}:</cyan> <item>${name}</item>`);
+                    equipmentList.push(`<cyan>${slotName}:</cyan> ${formatted}`);
                 }
             });
 
@@ -465,7 +478,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
             }
         }
 
-        const matches: { type: 'npc' | 'object' | 'item', entity: Entity }[] = [];
+        const matches: { type: 'npc' | 'object' | 'item' | 'player', entity: Entity }[] = [];
 
         // 2. Check for NPCs
         const npcsInRoom = WorldQuery.findNPCsAt(engine, playerPos.x, playerPos.y);
@@ -476,7 +489,17 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
             }
         });
 
-        // 3. Check for other entities (Terminals, Objects, PuzzleObjects)
+        // 3. Check for other players
+        const playersInRoom = WorldQuery.findPlayersAt(engine, playerPos.x, playerPos.y);
+        playersInRoom.forEach(p => {
+            if (p.id === player.id) return;
+            const desc = p.getComponent(Description);
+            if (desc && desc.title.toLowerCase().includes(targetNameLower)) {
+                matches.push({ type: 'player', entity: p });
+            }
+        });
+
+        // 4. Check for other entities (Terminals, Objects, PuzzleObjects)
         const roomEntities = engine.getEntitiesWithComponent(Description).filter(e => {
             const pos = e.getComponent(Position);
             const desc = e.getComponent(Description);
@@ -488,8 +511,9 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         });
         roomEntities.forEach(e => matches.push({ type: 'object', entity: e }));
 
-        // 4. Check items in the room
-        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y);
+        // 5. Check items in the room
+        const itemsInRoom = WorldQuery.findItemsAt(engine, playerPos.x, playerPos.y)
+            .filter(e => !e.hasComponent(PuzzleObject) && !e.hasComponent(Portal) && !e.hasComponent(Terminal));
         itemsInRoom.forEach(item => {
             const itemComp = item.getComponent(Item);
             if (itemComp && itemComp.matches(targetNameLower)) {
@@ -497,7 +521,7 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
             }
         });
 
-        // 5. Check inventory
+        // 6. Check inventory
         const inventory = player.getComponent(Inventory);
         if (inventory) {
             const collectFromInventory = (itemId: string) => {
@@ -526,6 +550,47 @@ ${MessageFormatter.title(`[${itemComp.name}]`)}
         const target = matches[index];
         if (target) {
             if (target.type === 'npc') return this.describeNPC(target.entity, engine);
+            if (target.type === 'player') {
+                const desc = target.entity.getComponent(Description);
+                const stats = target.entity.getComponent(CombatStats);
+                let output = `${MessageFormatter.title(`[${desc?.title}]`)}\n${desc?.description}`;
+                if (stats) {
+                    output += `\n\nStatus: They look <status>${HealthDescriptor.getStatusDescriptor(stats.hp, stats.maxHp)}</status>.`;
+                }
+
+                const inventory = target.entity.getComponent(Inventory);
+                if (inventory) {
+                    const equipmentList: string[] = [];
+                    const getItemFormatted = (id: string | null) => {
+                        if (!id) return null;
+                        const item = WorldQuery.getEntityById(engine, id);
+                        const itemComp = item?.getComponent(Item);
+                        if (!itemComp) return null;
+                        return MessageFormatter.item(itemComp.name, item!.id, itemComp.rarity);
+                    };
+
+                    const rightHand = getItemFormatted(inventory.rightHand);
+                    if (rightHand) equipmentList.push(`<cyan>Right Hand:</cyan> ${rightHand}`);
+
+                    const leftHand = getItemFormatted(inventory.leftHand);
+                    if (leftHand) equipmentList.push(`<cyan>Left Hand:</cyan> ${leftHand}`);
+
+                    inventory.equipment.forEach((itemId, slot) => {
+                        const formatted = getItemFormatted(itemId);
+                        if (formatted) {
+                            let slotName = slot;
+                            if (slot.startsWith('pocket')) slotName = 'Pocket';
+                            else slotName = slot.charAt(0).toUpperCase() + slot.slice(1);
+                            equipmentList.push(`<cyan>${slotName}:</cyan> ${formatted}`);
+                        }
+                    });
+
+                    if (equipmentList.length > 0) {
+                        output += `\n\n<title>Equipment:</title>\n${equipmentList.map(e => `- ${e}`).join('\n')}`;
+                    }
+                }
+                return output;
+            }
             if (target.type === 'item') return this.describeItem(target.entity);
             const desc = target.entity.getComponent(Description);
             return desc ? desc.description : null;

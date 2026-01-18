@@ -9,6 +9,7 @@ import { GlitchTab } from './admin/GlitchTab';
 import { SnapshotsTab } from './admin/SnapshotsTab';
 import { LLMTab } from './admin/LLMTab';
 import { LogsTab } from './admin/LogsTab';
+import { UsersTab } from './admin/UsersTab';
 
 // Types (mirrored from server)
 export interface LogEntry {
@@ -83,7 +84,7 @@ const BUDGET_TOOLTIPS: Record<string, string> = {
     maxQuestXPReward: "Maximum experience points awarded for completing a generated quest."
 };
 
-type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs' | 'glitch';
+type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs' | 'glitch' | 'users';
 
 export const AdminDashboard: React.FC = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -130,8 +131,10 @@ export const AdminDashboard: React.FC = () => {
     const [npcSearch, setNpcSearch] = useState('');
 
     useEffect(() => {
+        const token = localStorage.getItem('zenith_token');
         const newSocket = io('http://localhost:3000/admin', {
-            transports: ['websocket']
+            transports: ['websocket'],
+            auth: { token }
         });
 
         newSocket.on('connect', () => {
@@ -141,6 +144,11 @@ export const AdminDashboard: React.FC = () => {
             newSocket.emit('director:get_chunks');
             newSocket.emit('director:get_items');
             newSocket.emit('director:get_npcs');
+        });
+
+        newSocket.on('connect_error', (err) => {
+            console.error('Admin Connection Error:', err.message);
+            addLog('error', `Connection Failed: ${err.message}`);
         });
 
         newSocket.on('director:log', (entry: LogEntry) => {
@@ -449,6 +457,7 @@ export const AdminDashboard: React.FC = () => {
                 <button className={`tab-btn ${activeTab === 'world' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('world')}>WORLD MAP</button>
                 <button className={`tab-btn ${activeTab === 'items' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('items')}>ITEMS</button>
                 <button className={`tab-btn ${activeTab === 'npcs' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('npcs')}>NPCS</button>
+                <button className={`tab-btn ${activeTab === 'users' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('users')}>USERS</button>
                 <button className={`tab-btn ${activeTab === 'glitch' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('glitch')}>GLITCH DOOR</button>
                 <button className={`tab-btn ${activeTab === 'snapshots' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('snapshots')}>SNAPSHOTS</button>
                 <button className={`tab-btn ${activeTab === 'llm' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('llm')}>LLM</button>
@@ -524,6 +533,10 @@ export const AdminDashboard: React.FC = () => {
                     spawnRoamingNPC={spawnRoamingNPC}
                     generatePortrait={generatePortrait}
                 />
+            )}
+
+            {activeTab === 'users' && (
+                <UsersTab socket={socket} items={items} />
             )}
 
             {activeTab === 'glitch' && (

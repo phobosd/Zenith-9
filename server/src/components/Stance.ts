@@ -8,6 +8,7 @@ export enum StanceType {
 }
 
 export class Stance extends Component {
+    static type = 'Stance';
     public current: StanceType = StanceType.Standing;
 
     constructor(initial: StanceType = StanceType.Standing) {

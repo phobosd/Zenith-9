@@ -7,17 +7,34 @@ import { WorldQuery } from '../utils/WorldQuery';
 import { IEngine } from '../ecs/IEngine';
 import { MessageService } from '../services/MessageService';
 import { Server } from 'socket.io';
+import { LogoutTimer } from '../components/LogoutTimer';
+import { CombatUtils } from './combat/CombatUtils';
+import { CharacterService } from '../services/CharacterService';
+import { Logger } from '../utils/Logger';
+import { Reputation } from '../components/Reputation';
+import { WorldStateService } from '../services/WorldStateService';
+import { Container } from '../components/Container';
+import { Description } from '../components/Description';
 
 export class CharacterSystem extends System {
     private messageService: MessageService;
 
-    constructor(private io: Server) {
+    constructor(private io: Server, private worldState: WorldStateService) {
         super();
         this.messageService = new MessageService(io);
     }
 
     update(engine: IEngine, deltaTime: number): void {
-        // Character-related logic
+        const entitiesWithLogout = engine.getEntitiesWithComponent(LogoutTimer);
+        entitiesWithLogout.forEach(entity => {
+            const timer = entity.getComponent(LogoutTimer)!;
+            timer.secondsRemaining -= deltaTime / 1000;
+
+            if (timer.secondsRemaining <= 0) {
+                this.performFinalLogout(entity.id, engine);
+                entity.removeComponent(LogoutTimer);
+            }
+        });
     }
 
     handleSheet(entityId: string, engine: IEngine) {
@@ -62,7 +79,9 @@ export class CharacterSystem extends System {
                 legs: getItemName(inventory.equipment.get('legs') || null),
                 feet: getItemName(inventory.equipment.get('feet') || null),
                 hands: getItemName(inventory.equipment.get('hands') || null)
-            } : null
+            } : null,
+            name: player.getComponent(Description)?.title || "Unknown",
+            reputation: player.getComponent(Reputation)?.factions ? Object.fromEntries(player.getComponent(Reputation)!.factions) : {}
         };
 
         this.io.to(entityId).emit('sheet-data', sheetData);
@@ -89,5 +108,70 @@ export class CharacterSystem extends System {
         }
 
         this.io.to(entityId).emit('score-data', { skills });
+    }
+
+    handleLogout(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
+        if (!player) return;
+
+        if (player.hasComponent(LogoutTimer)) {
+            this.messageService.info(entityId, "You are already logging out.");
+            return;
+        }
+
+        // Apply 5s RT
+        CombatUtils.applyRoundtime(player, 5);
+        this.messageService.info(entityId, "Logging out in 5 seconds... stay still.");
+
+        player.addComponent(new LogoutTimer(5));
+    }
+
+    private async performFinalLogout(entityId: string, engine: IEngine) {
+        const player = WorldQuery.getEntityById(engine, entityId);
+        if (!player) return;
+
+        Logger.info('Character', `Performing final logout for ${entityId}`);
+
+        // Save character data
+        const charService = CharacterService.getInstance();
+        const charData = charService.getCharacterBySocketId(entityId);
+        if (charData) {
+            // Remove LogoutTimer before saving so it doesn't persist
+            player.removeComponent(LogoutTimer);
+
+            charService.saveCharacter(charData.id, player.toJSON());
+
+            // Save items in inventory to world_entities
+            const inventory = player.getComponent(Inventory);
+            if (inventory) {
+                const saveItem = async (itemId: string | null) => {
+                    if (!itemId) return;
+                    const item = engine.getEntity(itemId);
+                    if (item) {
+                        await this.worldState.saveEntity(item);
+                        const container = item.getComponent(Container);
+                        if (container) {
+                            for (const subId of container.items) {
+                                await saveItem(subId);
+                            }
+                        }
+                    }
+                };
+
+                await saveItem(inventory.leftHand);
+                await saveItem(inventory.rightHand);
+                for (const itemId of inventory.equipment.values()) {
+                    await saveItem(itemId);
+                }
+            }
+
+            this.messageService.info(entityId, "Character and inventory saved. Neural link severed.");
+        }
+
+        // Notify client to clear state
+        this.io.to(entityId).emit('auth:logout');
+
+        // Remove from engine
+        engine.removeEntity(entityId);
     }
 }

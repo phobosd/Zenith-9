@@ -8,7 +8,9 @@ import { Atmosphere } from '../components/Atmosphere';
 import { Portal } from '../components/Portal';
 import { Terminal } from '../components/Terminal';
 import { PuzzleObject } from '../components/PuzzleObject';
+import { NPC } from '../components/NPC';
 import { PrefabFactory } from '../factories/PrefabFactory';
+import { WorldQuery } from '../utils/WorldQuery';
 
 export interface RoomFlavor {
     title: string;
@@ -18,6 +20,8 @@ export interface RoomFlavor {
 
 export class RoomFactory {
     private engine: Engine;
+    private vendorCount = 0;
+    private readonly MAX_VENDORS = 7;
 
     constructor(engine: Engine) {
         this.engine = engine;
@@ -63,37 +67,40 @@ export class RoomFactory {
                 ];
             } else if (flavor.shopData.name === "The Armory") {
                 items = [
-                    'combat_knife',
-                    'katana',
-                    'item_nco9qq',
-                    'monofilament_whip',
-                    'stun_baton',
-                    'heavy_pistol',
-                    'smg',
-                    'shotgun',
+                    'pistol_9mm',
+                    'mag_pistol_9mm',
+                    'ammo_9mm_loose',
                     'assault_rifle',
-                    'sniper_rifle',
-                    'plasma_rifle',
-                    'frag_grenade',
-                    'emp_grenade',
-                    'flashbang',
-                    'ammo_pistol',
+                    'shotgun',
+                    'katana',
+                    'combat_knife',
                     'ammo_rifle',
                     'ammo_shotgun',
-                    'ammo_energy'
+                    'tactical_shirt',
+                    'heavy_jacket',
+                    'cargo_pants',
+                    'armored_slacks',
+                    'combat_boots',
+                    'kinetic_dampeners',
+                    'street_cap',
+                    'ballistic_helmet',
+                    'stealth_belt',
+                    'frag_grenade',
+                    'flashbang'
                 ];
             } else if (flavor.shopData.name === "Bits & Bytes") {
                 items = [
+                    'messenger_bag',
+                    'tactical_backpack',
+                    'utility_belt',
+                    'flashlight',
+                    'rope',
+                    'grappling_hook',
                     'stimpack',
                     'medkit',
                     'energy_drink',
                     'nutrient_paste',
-                    'syntho_caf',
-                    'backpack',
-                    'utility_belt',
-                    'flashlight',
-                    'rope',
-                    'grappling_hook'
+                    'syntho_caf'
                 ];
             } else if (flavor.shopData.name === "Street Doc's Clinic") {
                 items = [
@@ -105,10 +112,6 @@ export class RoomFactory {
                 ];
             }
 
-            // We don't actually add items to the terminal entity here in the original code,
-            // the InteractionSystem handles 'read terminal' by checking if the room is a shop.
-            // But we might want to store the stock on the terminal or shop component later.
-
             terminal.addComponent(new Terminal(flavor.shopData.name, {
                 title: `${flavor.shopData.name} - Catalog`,
                 items: items
@@ -119,6 +122,10 @@ export class RoomFactory {
 
         // Special handling for Alchemist's Study (Type 7) - Puzzle Room
         if (type === 7) {
+            // Check if table already exists here
+            const existingTable = this.engine.getEntitiesAt(x, y).find(e => e.getComponent(Description)?.title === "Stone Table");
+            if (existingTable) return;
+
             // Create Stone Table with Inscription
             const table = new Entity();
             table.addComponent(new Position(x, y));
@@ -174,11 +181,15 @@ export class RoomFactory {
 
         // Special handling for Portal Room (Type 8) - Add Glitch Door
         if (type === 8) {
-            const portal = new Entity();
-            portal.addComponent(new Position(x, y));
-            portal.addComponent(new Description("Glitch Door", "A door made of shifting, translucent code. It seems to lead somewhere... unstable."));
-            portal.addComponent(new Portal('dungeon', 'glitch_zone'));
-            this.engine.addEntity(portal);
+            // Check if portal already exists here
+            const existingPortals = this.engine.getEntitiesAt(x, y).filter(e => e.hasComponent(Portal));
+            if (existingPortals.length === 0) {
+                const portal = new Entity();
+                portal.addComponent(new Position(x, y));
+                portal.addComponent(new Description("Glitch Door", "A door made of shifting, translucent code. It seems to lead somewhere... unstable."));
+                portal.addComponent(new Portal('dungeon', 'glitch_zone'));
+                this.engine.addEntity(portal);
+            }
         }
 
         // Random NPC Spawning
@@ -190,6 +201,20 @@ export class RoomFactory {
 
     private spawnNPCs(x: number, y: number, type: number) {
         const spawn = (name: string) => {
+            if (name === 'street vendor') {
+                const currentVendors = this.engine.getEntitiesWithComponent(NPC).filter(e => {
+                    const n = e.getComponent(NPC);
+                    return n && n.typeName === 'Street Vendor';
+                }).length;
+                if (currentVendors >= this.MAX_VENDORS) return;
+            }
+
+            // Check if this NPC already exists here to avoid duplicates
+            const existingNPCs = WorldQuery.findNPCsAt(this.engine, x, y);
+            if (existingNPCs.some(e => e.getComponent(NPC)?.typeName.toLowerCase() === name.toLowerCase())) {
+                return;
+            }
+
             const npc = PrefabFactory.createNPC(name);
             if (npc) {
                 npc.addComponent(new Position(x, y));
@@ -200,17 +225,12 @@ export class RoomFactory {
 
         const roll = Math.random();
 
-        // DISABLED: Aggressive NPC spawns (cyber thug, street samurai) to prevent combat on world generation
         switch (type) {
             case 1: // Street
-                // if (roll < 0.15) spawn('street samurai'); // DISABLED: Aggressive
-                if (roll < 0.25) spawn('street vendor');
-                // else if (roll < 0.35) spawn('cyber thug'); // DISABLED: Aggressive
+                if (roll < 0.12) spawn('street vendor');
                 break;
             case 2: // Plaza
-                if (roll < 0.30) spawn('street vendor');
-                // else if (roll < 0.40) spawn('street samurai'); // DISABLED: Aggressive
-                // else if (roll < 0.50) spawn('cyber thug'); // DISABLED: Aggressive
+                if (roll < 0.15) spawn('street vendor');
                 break;
             case 5: // Club
                 if (roll < 0.60) spawn('dancer');
@@ -234,16 +254,6 @@ export class RoomFactory {
                     desc: "A wide open space dominated by a massive holographic statue. Crowds of people hurry past, faces illuminated by the glow of their AR displays."
                 };
             case 3: // Shop
-                // Determine shop type based on coordinates (hardcoded in layout)
-                // Layout:
-                // layout[cy - 2][cx - 2] = 3; // Cyber-Implant Shop (8, 8)
-                // layout[cy - 2][cx + 2] = 3; // Weapon Shop (12, 8)
-                // layout[cy + 2][cx - 2] = 3; // General Store (8, 12)
-
-                // We need to know the center to map back, or just check specific coords if we pass width/height
-                // For now, let's just use the coordinates we know from the layout generator logic.
-                // Assuming 20x20 world, cx=10, cy=10.
-
                 if (x === 8 && y === 8) {
                     return {
                         title: "Chrome & Steel",

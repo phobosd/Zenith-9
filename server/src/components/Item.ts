@@ -4,8 +4,8 @@ export class Item extends Component {
     static type = 'Item';
 
     constructor(
-        public name: string,
-        public description: string,
+        public name: string = "Unknown Item",
+        public description: string = "No description.",
         public weight: number = 0.1,
         public quantity: number = 1,
         public size: string = "Small",
@@ -16,7 +16,7 @@ export class Item extends Component {
         public rarity: string = "common"
     ) {
         super();
-        if (!this.shortName) {
+        if (!this.shortName && this.name) {
             // Default shortName to the last word of the name if not provided (usually the noun)
             this.shortName = this.name.split(' ').pop()?.toLowerCase() || 'item';
         }

@@ -17,4 +17,12 @@ export const registerCharacterCommands = (registry: CommandRegistry) => {
         execute: (ctx) => ctx.systems.character.handleScore(ctx.socketId, ctx.engine),
         ignoresRoundtime: true
     });
+
+    registry.register({
+        name: 'logout',
+        aliases: ['quit', 'exit'],
+        description: 'Safely log out of the world',
+        execute: (ctx) => ctx.systems.character.handleLogout(ctx.socketId, ctx.engine),
+        ignoresRoundtime: true
+    });
 };

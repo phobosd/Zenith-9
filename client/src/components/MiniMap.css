@@ -1,14 +1,9 @@
 .minimap-container {
     position: fixed;
     top: 20px;
-    right: 20px;
-    background: rgba(0, 20, 30, 0.85);
-    background-image:
-        linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
-    background-size: 10px 10px;
-    border: 1px solid rgba(0, 243, 255, 0.5);
-    padding: 12px;
+    width: fit-content;
+    background: rgba(0, 243, 255, 0.5);
+    padding: 13px;
     box-shadow: 0 0 30px rgba(0, 243, 255, 0.15), inset 0 0 20px rgba(0, 243, 255, 0.1);
     z-index: 1000;
     font-family: 'Courier New', monospace;
@@ -19,35 +14,26 @@
 .minimap-container::before {
     content: '';
     position: absolute;
-    top: 0;
-    left: 0;
-    width: 30px;
-    height: 4px;
-    background: #00f3ff;
-    box-shadow: 0 0 10px #00f3ff;
-}
-
-.minimap-container::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
-    right: 0;
-    width: 30px;
-    height: 4px;
-    background: #00f3ff;
-    box-shadow: 0 0 10px #00f3ff;
+    top: 1px;
+    left: 1px;
+    right: 1px;
+    bottom: 1px;
+    background: rgba(0, 20, 30, 0.85);
+    background-image:
+        linear-gradient(rgba(0, 243, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 243, 255, 0.05) 1px, transparent 1px);
+    background-size: 10px 10px;
+    clip-path: inherit;
+    z-index: -1;
 }
 
 .minimap-container.matrix-mode {
-    border-color: #00ff41;
-    background: rgba(0, 20, 0, 0.9);
+    background: rgba(0, 255, 65, 0.5);
     box-shadow: 0 0 30px rgba(0, 255, 65, 0.2), inset 0 0 20px rgba(0, 255, 65, 0.1);
 }
 
-.minimap-container.matrix-mode::before,
-.minimap-container.matrix-mode::after {
-    background: #00ff41;
-    box-shadow: 0 0 10px #00ff41;
+.minimap-container.matrix-mode::before {
+    background: rgba(0, 20, 0, 0.9);
 }
 
 .minimap-header {
@@ -61,6 +47,8 @@
     text-transform: uppercase;
     border-bottom: 1px solid rgba(0, 243, 255, 0.3);
     padding-bottom: 4px;
+    position: relative;
+    z-index: 1;
 }
 
 .minimap-container.matrix-mode .minimap-header {
@@ -76,6 +64,8 @@
     padding: 5px;
     background: rgba(0, 0, 0, 0.3);
     border: 1px solid rgba(0, 243, 255, 0.1);
+    position: relative;
+    z-index: 1;
 }
 
 .minimap-row {
@@ -85,12 +75,12 @@
 }
 
 .minimap-cell {
-    width: 14px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: bold;
 }
 
@@ -160,6 +150,8 @@
     border-top: 1px solid rgba(0, 243, 255, 0.3);
     letter-spacing: 1px;
     text-shadow: 0 0 5px rgba(0, 243, 255, 0.5);
+    position: relative;
+    z-index: 1;
 }
 
 .minimap-container.matrix-mode .minimap-footer {
@@ -168,7 +160,6 @@
     text-shadow: 0 0 5px rgba(0, 255, 65, 0.5);
 }
 
-/* Matrix mode cell colors */
 .minimap-container.matrix-mode .minimap-shop,
 .minimap-container.matrix-mode .minimap-clinic,
 .minimap-container.matrix-mode .minimap-club,
@@ -185,8 +176,8 @@
     color: #ff0000;
     text-shadow: 0 0 8px #ff0000;
 }
-/* Cyberpunk Accents for Minimap */
-.minimap-container::before {
+
+.minimap-container::after {
     content: '';
     position: absolute;
     top: 5px;
@@ -197,23 +188,4 @@
     transform: rotate(-45deg);
     box-shadow: 0 0 10px #00f3ff;
     z-index: 1001;
-}
-
-.minimap-container::after {
-    content: '';
-    position: absolute;
-    bottom: 5px;
-    right: -4px;
-    width: 20px;
-    height: 3px;
-    background: #00f3ff;
-    transform: rotate(-45deg);
-    box-shadow: 0 0 10px #00f3ff;
-    z-index: 1001;
-}
-
-.minimap-container.matrix-mode::before,
-.minimap-container.matrix-mode::after {
-    background: #00ff41;
-    box-shadow: 0 0 10px #00ff41;
 }

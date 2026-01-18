@@ -252,6 +252,56 @@ export const ItemsTab: React.FC<ItemsTabProps> = ({
                                 </div>
                             )}
 
+                            {editingItem.type === 'armor' && (
+                                <div style={{ padding: '1rem', background: '#222', borderRadius: '4px' }}>
+                                    <h4 style={{ margin: '0 0 1rem 0', color: '#00aaff' }}>Armor Stats</h4>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Slot</label>
+                                            <select
+                                                value={editingItem.slot || ''}
+                                                onChange={(e) => setEditingItem({ ...editingItem, slot: e.target.value })}
+                                                style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#fff', padding: '0.5rem' }}
+                                            >
+                                                <option value="">None</option>
+                                                <option value="head">Head</option>
+                                                <option value="torso">Torso</option>
+                                                <option value="legs">Legs</option>
+                                                <option value="feet">Feet</option>
+                                                <option value="waist">Waist</option>
+                                                <option value="back">Back</option>
+                                                <option value="neural">Neural</option>
+                                                <option value="hands">Hands</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Defense</label>
+                                            <input
+                                                type="number"
+                                                value={editingItem.extraData?.defense || 0}
+                                                onChange={(e) => setEditingItem({
+                                                    ...editingItem,
+                                                    extraData: { ...editingItem.extraData, defense: parseInt(e.target.value) }
+                                                })}
+                                                style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#fff', padding: '0.5rem' }}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Penalty</label>
+                                            <input
+                                                type="number"
+                                                value={editingItem.extraData?.penalty || 0}
+                                                onChange={(e) => setEditingItem({
+                                                    ...editingItem,
+                                                    extraData: { ...editingItem.extraData, penalty: parseInt(e.target.value) }
+                                                })}
+                                                style={{ width: '100%', background: '#111', border: '1px solid #333', color: '#fff', padding: '0.5rem' }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem', justifyContent: 'flex-end' }}>
                                 <button
                                     className="btn-reject"

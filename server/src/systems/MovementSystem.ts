@@ -9,6 +9,9 @@ import { ObservationSystem } from './ObservationSystem';
 import { WorldQuery } from '../utils/WorldQuery';
 import { IEngine } from '../ecs/IEngine';
 import { NPC } from '../components/NPC';
+import { Description } from '../components/Description';
+import { LogoutTimer } from '../components/LogoutTimer';
+
 
 import { MessageService } from '../services/MessageService';
 import { DungeonService } from '../services/DungeonService';
@@ -113,6 +116,47 @@ export class MovementSystem extends System {
                 console.log(`[Movement] Player ${entityId} moved to ${targetX}, ${targetY}`);
                 pos.x = targetX;
                 pos.y = targetY;
+
+                // Cancel logout if active
+                if (entity.hasComponent(LogoutTimer)) {
+                    entity.removeComponent(LogoutTimer);
+                    this.messageService.info(entityId, "Movement detected. Logout canceled.");
+                }
+
+                // --- Presence System: Room Management ---
+                const oldRoom = `room:${fromX}:${fromY}`;
+                const newRoom = `room:${targetX}:${targetY}`;
+                const socket = this.io.sockets.sockets.get(entityId);
+                const charName = entity.getComponent(Description)?.title || "Someone";
+
+                if (socket) {
+                    socket.leave(oldRoom);
+                    socket.join(newRoom);
+                }
+
+                // Broadcast departure to old room
+                let dirName = "";
+                if (move.x === 1) dirName = "east";
+                else if (move.x === -1) dirName = "west";
+                else if (move.y === 1) dirName = "south";
+                else if (move.y === -1) dirName = "north";
+
+                this.io.to(oldRoom).emit('message', {
+                    type: 'info',
+                    content: `${charName} leaves to the ${dirName}.`
+                });
+
+                // Broadcast arrival to new room
+                let fromDir = "";
+                if (move.x === 1) fromDir = "west";
+                else if (move.x === -1) fromDir = "east";
+                else if (move.y === 1) fromDir = "north";
+                else if (move.y === -1) fromDir = "south";
+
+                this.io.to(newRoom).except(entityId).emit('message', {
+                    type: 'info',
+                    content: `${charName} arrives from the ${fromDir}.`
+                });
 
                 // Emit move event
                 GameEventBus.getInstance().emit(GameEventType.PLAYER_MOVED, {

@@ -2,6 +2,7 @@ import { Entity } from '../../../ecs/Entity';
 import { IEngine } from '../../../ecs/IEngine';
 import { Server } from 'socket.io';
 import { CombatStats } from '../../../components/CombatStats';
+import { Description } from '../../../components/Description';
 import { Stats } from '../../../components/Stats';
 import { Weapon } from '../../../components/Weapon';
 import { Inventory } from '../../../components/Inventory';
@@ -309,9 +310,12 @@ export class PlayerAttackHandler {
         const attackerPower = CombatCalculator.calculateAttackerPower(attacker, weapon, skillName);
         const defenderPower = CombatCalculator.calculateDefenderPower(target, engine, attackType);
 
+        const attackerDesc = attacker.getComponent(Description);
+        const attackerName = attackerDesc?.title || 'A combatant';
+
         let margin = attackerPower - defenderPower;
         let combatLog = `\n<combat>You attack <error>${targetNPC?.typeName || 'the target'}</error> with your ${weapon.name}!\n`;
-        let observerLog = `\n<combat>A combatant attacks ${targetNPC?.typeName || 'the target'} with their ${weapon.name}!\n`;
+        let observerLog = `\n<combat>${attackerName} attacks ${targetNPC?.typeName || 'the target'} with their ${weapon.name}!\n`;
 
         let effectiveHitType: any = 'miss';
         if (hitType !== 'miss') {

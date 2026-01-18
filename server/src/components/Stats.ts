@@ -58,4 +58,5 @@ export class Stats extends Component {
         }
         return false;
     }
+
 }

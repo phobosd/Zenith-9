@@ -10,4 +10,5 @@ export class Inventory extends Component {
     constructor() {
         super();
     }
+
 }

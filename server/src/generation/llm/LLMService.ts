@@ -333,25 +333,26 @@ export class LLMService {
     public async getProviderBalance(profile: LLMProfile): Promise<any> {
         if (profile.provider === 'pollinations') {
             try {
-                // Try to fetch usage from the proposed endpoint
-                // If it fails, we'll return a placeholder or error
-                const url = `${profile.baseUrl}/usage?key=${profile.apiKey}`;
-                const response = await fetch(url);
+                if (!profile.apiKey) {
+                    return { error: 'API Key is required for Pollinations.ai balance check' };
+                }
+
+                const headers = {
+                    'Authorization': `Bearer ${profile.apiKey}`,
+                    'Content-Type': 'application/json'
+                };
+
+                const response = await fetch('https://enter.pollinations.ai/api/account/balance', { headers });
 
                 if (response.ok) {
                     const data = await response.json();
-                    return data;
+                    return { pollen: data }; // Wrap it to be clear
                 } else {
-                    const errorText = await response.text();
-                    // Fallback: If endpoint doesn't exist, return a message
-                    return {
-                        error: 'Usage endpoint not available yet or invalid',
-                        status: response.status,
-                        details: errorText
-                    };
+                    const text = await response.text();
+                    return { error: `Failed to fetch balance (${response.status})`, details: text };
                 }
             } catch (err) {
-                return { error: `Failed to fetch balance: ${err}` };
+                return { error: `Failed to fetch pollination stats: ${err}` };
             }
         }
 

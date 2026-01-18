@@ -57,12 +57,34 @@ For a detailed map and list of key locations, see the [Area Guide](AREAS.md).
 ### Movement
 Navigate the world using cardinal directions: `north` (`n`), `south` (`s`), `east` (`e`), `west` (`w`).
 
+### Account & Session
+- `logout` (or `quit`, `exit`): Safely log out of the game. There is a 5-second delay before you are disconnected. Movement or taking actions will cancel the logout process. Your character state (stats, inventory, position) is saved upon a successful logout.
+
 ### Communication
-Interact with other players and NPCs in your current location.
+Interact with other players and NPCs in your current location or across the neural link.
 *   **Say**: Speak to everyone in the room.
     *   `say <message>` (e.g., `say Hello everyone!`)
     *   **Shortcut**: Use the single quote `'` to speak quickly.
     *   `'<message>` (e.g., `'Anyone got a spare medkit?`)
+*   **Link**: Broadcast a message to the global **Neural Link** channel.
+    *   `link <message>` (e.g., `link Looking for a crew for a heist.`)
+*   **Emote**: Perform a physical action or expression.
+    *   `emote <action>` (e.g., `emote checks his watch impatiently.`)
+    *   **Shortcut**: Use the colon `:` to emote quickly.
+    *   `:<action>` (e.g., `:nods solemnly.`)
+*   **Predefined Emotes**: Quick social expressions that can be targeted at other players.
+    *   **General**: `nod`, `grin`, `laugh`, `shrug`, `wave`, `bow`, `salute`, `glare`, `smirk`, `sigh`, `frown`, `chuckle`, `wink`
+    *   **Cyberpunk**: `jack` (tap your neural jack), `glitch` (cybernetic eye flickers)
+    *   **Usage**: `<emote>` or `<emote> <target>` (e.g., `wave`, `wave Neo`)
+    *   **Example**: `nod` displays "You nod." to you and "Neo nods." to others. `nod Trinity` displays "You nod at Trinity." to you, "Neo nods at you." to Trinity, and "Neo nods at Trinity." to everyone else.
+*   **Whisper**: Send a private message to another player.
+    *   `whisper <player> <message>` (e.g., `whisper Neo The meeting is at the club.`)
+
+### Multiplayer & Presence
+Zenith-9 is a persistent world shared with other citizens.
+*   **Presence**: When you move, others in the room will see you arrive or leave.
+*   **Observation**: You can `look` at other players to see their description, equipment, and health status.
+*   **Interaction**: You can `give` items to other players or `target` them for combat (in non-safe zones).
 
 ### Items
 *   **Get**: Pick up an item from the ground.
@@ -289,6 +311,14 @@ Your character is defined by **Attributes** (STR, AGI, CON, CHA) and **Skills**.
     *   *Hacking*: Used for data terminals and cyber-warfare.
 
 Type `score` to see your current skill levels.
+
+### Advanced Stats
+
+As you survive in Zenith-9, you will accumulate more than just skills.
+
+*   **Reputation**: Your standing with the city's factions. High reputation unlocks jobs and vendors; low reputation makes you a target. View your standings with `sheet`.
+*   **Heat**: The attention you attract from law enforcement and corporate security. High heat leads to drone surveillance and hit-squads. Heat decays slowly over time if you stay low.
+*   **Humanity**: A measure of your connection to your physical self. Installing cyberware lowers your Humanity. If it drops too low, you risk **Cyberpsychosis**, suffering visual glitches and loss of control.
 
 ## Cyberspace
 

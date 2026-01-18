@@ -137,7 +137,7 @@ export class ItemRegistry {
         for (const item of allValues) {
             uniqueItems.set(item.id, item);
         }
-        Logger.info('ItemRegistry', `getAllItems: ${allValues.length} total values, ${uniqueItems.size} unique items`);
+        // Logger.info('ItemRegistry', `getAllItems: ${allValues.length} total values, ${uniqueItems.size} unique items`);
         return Array.from(uniqueItems.values());
     }
 

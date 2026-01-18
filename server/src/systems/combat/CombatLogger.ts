@@ -25,45 +25,45 @@ export class CombatLogger {
 
         if (cat.includes('brawling')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[KNOCKOUT]", playerAction: "land a devastating blow", npcAction: "lands a devastating blow", obsLabel: "[KNOCKOUT]" };
-                case 'solid': return { hitLabel: "[SMACK]", playerAction: "connect solidly", npcAction: "connects solidly", obsLabel: "[SMACK]" };
-                case 'marginal': return { hitLabel: "[GRAZE]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "[GRAZE]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing wild", npcAction: "swings wild", obsLabel: "The blow misses!" };
+                case 'crushing': return { hitLabel: "[KNOCKOUT]", playerAction: "land a devastating blow", npcAction: "lands a devastating blow", obsLabel: "delivers a crushing knockout blow" };
+                case 'solid': return { hitLabel: "[SMACK]", playerAction: "connect solidly", npcAction: "connects solidly", obsLabel: "connects with a solid smack" };
+                case 'marginal': return { hitLabel: "[GRAZE]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "grazes the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing wild", npcAction: "swings wild", obsLabel: "swings wild and misses" };
             }
         } else if (cat.includes('pistol') || cat.includes('rifle') || cat.includes('smg') || cat.includes('shotgun') || cat.includes('sweeper')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[CRITICAL SHOT]", playerAction: "land a perfect shot", npcAction: "lands a perfect shot", obsLabel: "[CRITICAL SHOT]" };
-                case 'solid': return { hitLabel: "[SOLID HIT]", playerAction: "hit the target", npcAction: "hits the target", obsLabel: "[SOLID HIT]" };
-                case 'marginal': return { hitLabel: "[GRAZE]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "[GRAZE]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "shoot wide", npcAction: "shoots wide", obsLabel: "The shot goes wide!" };
+                case 'crushing': return { hitLabel: "[CRITICAL SHOT]", playerAction: "land a perfect shot", npcAction: "lands a perfect shot", obsLabel: "lands a perfect critical shot" };
+                case 'solid': return { hitLabel: "[SOLID HIT]", playerAction: "hit the target", npcAction: "hits the target", obsLabel: "lands a solid hit" };
+                case 'marginal': return { hitLabel: "[GRAZE]", playerAction: "graze the target", npcAction: "grazes the target", obsLabel: "grazes the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "shoot wide", npcAction: "shoots wide", obsLabel: "shoots wide and misses" };
             }
         } else if (cat.includes('knife') || cat.includes('blade') || cat.includes('sword') || cat.includes('katana') || cat.includes('machete')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[DEEP SLASH]", playerAction: "carve a deep wound", npcAction: "carves a deep wound", obsLabel: "[DEEP SLASH]" };
-                case 'solid': return { hitLabel: "[SLASH]", playerAction: "cut into the target", npcAction: "cuts into the target", obsLabel: "[SLASH]" };
-                case 'marginal': return { hitLabel: "[NICK]", playerAction: "nick the target", npcAction: "nicks the target", obsLabel: "[NICK]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing at air", npcAction: "swings at air", obsLabel: "The swing misses!" };
+                case 'crushing': return { hitLabel: "[DEEP SLASH]", playerAction: "carve a deep wound", npcAction: "carves a deep wound", obsLabel: "carves a deep, bloody wound" };
+                case 'solid': return { hitLabel: "[SLASH]", playerAction: "cut into the target", npcAction: "cuts into the target", obsLabel: "slashes into the target" };
+                case 'marginal': return { hitLabel: "[NICK]", playerAction: "nick the target", npcAction: "nicks the target", obsLabel: "nicks the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing at air", npcAction: "swings at air", obsLabel: "swings at air and misses" };
             }
         } else if (cat.includes('whip') || cat.includes('wire')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[SEVER]", playerAction: "whip bites deep", npcAction: "whip bites deep", obsLabel: "[SEVER]" };
-                case 'solid': return { hitLabel: "[LASH]", playerAction: "lash the target", npcAction: "lashes the target", obsLabel: "[LASH]" };
-                case 'marginal': return { hitLabel: "[SNAG]", playerAction: "snag the target", npcAction: "snags the target", obsLabel: "[SNAG]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap harmlessly", npcAction: "snaps harmlessly", obsLabel: "The wire snaps harmlessly!" };
+                case 'crushing': return { hitLabel: "[SEVER]", playerAction: "whip bites deep", npcAction: "whip bites deep", obsLabel: "whip bites deep, severing tissue" };
+                case 'solid': return { hitLabel: "[LASH]", playerAction: "lash the target", npcAction: "lashes the target", obsLabel: "lashes the target" };
+                case 'marginal': return { hitLabel: "[SNAG]", playerAction: "snag the target", npcAction: "snags the target", obsLabel: "snags the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap harmlessly", npcAction: "snaps harmlessly", obsLabel: "snaps harmlessly in the air" };
             }
         } else if (cat.includes('prod') || cat.includes('bat') || cat.includes('club') || cat.includes('knuckles') || cat.includes('hammer')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[SMASH]", playerAction: "land a bone-jarring blow", npcAction: "lands a bone-jarring blow", obsLabel: "[SMASH]" };
-                case 'solid': return { hitLabel: "[THUMP]", playerAction: "strike the target", npcAction: "strikes the target", obsLabel: "[THUMP]" };
-                case 'marginal': return { hitLabel: "[GLANCE]", playerAction: "glance off", npcAction: "glances off", obsLabel: "[GLANCE]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing wild", npcAction: "swings wild", obsLabel: "The swing misses!" };
+                case 'crushing': return { hitLabel: "[SMASH]", playerAction: "land a bone-jarring blow", npcAction: "lands a bone-jarring blow", obsLabel: "lands a bone-jarring smash" };
+                case 'solid': return { hitLabel: "[THUMP]", playerAction: "strike the target", npcAction: "strikes the target", obsLabel: "strikes the target with a heavy thump" };
+                case 'marginal': return { hitLabel: "[GLANCE]", playerAction: "glance off", npcAction: "glances off", obsLabel: "glances off the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "swing wild", npcAction: "swings wild", obsLabel: "swings wild and misses" };
             }
         } else if (cat.includes('natural') || cat.includes('rat')) {
             switch (hitType) {
-                case 'crushing': return { hitLabel: "[SAVAGE BITE]", playerAction: "tear a chunk of flesh", npcAction: "tears a chunk of flesh", obsLabel: "[SAVAGE BITE]" };
-                case 'solid': return { hitLabel: "[BITE]", playerAction: "sink teeth in", npcAction: "sinks teeth in", obsLabel: "[BITE]" };
-                case 'marginal': return { hitLabel: "[SCRATCH]", playerAction: "scratch the target", npcAction: "scratches the target", obsLabel: "[SCRATCH]" };
-                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap at air", npcAction: "snaps at air", obsLabel: "The attack misses!" };
+                case 'crushing': return { hitLabel: "[SAVAGE BITE]", playerAction: "tear a chunk of flesh", npcAction: "tears a chunk of flesh", obsLabel: "tears a savage chunk of flesh" };
+                case 'solid': return { hitLabel: "[BITE]", playerAction: "sink teeth in", npcAction: "sinks teeth in", obsLabel: "sinks teeth in for a solid bite" };
+                case 'marginal': return { hitLabel: "[SCRATCH]", playerAction: "scratch the target", npcAction: "scratches the target", obsLabel: "scratches the target" };
+                case 'miss': return { hitLabel: "[MISS]", playerAction: "snap at air", npcAction: "snaps at air", obsLabel: "snaps at air and misses" };
             }
         }
 
@@ -240,8 +240,16 @@ export class CombatLogger {
 
         if (!player || !stats || !pos) return;
 
-        // Determine if in combat (hostile target or engaged)
-        const inCombat = stats.isHostile || stats.engagementTier !== EngagementTier.DISENGAGED;
+        // Find all NPCs in the room
+        const targets = WorldQuery.findNPCsAt(engine, pos.x, pos.y);
+
+        const beingTargeted = targets.some(t => {
+            const tStats = t.getComponent(CombatStats);
+            return tStats?.targetId === playerId;
+        });
+
+        // Determine if in combat (hostile target, engaged, or being targeted)
+        const inCombat = stats.isHostile || stats.engagementTier !== EngagementTier.DISENGAGED || beingTargeted;
 
         if (!inCombat) {
             io.to(playerId).emit('combat-state', { inCombat: false });
@@ -262,9 +270,6 @@ export class CombatLogger {
             target: null,
             nearby: []
         };
-
-        // Find all NPCs in the room
-        const targets = WorldQuery.findNPCsAt(engine, pos.x, pos.y);
 
         // Identify primary target
         let engagedTarget = targets.find(t => {

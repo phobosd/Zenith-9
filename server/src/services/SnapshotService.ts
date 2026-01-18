@@ -64,7 +64,14 @@ export class SnapshotService {
         const redisDump = await this.dumpRedisToJson();
         fs.writeFileSync(path.join(snapshotPath, 'redis_dump.json'), JSON.stringify(redisDump, null, 2));
 
-        // 3. Zip Data Directory
+        // 3. Backup SQLite Database
+        console.log(`[Snapshot] Backing up SQLite database...`);
+        const dbPath = path.resolve(process.cwd(), 'game.db');
+        if (fs.existsSync(dbPath)) {
+            fs.copyFileSync(dbPath, path.join(snapshotPath, 'game.db'));
+        }
+
+        // 4. Zip Data Directory
         console.log(`[Snapshot] Backing up data directory...`);
         const zip = new AdmZip();
         zip.addLocalFolder(this.dataDir);
@@ -98,7 +105,21 @@ export class SnapshotService {
             await this.restoreRedisFromJson(redisDump);
         }
 
-        // 2. Restore Data Directory
+        // 2. Restore SQLite Database
+        console.log(`[Snapshot] Restoring SQLite database...`);
+        const snapshotDbPath = path.join(snapshotPath, 'game.db');
+        const currentDbPath = path.resolve(process.cwd(), 'game.db');
+
+        if (fs.existsSync(snapshotDbPath)) {
+            // Close DB connection before overwriting
+            const { DatabaseService } = await import('./DatabaseService');
+            DatabaseService.getInstance().getDb().close();
+
+            fs.copyFileSync(snapshotDbPath, currentDbPath);
+            console.log(`[Snapshot] SQLite database restored. NOTE: Server may need restart if DB connection was active.`);
+        }
+
+        // 3. Restore Data Directory
         console.log(`[Snapshot] Restoring data directory...`);
         const zipPath = path.join(snapshotPath, 'data.zip');
         if (fs.existsSync(zipPath)) {
@@ -111,7 +132,13 @@ export class SnapshotService {
             zip.extractAllTo(this.dataDir, true);
         }
 
-        console.log(`[Snapshot] Restore complete.`);
+        console.log(`[Snapshot] Restore complete. Triggering server restart in 2 seconds...`);
+
+        // Trigger a restart to ensure all services re-initialize with the new data
+        setTimeout(() => {
+            console.log('[Snapshot] Restarting server...');
+            process.exit(0);
+        }, 2000);
     }
 
     async listSnapshots(): Promise<string[]> {

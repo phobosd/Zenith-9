@@ -63,7 +63,18 @@ export class CyberspaceSystem extends System {
             if (!itemId) return false;
             const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
-            return itemComp && (itemComp.name.toLowerCase().includes('deck') || itemComp.attributes.includes('deck'));
+            if (!itemComp) return false;
+
+            const nameL = itemComp.name.toLowerCase();
+            const attrsL = itemComp.attributes.toLowerCase();
+
+            // Check for various cyberdeck indicators
+            return nameL.includes('deck') ||
+                nameL.includes('cyberspace') ||
+                nameL.includes('cyberdeck') ||
+                attrsL.includes('deck') ||
+                attrsL.includes('cyberspace') ||
+                attrsL.includes('cyberdeck');
         };
 
         if (checkItemForDeck(inventory.leftHand) || checkItemForDeck(inventory.rightHand)) {
@@ -77,8 +88,8 @@ export class CyberspaceSystem extends System {
 
         this.messageService.info(socketId, "Jacking in... The world fades into a grid of neon light.");
 
-        // Set physical body to stasis
-        stance.current = StanceType.Stasis;
+        // In the Matrix, you're a digital persona - set to Standing so you can move
+        stance.current = StanceType.Standing;
 
         // Add Persona component to track state
         player.addComponent(new IsPersona(player.id));
@@ -124,7 +135,18 @@ export class CyberspaceSystem extends System {
             if (!itemId) return false;
             const item = WorldQuery.getEntityById(engine, itemId);
             const itemComp = item?.getComponent(Item);
-            return itemComp && (itemComp.name.toLowerCase().includes('deck') || itemComp.attributes.includes('deck'));
+            if (!itemComp) return false;
+
+            const nameL = itemComp.name.toLowerCase();
+            const attrsL = itemComp.attributes.toLowerCase();
+
+            // Check for various cyberdeck indicators
+            return nameL.includes('deck') ||
+                nameL.includes('cyberspace') ||
+                nameL.includes('cyberdeck') ||
+                attrsL.includes('deck') ||
+                attrsL.includes('cyberspace') ||
+                attrsL.includes('cyberdeck');
         };
 
         if (checkItemForDeck(inventory.leftHand) || checkItemForDeck(inventory.rightHand)) {

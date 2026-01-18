@@ -13,7 +13,7 @@
             "attack": 5,
             "defense": 0
         },
-        "behavior": "aggressive",
+        "behavior": "passive",
         "canMove": false,
         "role": "mob",
         "portrait": "/assets/portraits/giant_rat.jpg"
@@ -32,7 +32,7 @@
             "attack": 10,
             "defense": 5
         },
-        "behavior": "aggressive",
+        "behavior": "passive",
         "canMove": true,
         "role": "mob",
         "portrait": "/assets/portraits/cyber_thug.jpg"
@@ -105,7 +105,7 @@
             "attack": 25,
             "defense": 15
         },
-        "behavior": "aggressive",
+        "behavior": "passive",
         "canMove": true,
         "role": "guard",
         "portrait": "/assets/portraits/street_samurai.jpg"
@@ -186,7 +186,7 @@
             "attack": 50,
             "defense": 10
         },
-        "behavior": "aggressive",
+        "behavior": "passive",
         "canMove": false,
         "tags": [
             "ice",

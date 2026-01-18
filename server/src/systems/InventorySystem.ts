@@ -85,6 +85,7 @@ export class InventorySystem extends System {
             feet: getItemName(inventory.equipment.get('feet') || null),
             waist: getItemName(inventory.equipment.get('waist') || null),
             neural: getItemName(inventory.equipment.get('neural') || null),
+            hasBackpack: !!inventory.equipment.get('back'),
             backpackContents: DescriptionService.getBackpackContents(inventory, engine),
             currency: {
                 newYen: player.getComponent(Credits)?.newYen || 0,
