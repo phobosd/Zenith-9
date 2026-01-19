@@ -7,9 +7,9 @@
     "attack": 150,
     "defense": 40
   },
-  "behavior": "aggressive",
+  "behavior": "friendly",
   "faction": "Street",
-  "role": "boss",
+  "role": "civilian",
   "tags": [
     "boss",
     "aggressive"

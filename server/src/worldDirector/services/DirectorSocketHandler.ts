@@ -151,6 +151,12 @@ export class DirectorSocketHandler {
                         const filePath = await dir.publisher.publish(proposal);
                         dir.log(DirectorLogLevel.SUCCESS, `Proposal PUBLISHED: ${proposal.type} -> ${filePath}`);
 
+                        if (proposal.type === ProposalType.NPC) {
+                            NPCRegistry.getInstance().reloadGeneratedNPCs();
+                            this.adminNamespace.emit('director:npcs_update', this.director.management.getNPCs());
+                            dir.log(DirectorLogLevel.SUCCESS, `NPC registry reloaded. NPC ${proposal.payload.name} is now available.`);
+                        }
+
                         if (proposal.type === ProposalType.WORLD_EXPANSION) {
                             const roomEntity = PrefabFactory.createRoom(proposal.payload.id);
                             if (roomEntity) {
@@ -206,9 +212,9 @@ export class DirectorSocketHandler {
                 }
             });
 
-            socket.on('director:manual_trigger', async (data: { type: string, payload?: any }) => {
+            socket.on('director:manual_trigger', async (data: { type: string, payload?: any, enableLLM?: boolean }) => {
                 const dir = this.director as any;
-                dir.log(DirectorLogLevel.INFO, `Manual trigger received: ${data.type}`);
+                dir.log(DirectorLogLevel.INFO, `Manual trigger received: ${data.type} (LLM: ${data.enableLLM})`);
 
                 let proposal;
                 const config = dir.guardrails.getConfig();
@@ -217,6 +223,7 @@ export class DirectorSocketHandler {
                     case 'NPC':
                         proposal = await dir.npcGen.generate(config, dir.llm, {
                             generatedBy: 'Manual',
+                            enableLLM: data.enableLLM,
                             existingNames: NPCRegistry.getInstance().getAllNPCs().map(n => n.name)
                         });
                         break;
@@ -224,11 +231,12 @@ export class DirectorSocketHandler {
                         proposal = await dir.npcGen.generate(config, dir.llm, {
                             generatedBy: 'Manual',
                             subtype: 'MOB',
+                            enableLLM: data.enableLLM,
                             existingNames: NPCRegistry.getInstance().getAllNPCs().map(n => n.name)
                         });
                         break;
                     case 'BOSS':
-                        proposal = await this.director.content.generateBoss();
+                        proposal = await this.director.content.generateBoss(data.enableLLM);
                         break;
                     case 'ITEM':
                         proposal = await dir.itemGen.generate(config, dir.llm, {
@@ -323,6 +331,10 @@ export class DirectorSocketHandler {
 
             socket.on('director:update_npc', (data: { id: string, updates: any }) => {
                 this.director.management.updateNPC(data.id, data.updates);
+            });
+
+            socket.on('director:get_npc_status', () => {
+                socket.emit('director:npc_status_update', this.director.management.getNPCStatus());
             });
 
             socket.on('director:generate_portrait', async (id: string) => {

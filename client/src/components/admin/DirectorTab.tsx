@@ -25,15 +25,17 @@ interface DirectorTabProps {
     innerThoughts: { timestamp: number, thought: string }[];
     activeEvents: Array<{ id: string; type: string; startTime: number; duration: number; entityIds: string[] }>;
     stopEvent: (eventId: string) => void;
+    enableLLM: boolean;
+    setEnableLLM: (val: boolean) => void;
 }
 
 export const DirectorTab: React.FC<DirectorTabProps> = ({
     paused, togglePause, chaos, aggression, expansion, updatePersonality,
     triggerManualGen, enableNPCs, enableItems, enableQuests, enableExpansions,
     restrictedToGlitchArea, updateGuardrail, requireApproval, autoSnapshot,
-    budgets, editBudget, BUDGET_TOOLTIPS, innerThoughts, activeEvents, stopEvent
+    budgets, editBudget, BUDGET_TOOLTIPS, innerThoughts, activeEvents, stopEvent,
+    enableLLM, setEnableLLM
 }) => {
-    console.log('DirectorTab activeEvents:', activeEvents, 'length:', activeEvents.length);
     return (
         <div className="admin-grid">
             {/* Master Control */}
@@ -104,6 +106,18 @@ export const DirectorTab: React.FC<DirectorTabProps> = ({
                     <button className="action-btn" onClick={() => triggerManualGen('ITEM')}>Generate Item</button>
                     <button className="action-btn" onClick={() => triggerManualGen('QUEST')}>Generate Quest</button>
                     <button className="action-btn" onClick={() => triggerManualGen('WORLD_EXPANSION')}>Generate Room</button>
+                </div>
+                <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <input
+                        type="checkbox"
+                        id="enable-llm-manual"
+                        checked={enableLLM}
+                        onChange={(e) => setEnableLLM(e.target.checked)}
+                        style={{ cursor: 'pointer' }}
+                    />
+                    <label htmlFor="enable-llm-manual" style={{ fontSize: '0.85rem', color: '#00ffff', cursor: 'pointer' }}>
+                        🧠 Enable AI Personality (LLM) for Manual Gen
+                    </label>
                 </div>
                 <div style={{ marginTop: '1rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
                     <h3 style={{ fontSize: '0.9rem', color: '#00ff88', marginBottom: '0.75rem' }}>🕊️ Peaceful Events</h3>

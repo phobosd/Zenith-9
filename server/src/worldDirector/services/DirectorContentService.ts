@@ -2,7 +2,7 @@ import { WorldDirector } from '../Director';
 import { DirectorLogLevel } from '../DirectorTypes';
 import { Logger } from '../../utils/Logger';
 import { v4 as uuidv4 } from 'uuid';
-import { ProposalStatus, ProposalType, NPCPayload, ItemPayload, RoomPayload } from '../../generation/proposals/schemas';
+import { ProposalStatus, ProposalType, NPCPayload, ItemPayload, RoomPayload, Proposal } from '../../generation/proposals/schemas';
 import { NPCRegistry } from '../../services/NPCRegistry';
 import { ItemRegistry } from '../../services/ItemRegistry';
 import { RoomRegistry } from '../../services/RoomRegistry';
@@ -80,13 +80,13 @@ export class DirectorContentService {
         return { mobs, items };
     }
 
-    public async generateBoss(context?: any) {
-        this.director.log(DirectorLogLevel.INFO, 'Generating BOSS...');
+    public async generateBoss(enableLLM: boolean = false): Promise<Proposal | null> {
+        this.director.log(DirectorLogLevel.INFO, `Generating BOSS proposal... (LLM: ${enableLLM})`);
         try {
             const proposal = await this.director.npcGen.generate(this.director.guardrails.getConfig(), this.director.llm, {
-                generatedBy: context?.generatedBy || 'Manual',
+                generatedBy: 'Manual',
                 subtype: 'BOSS',
-                ...context
+                enableLLM
             });
             if (proposal && proposal.payload) {
                 const payload = proposal.payload as NPCPayload;
@@ -231,7 +231,7 @@ export class DirectorContentService {
             });
 
             try {
-                const proposal = await this.generateBoss({ generatedBy: 'Event:Boss' });
+                const proposal = await this.generateBoss(false);
                 if (proposal && proposal.payload) {
                     proposal.status = ProposalStatus.APPROVED;
                     await this.processProposalAssets(proposal);

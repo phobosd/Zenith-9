@@ -39,7 +39,13 @@ export const NPCPayloadSchema = z.object({
     equipment: z.array(z.string()).optional(), // Item IDs
     tags: z.array(z.string()).optional(),
     canMove: z.boolean().default(true),
-    portrait: z.string().optional()
+    portrait: z.string().optional(),
+    personality: z.object({
+        traits: z.array(z.string()),
+        voice: z.string(),
+        agenda: z.string(),
+        background: z.string().optional()
+    }).optional()
 });
 
 // 2. Item Schema

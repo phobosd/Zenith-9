@@ -7,7 +7,9 @@ export enum MessageType {
     COMBAT = 'combat',
     ROOM_DESC = 'room_desc',
     LOOK_AT = 'look_at',
-    MAP = 'map'
+    MAP = 'map',
+    DANGER = 'danger',
+    QUEST = 'quest'
 }
 
 export interface GameMessage {

@@ -30,6 +30,7 @@ import { DirectorSocketHandler } from './services/DirectorSocketHandler';
 import { DirectorManagementService } from './services/DirectorManagementService';
 import { DirectorContentService } from './services/DirectorContentService';
 import { DirectorAutomationService } from './services/DirectorAutomationService';
+import { DirectorActivityService } from './services/DirectorActivityService';
 import { DirectorLogLevel, DirectorLogEntry } from './DirectorTypes';
 
 
@@ -55,6 +56,7 @@ export class WorldDirector {
     public snapshotManager: DirectorSnapshotService;
     public content: DirectorContentService;
     public automation: DirectorAutomationService;
+    public activity: DirectorActivityService;
 
     public logs: DirectorLogEntry[] = [];
     public proposals: any[] = []; // Pending content proposals
@@ -96,6 +98,7 @@ export class WorldDirector {
         this.snapshotManager = new DirectorSnapshotService(this, snapshots);
         this.content = new DirectorContentService(this);
         this.automation = new DirectorAutomationService(this);
+        this.activity = new DirectorActivityService(this);
 
         // Start the automation loop (it will respect isPaused)
         this.automation.start();

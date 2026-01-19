@@ -32,8 +32,11 @@ import { Roundtime } from '../components/Roundtime';
 import { LogoutTimer } from '../components/LogoutTimer';
 import { QuestGiver } from '../components/QuestGiver';
 import { PlayerQuests } from '../components/PlayerQuests';
-import { Armor } from '../components/Armor'; // Added based on the provided Code Edit
-import { Loot } from '../components/Loot'; // Added based on the provided Code Edit
+import { Armor } from '../components/Armor';
+import { Loot } from '../components/Loot';
+import { Personality } from '../components/Personality';
+import { Memory } from '../components/Memory';
+import { Relationship } from '../components/Relationship';
 
 export class ComponentRegistry {
     private static instance: ComponentRegistry;
@@ -95,5 +98,8 @@ export class ComponentRegistry {
         this.componentMap.set('Role', Role);
         this.componentMap.set('QuestGiver', QuestGiver);
         this.componentMap.set('PlayerQuests', PlayerQuests);
+        this.componentMap.set('Personality', Personality);
+        this.componentMap.set('Memory', Memory);
+        this.componentMap.set('Relationship', Relationship);
     }
 }

@@ -20,16 +20,22 @@ export class QuestGenerator extends BaseGenerator<QuestPayload> {
         let description = template.desc;
         let rationale = `Generated a ${template.type} quest.`;
 
+        const giverName = context?.npcName || 'A mysterious contact';
+        const giverDescription = context?.npcDescription || '';
+        const worldContext = context?.worldContext || '';
+
         const models: Record<string, string> = {};
         // 1. Creative Pass
         if (llm) {
             try {
                 const creativePrompt = `Generate a gritty cyberpunk quest. 
+                Giver: ${giverName} (${giverDescription})
+                World Context: ${worldContext}
                 Type: ${template.type}
                 
                 Requirements:
                 - Title: A sharp, noir-style title.
-                - Description: 2-3 sentences. Frame it as a job offer or a desperate plea.
+                - Description: 2-3 sentences. Frame it as a job offer or a desperate plea from ${giverName}.
                 - Rationale: Why is this job being offered now?
                 
                 Return ONLY a JSON object with fields: title, description, rationale.`;
@@ -82,7 +88,7 @@ export class QuestGenerator extends BaseGenerator<QuestPayload> {
             id: `quest_${Math.random().toString(36).substring(7)}`,
             title,
             description,
-            giverId: 'npc_director',
+            giverId: context?.npcId || 'npc_director',
             steps: [
                 {
                     id: 'step_1',
@@ -90,7 +96,7 @@ export class QuestGenerator extends BaseGenerator<QuestPayload> {
                     type: (template.type === 'eliminate' ? 'kill' :
                         template.type === 'data_retrieval' ? 'fetch' :
                             template.type === 'recon' ? 'explore' : 'talk') as any,
-                    target: 'any',
+                    target: context?.targetId || 'any',
                     count: 1
                 }
             ],

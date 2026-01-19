@@ -89,6 +89,25 @@ export class DirectorAutomationService {
                 }
             }
 
+            // 4. Activity & Intervention Logic
+            this.director.activity.update();
+            const quietZones = this.director.activity.getQuietZones();
+            if (quietZones.length > 0) {
+                this.director.think(`Detected ${quietZones.length} quiet zones. Considering intervention...`);
+
+                // 20% chance to intervene if quiet
+                if (Math.random() < 0.2) {
+                    const zoneToIntervene = quietZones[Math.floor(Math.random() * quietZones.length)];
+                    const [zx, zy] = zoneToIntervene.split(',').map(Number);
+
+                    this.director.think(`Intervening in quiet zone ${zoneToIntervene}. Spawning activity...`);
+                    this.director.log(DirectorLogLevel.INFO, `Intervention: Spawning activity in quiet zone ${zoneToIntervene}`);
+
+                    // Trigger a random event or spawn NPCs
+                    await this.director.content.triggerWorldEvent('MOB_INVASION'); // For now, just trigger invasion
+                }
+            }
+
         }, 10000); // Check every 10 seconds
     }
 

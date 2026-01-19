@@ -28,7 +28,7 @@
     "llmProfiles": {
         "default": {
             "id": "default",
-            "name": "Creative",
+            "name": "Remote - Creative",
             "provider": "local",
             "baseUrl": "http://192.168.68.98:1234/",
             "model": "gemma-3-starshine-12b",
@@ -39,7 +39,7 @@
         },
         "profile_fmxkmf9": {
             "id": "profile_fmxkmf9",
-            "name": "Logic",
+            "name": "Remote - Logic",
             "provider": "local",
             "baseUrl": "http://192.168.68.98:1234/v1",
             "model": "deepseek-r1-distill-qwen-7b",
@@ -55,7 +55,7 @@
             "baseUrl": "https://image.pollinations.ai",
             "model": "flux",
             "roles": [],
-            "apiKey": "enc:0757ca661c703576a526d81c05896038:27010f8253de84e6f0a778831410900c:a3347f03fb311d61469a15a0b526dc965c7458166997f905fc68d1c3d9946813180d6b"
+            "apiKey": "enc:09e763477403783b5ae0f28c6c5a9e2f:70237a69f217c7f48c2ad9096f0c605b:3e43b121c298abb69d4029fd5d28ee71c38d750124623523d894616f40034f65fd338b"
         },
         "profile_q8fysj": {
             "id": "profile_q8fysj",
@@ -64,7 +64,7 @@
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "gemini-2.5-flash",
             "roles": [],
-            "apiKey": "enc:56b1ed357a4c16df3a70be8ca3afd951:947b243325776630308c10f034118453:7a76e9da5d2739cfb0b42f650fb7560380411fb9de8938e2f212ceafa266922abc74315a28bfeb"
+            "apiKey": "enc:71cb39b37e1e10b642e5dd356a599409:271951335d3f0c8242db5d5819f32e1e:ff618a8d3b6f9f9dbaf04d6428b7d3c3a8919ee9f2a286934b6929e9c28f814f01eb2740009787"
         },
         "profile_imagen": {
             "id": "profile_imagen",
@@ -73,7 +73,7 @@
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "imagen-4.0-generate-001",
             "roles": [],
-            "apiKey": "enc:a8ac5d115aed06c7206dda8654d2e7b3:5f4e56a5278bcf3c08303220bdc61ada:dd9056c99dbb5d754fdda46a"
+            "apiKey": "enc:602d4a820b977188dde4ec05eb088ba3:5a78250935597bcc055ec97003665400:6a0385861c909bc16028d302"
         },
         "profile_vdcd": {
             "id": "profile_vdcd",
@@ -84,6 +84,22 @@
             "roles": [
                 "IMAGE"
             ]
+        },
+        "profile_plpbcl": {
+            "id": "profile_plpbcl",
+            "name": "localhost - logic",
+            "provider": "local",
+            "baseUrl": "http://localhost:1234/v1",
+            "model": "qwen/qwen3-coder-30b",
+            "roles": []
+        },
+        "profile_2lbznn": {
+            "id": "profile_2lbznn",
+            "name": "localhost - creative",
+            "provider": "local",
+            "baseUrl": "http://localhost:1234/v1",
+            "model": "gemma-3-starshine-12b",
+            "roles": []
         }
     },
     "bannedWords": [

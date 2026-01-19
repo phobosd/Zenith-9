@@ -2,6 +2,7 @@ import { System } from '../ecs/System';
 import { Entity } from '../ecs/Entity';
 import { Position } from '../components/Position';
 import { NPC } from '../components/NPC';
+import { Personality } from '../components/Personality';
 import { Server } from 'socket.io';
 import { IEngine } from '../ecs/IEngine';
 import { MessageService } from '../services/MessageService';
@@ -71,11 +72,13 @@ export class NPCSystem extends System {
             this.lastMoveTime.set(npc.id, now);
         }
 
-        // 2. Random Barks (every 10-20 seconds)
-        if (!this.lastBarkTime.has(npc.id)) this.lastBarkTime.set(npc.id, now);
-        if (now - this.lastBarkTime.get(npc.id)! > 10000 + Math.random() * 10000) {
-            NPCBehaviorHandler.bark(npc, npcComp, pos, engine, this.messageService, this.llm);
-            this.lastBarkTime.set(npc.id, now);
+        // 2. Random Barks (every 10-20 seconds) - Skip for AI NPCs to avoid clutter
+        if (!npc.hasComponent(Personality)) {
+            if (!this.lastBarkTime.has(npc.id)) this.lastBarkTime.set(npc.id, now);
+            if (now - this.lastBarkTime.get(npc.id)! > 10000 + Math.random() * 10000) {
+                NPCBehaviorHandler.bark(npc, npcComp, pos, engine, this.messageService, this.llm);
+                this.lastBarkTime.set(npc.id, now);
+            }
         }
 
         // 3. Combat Behavior

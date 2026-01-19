@@ -17,6 +17,10 @@ import { Inventory } from '../../components/Inventory';
 import { Container } from '../../components/Container';
 import { Position } from '../../components/Position';
 import { NPC } from '../../components/NPC';
+import { Personality } from '../../components/Personality';
+import { Memory } from '../../components/Memory';
+import { Relationship } from '../../components/Relationship';
+import { Entity } from '../../ecs/Entity';
 
 export class DirectorManagementService {
     private director: WorldDirector;
@@ -481,5 +485,40 @@ export class DirectorManagementService {
         } else {
             this.director.log(DirectorLogLevel.ERROR, `Failed to spawn roaming NPC: ${id} (not found in registry)`);
         }
+    }
+
+    public getNPCStatus() {
+        const engine = (this.director as any).engine;
+        const npcs = engine.getEntitiesWithComponent(NPC);
+        const charService = CharacterService.getInstance();
+
+        return npcs.map((e: Entity) => {
+            const npc = e.getComponent(NPC);
+            const pos = e.getComponent(Position);
+            const personality = e.getComponent(Personality);
+            const memory = e.getComponent(Memory);
+            const relationship = e.getComponent(Relationship);
+
+            const relationships = relationship ? Array.from(relationship.relationships.entries()).map(([playerName, data]) => {
+                return [playerName, data];
+            }) : [];
+
+            return {
+                id: e.id,
+                name: npc?.typeName || "Unknown",
+                x: pos?.x,
+                y: pos?.y,
+                personality: personality ? {
+                    traits: personality.traits,
+                    voice: personality.voice,
+                    agenda: personality.agenda
+                } : null,
+                memory: memory ? {
+                    shortTerm: memory.shortTerm,
+                    longTerm: memory.longTerm
+                } : null,
+                relationships
+            };
+        });
     }
 }

@@ -44,6 +44,10 @@ export function registerSocialCommands(registry: CommandRegistry) {
                 sender: charName,
                 content: `${charName} says, "${message}"`
             });
+
+            // Trigger AI response
+            Logger.info('SocialCommands', `Triggering AI response for message: ${message}`);
+            ctx.systems.interaction.handleSay(ctx.socketId, ctx.engine, message);
         }
     });
 

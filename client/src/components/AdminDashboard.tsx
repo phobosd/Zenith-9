@@ -10,6 +10,7 @@ import { SnapshotsTab } from './admin/SnapshotsTab';
 import { LLMTab } from './admin/LLMTab';
 import { LogsTab } from './admin/LogsTab';
 import { UsersTab } from './admin/UsersTab';
+import { AITab } from './admin/AITab';
 
 // Types (mirrored from server)
 export interface LogEntry {
@@ -97,7 +98,7 @@ const BUDGET_TOOLTIPS: Record<string, string> = {
     chaosProbability: "Global multiplier for chaotic anomalies and glitchy thoughts."
 };
 
-type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs' | 'glitch' | 'users';
+type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world' | 'items' | 'npcs' | 'glitch' | 'users' | 'ai';
 
 export const AdminDashboard: React.FC = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
@@ -144,6 +145,8 @@ export const AdminDashboard: React.FC = () => {
     const [npcSearch, setNpcSearch] = useState('');
     const [innerThoughts, setInnerThoughts] = useState<{ timestamp: number, thought: string }[]>([]);
     const [activeEvents, setActiveEvents] = useState<Array<{ id: string; type: string; startTime: number; duration: number; entityIds: string[] }>>([]);
+    const [npcStatus, setNpcStatus] = useState<any[]>([]);
+    const [enableLLM, setEnableLLM] = useState(false);
 
     useEffect(() => {
         const token = localStorage.getItem('zenith_token');
@@ -159,6 +162,7 @@ export const AdminDashboard: React.FC = () => {
             newSocket.emit('director:get_chunks');
             newSocket.emit('director:get_items');
             newSocket.emit('director:get_npcs');
+            newSocket.emit('director:get_npc_status');
         });
 
         newSocket.on('connect_error', (err) => {
@@ -233,6 +237,10 @@ export const AdminDashboard: React.FC = () => {
             setInnerThoughts(list);
         });
 
+        newSocket.on('director:npc_status_update', (list: any[]) => {
+            setNpcStatus(list);
+        });
+
         setSocket(newSocket);
 
         return () => {
@@ -272,8 +280,8 @@ export const AdminDashboard: React.FC = () => {
 
     const triggerManualGen = (type: string) => {
         if (!socket) return;
-        socket.emit('director:manual_trigger', { type });
-        addLog('info', `Manual trigger sent: ${type}`);
+        socket.emit('director:manual_trigger', { type, enableLLM });
+        addLog('info', `Manual trigger sent: ${type} (LLM: ${enableLLM})`);
     };
 
     const stopEvent = (eventId: string) => {
@@ -493,6 +501,7 @@ export const AdminDashboard: React.FC = () => {
                 <button className={`tab-btn ${activeTab === 'glitch' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('glitch')}>GLITCH DOOR</button>
                 <button className={`tab-btn ${activeTab === 'snapshots' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('snapshots')}>SNAPSHOTS</button>
                 <button className={`tab-btn ${activeTab === 'llm' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('llm')}>LLM</button>
+                <button className={`tab-btn ${activeTab === 'ai' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('ai')}>AI SYSTEMS</button>
                 <button className={`tab-btn ${activeTab === 'logs' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('logs')}>LOGS</button>
             </div>
 
@@ -521,6 +530,8 @@ export const AdminDashboard: React.FC = () => {
                         innerThoughts={innerThoughts}
                         activeEvents={activeEvents}
                         stopEvent={stopEvent}
+                        enableLLM={enableLLM}
+                        setEnableLLM={setEnableLLM}
                     />
                 )}
 
@@ -558,6 +569,7 @@ export const AdminDashboard: React.FC = () => {
                 {activeTab === 'npcs' && (
                     <NPCsTab
                         npcs={npcs}
+                        npcStatus={npcStatus}
                         npcSearch={npcSearch}
                         setNpcSearch={setNpcSearch}
                         npcFilter={npcFilter}
@@ -600,6 +612,10 @@ export const AdminDashboard: React.FC = () => {
                         toggleRole={toggleRole}
                         removeLlmProfile={removeLlmProfile}
                     />
+                )}
+
+                {activeTab === 'ai' && (
+                    <AITab innerThoughts={innerThoughts} npcStatus={npcStatus} />
                 )}
 
                 {activeTab === 'logs' && (

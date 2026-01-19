@@ -54,4 +54,14 @@ export class MessageService {
         };
         this.io.emit('message', message);
     }
+
+    sendToRoom(x: number, y: number, type: MessageType, content: string, payload?: any) {
+        const message: GameMessage = {
+            type,
+            content,
+            payload,
+            timestamp: Date.now()
+        };
+        this.io.to(`room:${x}:${y}`).emit('message', message);
+    }
 }

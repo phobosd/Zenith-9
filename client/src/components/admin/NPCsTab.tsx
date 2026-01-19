@@ -2,6 +2,7 @@ import React from 'react';
 
 interface NPCsTabProps {
     npcs: any[];
+    npcStatus: any[];
     npcSearch: string;
     setNpcSearch: (search: string) => void;
     npcFilter: string | null;
@@ -15,7 +16,7 @@ interface NPCsTabProps {
 }
 
 export const NPCsTab: React.FC<NPCsTabProps> = ({
-    npcs, npcSearch, setNpcSearch, npcFilter, setNpcFilter,
+    npcs, npcStatus, npcSearch, setNpcSearch, npcFilter, setNpcFilter,
     editingNPC, setEditingNPC, updateNPC, deleteNPC, spawnRoamingNPC, generatePortrait
 }) => {
     return (
@@ -248,6 +249,26 @@ export const NPCsTab: React.FC<NPCsTabProps> = ({
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label style={{ display: 'block', color: '#888', marginBottom: '0.25rem', fontSize: '0.8rem' }}>Behavior</label>
+                                    <select
+                                        value={editingNPC.behavior || 'neutral'}
+                                        onChange={(e) => setEditingNPC({ ...editingNPC, behavior: e.target.value })}
+                                        style={{ width: '100%', background: '#222', border: '1px solid #444', color: '#fff', padding: '0.5rem' }}
+                                    >
+                                        <option value="friendly">Friendly - Will not attack</option>
+                                        <option value="neutral">Neutral - Defensive only</option>
+                                        <option value="cautious">Cautious - Wary of strangers</option>
+                                        <option value="elusive">Elusive - Avoids combat</option>
+                                        <option value="aggressive">Aggressive - Attacks on sight</option>
+                                    </select>
+                                    <div style={{ fontSize: '0.7rem', color: '#666', marginTop: '0.25rem' }}>
+                                        {editingNPC.behavior === 'aggressive' && '⚠️ Will auto-attack players'}
+                                        {editingNPC.behavior === 'friendly' && '✓ Will never attack'}
+                                        {editingNPC.behavior === 'neutral' && '⚔️ Only attacks if attacked first'}
+                                    </div>
+                                </div>
+
                                 {/* Stats Section */}
                                 <div style={{ marginTop: '1rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
                                     <label style={{ display: 'block', color: '#00ffff', marginBottom: '0.5rem', fontSize: '0.9rem', fontWeight: 'bold' }}>Combat Stats</label>
@@ -350,6 +371,63 @@ export const NPCsTab: React.FC<NPCsTabProps> = ({
                                 )}
                             </div>
                         </div>
+
+                        {/* AI Status Section (if active) */}
+                        {(() => {
+                            const activeStatus = npcStatus.find(s => s.name === editingNPC.name);
+                            if (!activeStatus) return null;
+
+                            return (
+                                <div style={{ marginTop: '2rem', borderTop: '2px solid #333', paddingTop: '1rem' }}>
+                                    <h4 style={{ color: '#00ffff', marginBottom: '1rem' }}>Active AI Status (Live Instance)</h4>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                        <div>
+                                            <h5 style={{ color: '#888', marginBottom: '0.5rem' }}>Personality & Agenda</h5>
+                                            <div style={{ background: '#000', padding: '1rem', border: '1px solid #222', borderRadius: '4px', fontSize: '0.85rem' }}>
+                                                <div style={{ marginBottom: '0.5rem' }}><span style={{ color: '#00ffff' }}>Traits:</span> {activeStatus.personality?.traits.join(', ')}</div>
+                                                <div style={{ marginBottom: '0.5rem' }}><span style={{ color: '#00ffff' }}>Voice:</span> {activeStatus.personality?.voice}</div>
+                                                <div><span style={{ color: '#00ffff' }}>Agenda:</span> {activeStatus.personality?.agenda}</div>
+                                            </div>
+
+                                            <h5 style={{ color: '#888', marginTop: '1rem', marginBottom: '0.5rem' }}>Relationships</h5>
+                                            <div style={{ background: '#000', padding: '1rem', border: '1px solid #222', borderRadius: '4px', fontSize: '0.85rem', maxHeight: '150px', overflowY: 'auto' }}>
+                                                {activeStatus.relationships.length > 0 ? (
+                                                    activeStatus.relationships.map(([playerId, data]: [string, any]) => (
+                                                        <div key={playerId} style={{ marginBottom: '0.5rem', borderBottom: '1px solid #111', paddingBottom: '0.25rem' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                                                <span style={{ color: '#fff' }}>Player: {playerId}</span>
+                                                                <span style={{ color: data.trust > 60 ? '#00ff00' : data.trust < 20 ? '#ff0000' : '#ffff00' }}>
+                                                                    {data.status} ({data.trust})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div style={{ color: '#444' }}>No relationships established.</div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h5 style={{ color: '#888', marginBottom: '0.5rem' }}>Recent Memory</h5>
+                                            <div style={{ background: '#000', padding: '1rem', border: '1px solid #222', borderRadius: '4px', fontSize: '0.85rem', maxHeight: '300px', overflowY: 'auto' }}>
+                                                {activeStatus.memory?.shortTerm.length > 0 ? (
+                                                    activeStatus.memory.shortTerm.map((m: any, i: number) => (
+                                                        <div key={i} style={{ marginBottom: '0.8rem', borderLeft: '2px solid #00ffff', paddingLeft: '0.5rem' }}>
+                                                            <div style={{ fontSize: '0.7rem', color: '#444' }}>{new Date(m.timestamp).toLocaleTimeString()}</div>
+                                                            <div style={{ color: '#ccc' }}>{m.description}</div>
+                                                        </div>
+                                                    ))
+                                                ) : (
+                                                    <div style={{ color: '#444' }}>No recent memories.</div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })()}
 
                         <div style={{ display: 'flex', gap: '1rem', marginTop: '2rem', justifyContent: 'flex-end' }}>
                             <button

@@ -19,6 +19,7 @@ export interface QuestDefinition {
 }
 
 export class QuestGiver extends Component {
+    static type = 'QuestGiver';
     public availableQuests: QuestDefinition[] = [];
 
     constructor(quests: QuestDefinition[] = []) {

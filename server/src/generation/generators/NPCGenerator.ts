@@ -74,6 +74,8 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
         };
 
         const models: Record<string, string> = {};
+        let personality: any = undefined;
+
         // 1. Combined Creative & Logic Pass
         if (llm) {
             try {
@@ -97,8 +99,10 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
                 - Role: ['vendor', 'guard', 'civilian', 'mob', 'boss'].
                 - Stats: Provide health, attack, and defense within the limits.
                 - Rationale: Why are they here?
+                ${context?.enableLLM ? `
+                - Personality: Provide traits (array of strings), voice (string), agenda (string), and background (string).` : ''}
                 
-                Return ONLY a JSON object with fields: name, description, behavior, role, rationale, stats: { health, attack, defense }.`;
+                Return ONLY a JSON object with fields: name, description, behavior, role, rationale, stats: { health, attack, defense }${context?.enableLLM ? ', personality: { traits, voice, agenda, background }' : ''}.`;
 
                 const res = await llm.chat(combinedPrompt, "You are a lead game designer for Zenith-9.", LLMRole.CREATIVE);
                 models['Creative'] = res.model;
@@ -113,6 +117,9 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
                     stats.health = Math.max(1, Math.min(config.budgets.maxNPCHealth, data.stats.health || stats.health));
                     stats.attack = Math.max(1, Math.min(config.budgets.maxNPCAttack, data.stats.attack || stats.attack));
                     stats.defense = Math.max(1, Math.min(config.budgets.maxNPCDefense, data.stats.defense || stats.defense));
+                }
+                if (data.personality) {
+                    personality = data.personality;
                 }
 
                 if (config.features.restrictedToGlitchArea || isMob || isBoss) {
@@ -163,7 +170,8 @@ export class NPCGenerator extends BaseGenerator<NPCPayload> {
             role,
             tags: [archetype.name.toLowerCase()],
             canMove: true,
-            portrait // Add portrait to payload
+            portrait, // Add portrait to payload
+            personality
         };
 
         const proposal = this.generateBaseProposal(payload, context?.generatedBy || 'Director', models);

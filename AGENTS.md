@@ -471,6 +471,91 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
 
 ---
 
+---
+
+## 🤖 NPC AI & Social Systems (Agents)
+
+Zenith-9 features a "Living World" powered by Large Language Models (LLMs) and a structured social simulation. NPCs are not just static vendors; they are "Agents" with personality, memory, and social relationships.
+
+### 1. Core Agent Components
+
+Every AI-enabled NPC possesses the following ECS components:
+
+#### A. Personality
+Defines the NPC's core identity and behavior.
+*   **Traits**: A list of descriptors (e.g., "Paranoid", "Greedy", "Hardworking").
+*   **Voice**: Instructions for the LLM on how to phrase dialogue (e.g., "Raspy whisper", "Clinical and detached").
+*   **Agenda**: The NPC's primary goal (e.g., "Sell all the noodles", "Collect secrets").
+*   **Background**: Optional backstory for the NPC.
+
+#### B. Memory
+Allows NPCs to remember past interactions and world events.
+*   **Short-term**: Stores the last 10 turns of dialogue with players.
+*   **Long-term**: Stores significant events and "Rumors".
+*   **Rumors**: Structured data about events the NPC has witnessed (e.g., "Player X killed a Giant Rat in the Plaza").
+
+#### C. Relationship
+Tracks how the NPC feels about specific players.
+*   **Trust**: A score from 0-100.
+*   **Status**: Hostile (<20), Neutral (20-60), Friendly (60-90), Trusted (>90).
+*   **History**: A log of significant interactions with that player.
+
+### 2. Interaction Loop
+
+When a player uses the `say` command in a room with an AI NPC:
+
+1.  **Context Assembly**: The system gathers the NPC's personality, recent memories, known rumors, and their relationship with the speaker.
+2.  **World Context**: Current time, weather, and recent global events are added.
+3.  **LLM Request**: A prompt is sent to the configured LLM (Creative role).
+4.  **Action Parsing**: The LLM can return dialogue *and* special actions in brackets:
+    *   `[OFFER_DISCOUNT]`: NPC grants a temporary price reduction.
+    *   `[ATTACK]`: NPC turns hostile.
+    *   `[GIVE_QUEST]`: NPC procedurally generates a quest for the player.
+    *   `[LEAVE]`: NPC exits the room.
+
+### 3. The Rumor Mill
+
+NPCs act as information brokers.
+*   **Witnessing**: NPCs "see" events that happen in their room (Combat, Looting, etc.).
+*   **Storage**: These events are converted into structured `Rumor` objects and stored in memory.
+*   **Propagation**: During conversation, NPCs have a chance to share these rumors with players or other NPCs, allowing information to travel organically through the world.
+
+### 4. Procedural Quests
+
+When an NPC decides to `[GIVE_QUEST]`:
+1.  The `QuestGenerator` is called with the NPC's current context.
+2.  A quest is generated that fits the NPC's personality and location.
+3.  The quest is added to the NPC's `QuestGiver` component.
+4.  The player is notified and can use the `accept` command to take the job.
+
+### 5. NPC Behavior Types
+
+NPCs can have different behavior patterns that affect how they interact with players:
+
+*   **Friendly**: Will not attack players, always open to conversation
+*   **Neutral**: Defensive only, will only attack if attacked first (default)
+*   **Cautious**: Wary of strangers, may flee from combat
+*   **Elusive**: Avoids combat entirely, prioritizes escape
+*   **Aggressive**: Attacks players on sight
+
+Behavior can be changed via the Admin Dashboard's NPC editor.
+
+### 6. LLM-Enabled NPC Generation
+
+NPCs can be generated with full LLM personalities through the Admin Dashboard:
+
+1.  **Manual Generation**: Use "Generate NPC", "Generate Mob", or "Create BOSS" buttons
+2.  **Enable LLM Toggle**: Check "🧠 Enable AI Personality (LLM)" to generate personality data
+3.  **Personality Generation**: The LLM generates:
+    *   **Traits**: Array of personality characteristics
+    *   **Voice**: Description of how they speak
+    *   **Agenda**: Their goals and motivations
+    *   **Background**: Their history (optional)
+4.  **Approval**: Review and approve the generated NPC in the Proposals tab
+5.  **Spawning**: Once approved, spawn the NPC from the NPCs tab
+
+---
+
 ### Recent Modifications (2026-01-17)
 *   **Authentication System**: Implemented `AuthService` (JWT/Bcrypt) and `DatabaseService` (SQLite) for persistent user accounts.
 *   **Character Creation**: Added `CharacterService` with archetypes (Street Samurai, Netrunner, Gutter Punk) and persistent storage.

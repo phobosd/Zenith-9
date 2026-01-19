@@ -179,7 +179,7 @@ const worldState = new WorldStateService(persistence);
 
 const dungeonService = DungeonService.getInstance(engine, messageService);
 const movementSystem = new MovementSystem(io, messageService);
-const interactionSystem = new InteractionSystem(io);
+const interactionSystem = new InteractionSystem(io, director);
 const inventorySystem = new InventorySystem(io);
 const npcSystem = new NPCSystem(io, messageService, director.getLLM());
 const combatSystem = new CombatSystem(engine, io, messageService);

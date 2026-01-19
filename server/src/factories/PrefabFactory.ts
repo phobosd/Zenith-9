@@ -15,6 +15,9 @@ import { IsRoom } from '../components/IsRoom';
 import { Description } from '../components/Description';
 import { Atmosphere } from '../components/Atmosphere';
 import { Visuals } from '../components/Visuals';
+import { Personality } from '../components/Personality';
+import { Memory } from '../components/Memory';
+import { Relationship } from '../components/Relationship';
 
 import { ItemRegistry } from '../services/ItemRegistry';
 import { NPCRegistry } from '../services/NPCRegistry';
@@ -404,6 +407,36 @@ export class PrefabFactory {
         entity.addComponent(new Stats());
         if (entity.hasComponent(CombatStats)) {
             entity.addComponent(new CombatBuffer(3));
+        }
+
+        // Add AI Components to all neutral/friendly NPCs
+        const npc = entity.getComponent(NPC);
+        if (npc && !npc.isAggressive) {
+            entity.addComponent(new Memory());
+            entity.addComponent(new Relationship());
+
+            // Default personality if not already set by registry
+            if (!entity.hasComponent(Personality)) {
+                let traits = ["Neutral"];
+                let voice = "Average";
+                let agenda = "Survive";
+
+                if (lowerName === 'street vendor') {
+                    traits = ["Hardworking", "Gossip", "Friendly"];
+                    voice = "Raspy, enthusiastic";
+                    agenda = "Sell all the noodles";
+                } else if (lowerName === 'fixer') {
+                    traits = ["Calculating", "Secretive", "Ambitious"];
+                    voice = "Smooth, low-volume";
+                    agenda = "Collect all the secrets";
+                } else if (lowerName === 'ripperdoc') {
+                    traits = ["Professional", "Cynical", "Steady-handed"];
+                    voice = "Clinical, detached";
+                    agenda = "Keep the city's chrome running";
+                }
+
+                entity.addComponent(new Personality(traits, voice, agenda));
+            }
         }
 
         return entity;

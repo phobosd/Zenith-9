@@ -423,7 +423,9 @@ export const useTerminalInput = (
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const val = e.target.value;
-        if (val.endsWith('?')) {
+        const isSocial = val.startsWith('say ') || val.startsWith("'") || val.startsWith('whisper ') || val.startsWith('link ') || val.startsWith('emote ');
+
+        if (val.endsWith('?') && !isSocial) {
             const inputWithoutQuestion = val.slice(0, -1);
 
             // If typing '?' at the root, show the full help list from server

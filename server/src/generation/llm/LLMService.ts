@@ -29,21 +29,27 @@ export class LLMService {
         const profile = this.getProfileForRole(role);
 
         if (!profile) {
+            Logger.error('LLMService', `No LLM profile found for role: ${role}`);
             throw new Error(`No LLM profile found for role: ${role}`);
         }
 
         Logger.info('LLMService', `Routing [${role}] request to: ${profile.name} | Model: ${profile.model} | Provider: ${profile.provider}`);
+        Logger.info('LLMService', `Prompt: ${prompt.substring(0, 100)}...`);
 
+        let response: LLMResponse;
         if (profile.provider === 'gemini') {
-            return this.callGemini(profile, prompt, systemPrompt);
+            response = await this.callGemini(profile, prompt, systemPrompt);
         } else if (profile.provider === 'pollinations') {
             // Pollinations text uses the new gen.pollinations.ai gateway
             const textProfile = { ...profile, baseUrl: 'https://gen.pollinations.ai/v1' };
-            return this.callOpenAICompatible(textProfile, prompt, systemPrompt);
+            response = await this.callOpenAICompatible(textProfile, prompt, systemPrompt);
         } else {
             // OpenAI and Local (LM Studio/Ollama) use the same OpenAI-compatible format
-            return this.callOpenAICompatible(profile, prompt, systemPrompt);
+            response = await this.callOpenAICompatible(profile, prompt, systemPrompt);
         }
+
+        Logger.info('LLMService', `Response from ${profile.model}: ${response.text.substring(0, 100)}...`);
+        return response;
     }
 
     /**
