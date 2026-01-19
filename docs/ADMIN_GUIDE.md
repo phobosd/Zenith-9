@@ -93,8 +93,24 @@ The Director can orchestrate large-scale events and generate powerful adversarie
     *   **Loot**: Bosses are guaranteed to drop at least one `LEGENDARY` item.
     *   **Approval**: Bosses create a **Proposal** that must be reviewed and approved by an admin before they are published to the registry.
 *   **Auto-Approval**: World Event mobs (Invasions) bypass the approval queue for immediate impact.
+96: 
+97: ### 11. Peaceful Events
+98: The Director can also trigger non-combat events to encourage exploration and trade.
+99: 
+100: *   **Traveling Merchant**:
+101:     *   **Trigger**: Manual trigger via "Traveling Merchant" button.
+102:     *   **Effect**: Spawns a merchant NPC with a unique inventory of 3-5 Rare/Epic items.
+103:     *   **Duration**: 20 minutes.
+104: *   **Data Courier**:
+105:     *   **Trigger**: Manual trigger via "Data Courier" button.
+106:     *   **Effect**: Spawns a courier NPC who offers a delivery quest to a random location.
+107:     *   **Duration**: 20 minutes.
+108: *   **Scavenger Hunt**:
+109:     *   **Trigger**: Manual trigger via "Scavenger Hunt" button.
+110:     *   **Effect**: Spawns a mysterious NPC who starts a collection quest for a hidden legendary artifact.
+111:     *   **Duration**: 20 minutes.
 
-### 11. Loot System
+### 12. Loot System
 All NPCs (including Bosses and Invasion Mobs) now participate in a dynamic loot system.
 *   **On Death**: When an NPC is defeated, it drops all items in its inventory (hands and equipment) and any items defined in its `Loot` component onto the ground.
 *   **Visibility**: A message is broadcast to the attacker when loot is dropped.

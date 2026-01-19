@@ -396,7 +396,11 @@ A wandering merchant from distant sectors appears with rare and exotic goods.
 A nervous courier appears, seeking help with an urgent delivery.
 *   **Duration**: 20 minutes
 *   **Announcement**: `[NEURAL LINK] URGENT: A data courier is seeking assistance with a time-sensitive delivery...`
-*   **Opportunity**: Accept a delivery quest for credits and faction reputation.
+*   **Opportunity**: Accept a delivery quest for credits and XP.
+*   **Commands**:
+    *   `accept`: Take the job and the package from the courier.
+    *   `quests`: Check your active delivery destination.
+    *   `deliver`: Complete the delivery once you reach the target location.
 *   **Package**: The courier carries a mysterious sealed package that must be delivered to specific coordinates.
 *   **Expiration**: If not completed in time: `[NEURAL LINK] The courier's time window has expired. The delivery opportunity has been lost.`
 
@@ -405,9 +409,23 @@ A mysterious figure appears, offering cryptic clues to a hidden treasure.
 *   **Duration**: 20 minutes
 *   **Announcement**: `[NEURAL LINK] ENCRYPTED TRANSMISSION DETECTED: "The first clue awaits those brave enough to seek the hidden treasure..."`
 *   **Opportunity**: Follow a chain of clues to discover a **Legendary** item.
-*   **Mechanics**: The mysterious NPC provides the first clue, which leads to coordinates where the next clue (or treasure) can be found.
+*   **Commands**:
+    *   `accept`: Speak to the mysterious figure to begin the hunt.
+*   **Mechanics**: The mysterious NPC provides the first clue, which leads to coordinates where the treasure can be found.
 *   **Reward**: Successfully completing the hunt rewards a unique legendary item.
 *   **Expiration**: If time runs out: `[NEURAL LINK] The mysterious figure has vanished. The treasure hunt has ended.`
+
+## Quests
+
+While exploring Zenith-9, you may encounter NPCs offering work.
+
+*   **Accepting Quests**:
+    *   `accept` (or `job`): If an NPC is offering a quest, this command will accept it. If the quest involves a delivery, you will automatically receive the package.
+*   **Tracking Progress**:
+    *   `quests` (or `journal`, `missions`): View a list of your active quests, including descriptions and target locations.
+*   **Completing Quests**:
+    *   `deliver` (or `complete`): Turn in a delivery quest once you have reached the destination or target NPC.
+
 
 ## God Commands (Admin/Developer)
 

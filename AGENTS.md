@@ -476,18 +476,6 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
 *   **Character Creation**: Added `CharacterService` with archetypes (Street Samurai, Netrunner, Gutter Punk) and persistent storage.
 *   **Multiplayer Presence**: Updated `MovementSystem` and `ObservationSystem` to handle real-time room presence and player visibility.
 *   **Social Commands**: Added `say`, `link` (global), and `emote` commands.
-*   **UI Overlays**: Created `AuthOverlay.tsx` for login/registration and character initialization.
-*   **Phase 5 Mechanics**:
-    *   **Reputation**: Added `Reputation` component to track faction standing.
-    *   **Heat**: Implemented `HeatSystem` and component to track law enforcement attention.
-    *   **Humanity**: Added `Humanity` component to track cyberware costs and cyberpsychosis risk.
-*   **Phase 6 Security**:
-    *   **Rate Limiting**: Implemented `RateLimiter` middleware to prevent command spam.
-    *   **RBAC**: Added `Role` component and implemented Role-Based Access Control for admin commands.
-    *   **Admin Security**: Implemented JWT-based authentication for the `/admin` socket namespace. Only users with `god` or `admin` roles can connect.
-    *   **User Management**: Added backend support and Frontend UI (`UsersTab`) for listing/editing users, and managing their Characters (Stats, Reputation).
-    *   **Director Refactor**:
-        *   **Modular Architecture**: Split `WorldDirector` into specialized services: `SocketHandler`, `Management`, `Snapshot`, `Automation`, and `Content`.
         *   **Service-Oriented**: `WorldDirector` is now a thin orchestrator, delegating logic to these sub-services.
 
 ### Persistence Update

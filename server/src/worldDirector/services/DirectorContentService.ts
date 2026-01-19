@@ -12,6 +12,12 @@ import { Position } from '../../components/Position';
 import { Terminal } from '../../components/Terminal';
 import { NPC } from '../../components/NPC';
 import { ImageDownloader } from '../../utils/ImageDownloader';
+import { QuestGiver, QuestDefinition } from '../../components/QuestGiver';
+import { IsRoom } from '../../components/IsRoom';
+import { IsCyberspace } from '../../components/IsCyberspace';
+import { Entity } from '../../ecs/Entity';
+import { Item } from '../../components/Item';
+import { Inventory } from '../../components/Inventory';
 
 export interface ActiveEvent {
     id: string;
@@ -184,8 +190,16 @@ export class DirectorContentService {
                         NPCRegistry.getInstance().reloadGeneratedNPCs();
 
                         // Spawn in a random room
-                        const x = 10 + Math.floor(Math.random() * 10) - 5;
-                        const y = 10 + Math.floor(Math.random() * 10) - 5;
+                        const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                        let x = 10, y = 10;
+                        if (rooms.length > 0) {
+                            const randomRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                            const roomPos = randomRoom.getComponent(Position);
+                            if (roomPos) {
+                                x = roomPos.x;
+                                y = roomPos.y;
+                            }
+                        }
 
                         const npcEntity = PrefabFactory.createNPC(proposal.payload.id);
                         if (npcEntity) {
@@ -268,6 +282,7 @@ export class DirectorContentService {
                     const payload = proposal.payload as NPCPayload;
                     payload.tags = ['event_merchant', 'passive'];
                     payload.behavior = 'passive';
+                    payload.canMove = false;
 
                     // Generate 3-5 rare items for the merchant
                     const itemCount = 3 + Math.floor(Math.random() * 3);
@@ -298,8 +313,16 @@ export class DirectorContentService {
                     NPCRegistry.getInstance().reloadGeneratedNPCs();
 
                     // Spawn in random location
-                    const x = 10 + Math.floor(Math.random() * 10) - 5;
-                    const y = 10 + Math.floor(Math.random() * 10) - 5;
+                    const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                    let x = 10, y = 10;
+                    if (rooms.length > 0) {
+                        const randomRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                        const roomPos = randomRoom.getComponent(Position);
+                        if (roomPos) {
+                            x = roomPos.x;
+                            y = roomPos.y;
+                        }
+                    }
 
                     const merchantEntity = PrefabFactory.createNPC(proposal.payload.id);
                     if (merchantEntity) {
@@ -348,22 +371,7 @@ export class DirectorContentService {
                     const payload = proposal.payload as NPCPayload;
                     payload.tags = ['event_courier', 'passive'];
                     payload.behavior = 'passive';
-
-                    // Generate the package item
-                    const packageProposal = await this.director.itemGen.generate(this.director.guardrails.getConfig(), this.director.llm, {
-                        generatedBy: 'Event:CourierPackage',
-                        context: 'A mysterious sealed package or data chip that needs urgent delivery. Should look valuable and important.'
-                    });
-
-                    if (packageProposal && packageProposal.payload) {
-                        packageProposal.status = ProposalStatus.APPROVED;
-                        await this.director.publisher.publish(packageProposal);
-                        ItemRegistry.getInstance().reloadGeneratedItems();
-
-                        // Add package to courier's hands
-                        if (!payload.equipment) payload.equipment = [];
-                        payload.equipment.push(packageProposal.payload.id);
-                    }
+                    payload.canMove = false;
 
                     // Auto-publish courier
                     proposal.status = ProposalStatus.APPROVED;
@@ -372,8 +380,16 @@ export class DirectorContentService {
                     NPCRegistry.getInstance().reloadGeneratedNPCs();
 
                     // Spawn courier
-                    const x = 10 + Math.floor(Math.random() * 10) - 5;
-                    const y = 10 + Math.floor(Math.random() * 10) - 5;
+                    const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                    let x = 10, y = 10;
+                    if (rooms.length > 0) {
+                        const randomRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                        const roomPos = randomRoom.getComponent(Position);
+                        if (roomPos) {
+                            x = roomPos.x;
+                            y = roomPos.y;
+                        }
+                    }
 
                     const courierEntity = PrefabFactory.createNPC(proposal.payload.id);
                     if (courierEntity) {
@@ -389,8 +405,57 @@ export class DirectorContentService {
                         entityIds.push(courierEntity.id);
                         this.director.log(DirectorLogLevel.SUCCESS, `Spawned Data Courier at ${x},${y}`);
 
-                        // TODO: Generate quest for delivery (requires quest system integration)
-                        this.director.log(DirectorLogLevel.WARN, 'Quest generation for courier not yet implemented');
+                        // Create Package Item Manually
+                        const packageItem = new Entity();
+                        packageItem.addComponent(new Item('Sealed Data Package', 'A secure, tamper-proof package containing sensitive data.', 0.5, 1, 'Small', 'Legal', 'quest_item', 'package'));
+                        // Do NOT add Position, so it doesn't appear on the ground
+                        this.director.engine.addEntity(packageItem);
+
+                        // Give to Courier
+                        const courierInv = courierEntity.getComponent(Inventory);
+                        if (courierInv) {
+                            if (!courierInv.addItem(packageItem.id)) {
+                                // Hands full, put in pockets
+                                courierInv.equipment.set('pockets', packageItem.id);
+                            }
+                        } else {
+                            // Should have inventory, but if not, add it
+                            const newInv = new Inventory();
+                            newInv.addItem(packageItem.id);
+                            courierEntity.addComponent(newInv);
+                        }
+
+                        // Generate quest for delivery
+                        const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                        if (rooms.length > 0) {
+                            // Pick a random room that is NOT the spawn room
+                            let targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                            let attempts = 0;
+                            while (attempts < 5 && targetRoom.getComponent(Position)?.x === x && targetRoom.getComponent(Position)?.y === y) {
+                                targetRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                                attempts++;
+                            }
+
+                            const targetRoomName = (targetRoom as any).name || `Sector ${targetRoom.getComponent(Position)?.x},${targetRoom.getComponent(Position)?.y}`;
+
+                            const quest: QuestDefinition = {
+                                id: `courier_quest_${Date.now()}`,
+                                title: 'Urgent Delivery',
+                                description: `Deliver the package to ${targetRoomName}. The recipient is waiting.`,
+                                type: 'delivery',
+                                targetRoomId: targetRoom.id,
+                                requiredItemId: packageItem.id, // Use the actual instance ID
+                                rewards: {
+                                    credits: 500 + Math.floor(Math.random() * 500),
+                                    xp: 100
+                                }
+                            };
+
+                            courierEntity.addComponent(new QuestGiver([quest]));
+                            this.director.log(DirectorLogLevel.SUCCESS, `Attached delivery quest to courier. Target: ${targetRoomName}`);
+                        } else {
+                            this.director.log(DirectorLogLevel.WARN, 'Could not find target room for courier quest.');
+                        }
                     }
                 }
             } catch (err) {
@@ -417,6 +482,7 @@ export class DirectorContentService {
                     const payload = proposal.payload as NPCPayload;
                     payload.tags = ['event_scavenger', 'passive'];
                     payload.behavior = 'passive';
+                    payload.canMove = false;
 
                     // Generate the legendary treasure item
                     const treasureProposal = await this.director.itemGen.generate(this.director.guardrails.getConfig(), this.director.llm, {
@@ -441,8 +507,16 @@ export class DirectorContentService {
                     NPCRegistry.getInstance().reloadGeneratedNPCs();
 
                     // Spawn the NPC with first clue
-                    const startX = 10 + Math.floor(Math.random() * 10) - 5;
-                    const startY = 10 + Math.floor(Math.random() * 10) - 5;
+                    const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                    let startX = 10, startY = 10;
+                    if (rooms.length > 0) {
+                        const randomRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                        const roomPos = randomRoom.getComponent(Position);
+                        if (roomPos) {
+                            startX = roomPos.x;
+                            startY = roomPos.y;
+                        }
+                    }
 
                     const npcEntity = PrefabFactory.createNPC(proposal.payload.id);
                     if (npcEntity) {
@@ -458,8 +532,62 @@ export class DirectorContentService {
                         entityIds.push(npcEntity.id);
                         this.director.log(DirectorLogLevel.SUCCESS, `Spawned Scavenger Hunt NPC at ${startX},${startY}`);
 
-                        // TODO: Generate clue chain (requires quest/clue system)
-                        this.director.log(DirectorLogLevel.WARN, 'Clue chain generation not yet implemented');
+                        // Generate Scavenger Hunt Quest
+                        const rooms = this.director.engine.getEntitiesWithComponent(IsRoom).filter(r => !r.hasComponent(IsCyberspace));
+                        if (rooms.length > 0) {
+                            // Pick a random room for the treasure
+                            let treasureRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                            let attempts = 0;
+                            while (attempts < 5 && treasureRoom.getComponent(Position)?.x === startX && treasureRoom.getComponent(Position)?.y === startY) {
+                                treasureRoom = rooms[Math.floor(Math.random() * rooms.length)];
+                                attempts++;
+                            }
+
+                            const treasureRoomName = (treasureRoom as any).name || `Sector ${treasureRoom.getComponent(Position)?.x},${treasureRoom.getComponent(Position)?.y}`;
+                            const treasurePos = treasureRoom.getComponent(Position);
+
+                            // Create Treasure Item Manually (to ensure it exists and we have ID)
+                            const treasureItem = new Entity();
+                            treasureItem.addComponent(new Item('Ancient Artifact', 'A strange, pulsating artifact of unknown origin.', 1.0, 1, 'Medium', 'Contraband', 'quest_item', 'artifact'));
+                            if (treasurePos) {
+                                treasureItem.addComponent(new Position(treasurePos.x, treasurePos.y));
+                            }
+                            this.director.engine.addEntity(treasureItem);
+                            this.director.log(DirectorLogLevel.SUCCESS, `Spawned Treasure at ${treasurePos?.x},${treasurePos?.y} (${treasureRoomName})`);
+
+                            const quest: QuestDefinition = {
+                                id: `scavenger_quest_${Date.now()}`,
+                                title: 'The Hidden Artifact',
+                                description: `I have hidden an ancient artifact in ${treasureRoomName}. Find it and bring it back to me.`,
+                                type: 'collection',
+                                targetRoomId: npcEntity.id, // Target is the NPC (bring it back) - Wait, targetRoomId expects a room ID usually.
+                                // Actually, handleDeliverQuest checks player position against targetRoomId.
+                                // If we want them to return to the NPC, we should set targetRoomId to the NPC's room.
+                                // But the NPC might move? For now, assume NPC stays put or we use their current room ID.
+                                // Let's use the spawn room ID.
+                                // Wait, we don't have the spawn room entity easily available here, just coords.
+                                // Let's find the room at startX, startY.
+                                requiredItemId: treasureItem.id,
+                                rewards: {
+                                    credits: 1000,
+                                    xp: 250
+                                }
+                            };
+
+                            // Find spawn room for return location
+                            const spawnRoom = rooms.find(r => {
+                                const p = r.getComponent(Position);
+                                return p && p.x === startX && p.y === startY;
+                            });
+                            if (spawnRoom) {
+                                quest.targetRoomId = spawnRoom.id;
+                            }
+
+                            npcEntity.addComponent(new QuestGiver([quest]));
+                            this.director.log(DirectorLogLevel.SUCCESS, `Attached scavenger quest to NPC. Treasure in: ${treasureRoomName}`);
+                        } else {
+                            this.director.log(DirectorLogLevel.WARN, 'Could not find rooms for scavenger hunt.');
+                        }
                     }
                 }
             } catch (err) {
@@ -654,12 +782,23 @@ export class DirectorContentService {
     }
 
     public async processProposalAssets(proposal: any) {
-        if (proposal && proposal.payload && proposal.payload.portrait && proposal.payload.portrait.startsWith('http')) {
+        if (proposal && proposal.payload && proposal.payload.portrait) {
+            const portrait = proposal.payload.portrait;
             const filename = `${proposal.payload.id}.jpg`;
-            this.director.log(DirectorLogLevel.INFO, `Downloading asset for ${proposal.payload.id}...`);
-            const localPath = await ImageDownloader.downloadImage(proposal.payload.portrait, filename);
-            if (localPath) {
-                proposal.payload.portrait = localPath;
+
+            if (portrait.startsWith('http')) {
+                this.director.log(DirectorLogLevel.INFO, `Downloading asset for ${proposal.payload.id}...`);
+                const localPath = await ImageDownloader.downloadImage(portrait, filename);
+                if (localPath) {
+                    proposal.payload.portrait = localPath;
+                }
+            } else if (portrait.startsWith('data:image')) {
+                // Handle base64 images
+                this.director.log(DirectorLogLevel.INFO, `Saving base64 asset for ${proposal.payload.id}...`);
+                const localPath = await ImageDownloader.saveBase64Image(portrait, filename);
+                if (localPath) {
+                    proposal.payload.portrait = localPath;
+                }
             }
         }
     }

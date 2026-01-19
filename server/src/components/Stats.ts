@@ -18,6 +18,9 @@ export class Stats extends Component {
     attributes: Map<string, Attribute> = new Map();
     skills: Map<string, Skill> = new Map();
 
+    xp: number = 0;
+    level: number = 1;
+
     constructor() {
         super();
         // Initialize default attributes
@@ -59,4 +62,15 @@ export class Stats extends Component {
         return false;
     }
 
+    addXP(amount: number): boolean {
+        this.xp += amount;
+        // Simple level up formula: Level * 1000 XP
+        const xpForNextLevel = this.level * 1000;
+        if (this.xp >= xpForNextLevel) {
+            this.xp -= xpForNextLevel;
+            this.level++;
+            return true; // Leveled up
+        }
+        return false;
+    }
 }

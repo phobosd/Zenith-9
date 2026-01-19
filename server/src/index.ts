@@ -27,6 +27,7 @@ import { StanceSystem } from './systems/StanceSystem';
 import { CharacterSystem } from './systems/CharacterSystem';
 import { RecoverySystem } from './systems/RecoverySystem';
 import { HeatSystem } from './systems/HeatSystem';
+import { QuestSystem } from './systems/QuestSystem';
 import { GameEventBus, GameEventType } from './utils/GameEventBus';
 
 import { InventorySystem } from './systems/InventorySystem';
@@ -172,8 +173,6 @@ const publisher = new PublisherService();
 const director = new WorldDirector(io, guardrails, snapshots, publisher, engine);
 console.log('[DEBUG] WorldDirector initialized');
 const messageService = new MessageService(io);
-
-// Persistence Setup
 const persistence = new PersistenceManager();
 persistence.connect();
 const worldState = new WorldStateService(persistence);
@@ -192,6 +191,8 @@ const stanceSystem = new StanceSystem(io);
 const characterSystem = new CharacterSystem(io, worldState);
 const recoverySystem = new RecoverySystem();
 const heatSystem = new HeatSystem(messageService);
+const questSystem = new QuestSystem(messageService);
+
 const rateLimiter = new RateLimiter();
 
 engine.addSystem(movementSystem);
@@ -207,6 +208,7 @@ engine.addSystem(stanceSystem);
 engine.addSystem(characterSystem);
 engine.addSystem(recoverySystem);
 engine.addSystem(heatSystem);
+engine.addSystem(questSystem);
 
 movementSystem.setObservationSystem(observationSystem);
 npcSystem.setCombatSystem(combatSystem);
@@ -222,6 +224,7 @@ registerAdminCommands(commandRegistry);
 registerCharacterCommands(commandRegistry);
 registerSocialCommands(commandRegistry);
 registerEmoteCommands(commandRegistry);
+questSystem.registerCommands(commandRegistry);
 
 
 commandRegistry.register({

@@ -37,11 +37,15 @@ This document serves as a comprehensive reference for all Non-Player Characters 
 | **Katana** | Weapon | 35 | N/A | 2500 | A razor-sharp mono-molecular blade forged in the old style. |
 | **Monofilament Whip** | Weapon | 40 | N/A | 3500 | A whip made of mono-molecular wire. Extremely dangerous. |
 | **Neural Cascade** | Weapon | 25 | 100 | 500 | A neuro-interface implant that allows the user to process information at superhuman speeds. The device is housed within a sleek titanium casing and connects directly to the occipital lobe. |
+| **Neural Echo Repeater** | Weapon | 48 | 6 | 63 | A sophisticated implant that allows the user to eavesdrop on and manipulate neural networks within a limited radius. It can also be used for targeted memory extraction. |
+| **Neural Wraith** | Weapon | 42 | N/A | 1000 | A sleek neural implant that allows the user to seamlessly mimic and channel the combat skills of any enemy they defeat. It's a living library of martial arts and firearms techniques, always evolving. |
+| **Neuro-Siphon** | Weapon | 10 | 50 | 1000 | A subdermal neural implant that siphons psychic energy from the user's surroundings and converts it into raw power. Prolonged use can lead to debilitating headaches. |
 | **Neuro-Slicer** | Weapon | 25 | 50 | 1000 | A wrist-mounted blade that utilizes focused neural energy to slice through both flesh and circuitry. It leaves no trace but a faint scent of ozone. |
 | **Neurokinetic Blaster** | Weapon | 25 | 5 | 1000 | This sleek pistol is linked directly to the user's nervous system, allowing for incredibly precise and powerful shots fired with thought alone. |
 | **Nexal** | Weapon | 20 | 60 | 800 | A high-tech, cybernetic blade designed for precision strikes in the heart of a dystopian city. Nexal combines synthetic materials with advanced nanotechnology to create a weapon that not only slashes through defenses but also bypasses traditional skill checks and provides stealth benefits. |
 | **Nexosys** | Weapon | 50 | 100 | 1000 | A sleek, high-tech plasma weapon equipped with a neural interface module for enhanced targeting accuracy. The Nexosys combines advanced computational processing with a devastating plasma core to create an unyielding combat tool in a dystopian cyberpunk setting. |
 | **Plasma Rifle** | Weapon | 55 | 25 | 8000 | An experimental energy weapon firing superheated plasma. |
+| **Pulse Hammer** | Weapon | 50 | N/A | 1000 | A brutal melee weapon that channels focused sonic pulses through its hammerhead, delivering concussive blows. |
 | **Shotgun** | Weapon | 50 | 10 | 1200 | A pump-action shotgun. Devastating at close range. |
 | **SMG** | Weapon | 20 | 15 | 1500 | A compact submachine gun. High rate of fire. |
 | **Sniper Rifle** | Weapon | 60 | 50 | 4000 | A high-powered sniper rifle with advanced optics. |
@@ -63,6 +67,9 @@ This document serves as a comprehensive reference for all Non-Player Characters 
 | **Kinetic Dampening Mantle** | Body | 20 | 15 | 1000 | A shimmering, interwoven mesh of carbon nanotubes and piezoelectric fibers woven into a cloak. It absorbs kinetic energy from impacts, dispersing it harmlessly through its intricate structure. |
 | **Neon Armor** | Body | 9 | 0 | 300 | A rare grade armor. |
 | **NeuraGrid** | Body | 20 | 15 | 42 | A cutting-edge cybernetic armor torso piece designed to withstand the harshest cyberattacks. Its advanced NeuraGrid technology allows it to absorb incoming damage while providing adaptive shielding that constantly upgrades based on the player's neural interface activity. |
+| **Neural Feedback Harness** | Body | 20 | 15 | 300 | A sleek black harness that wraps around the skull and neck. It subtly pulses against your skin, translating incoming data streams into tactile sensations. |
+| **Neuro-Synchronized Reactive Shell** | Body | 12 | 0 | 1000 | This sleek exosuit harnesses advanced neural interface technology to adapt its defenses in real time based on incoming threats. The wearer feels a subtle hum as the suit's plating shifts and hardens. |
+| **Neurokinetic Regulator** | Body | 12 | 0 | 400 | This sleek cranial implant regulates neural impulses to enhance physical response time and precision. |
 | **NeuroShield** | Body | 18 | 17 | 100 | A dynamic, adaptive cyber armor that shifts its color spectrum in real-time to counteract virtual attacks. The NeuroShield uses advanced neural interfaces to detect and neutralize incoming threats, providing both physical protection and digital shielding against data breaches or cyberattacks. Its holographic layer ensures minimal damage while maintaining structural integrity. |
 | **Neuroveil** | Body | 18 | 30 | 300 | A sleek metallic armor piece with glowing plasma panels that fit seamlessly into the dark cyberpunk environment. Integrated with a neural interface module for enhanced functionality. |
 | **Stealth Utility Belt** | waist | 4 | 0 | 1800 | A specialized belt made of non-reflective material. It features silent-release buckles and a small, integrated signal scrambler. |
@@ -106,9 +113,13 @@ This document serves as a comprehensive reference for all Non-Player Characters 
 | **Loose 9mm Rounds** | Item | 10 | A handful of loose 9mm cartridges. They jingle in your pocket like copper-clad promises. |
 | **Medkit** | Item | 200 | A comprehensive medical kit. Heals 50 HP. |
 | **Microsoft Hacking Suite** | Item | 5000 | A suite of hacking tools and ICE-breakers. |
+| **Neural Cascade** | Item | 500 | This intricate neural interface amplifies and focuses incoming sensory data into bursts of pure information. It allows the user to overload their senses on command, briefly experiencing the world with heightened clarity. |
+| **Neural Feedback Stimulator** | Item | 1000 | A compact neural implant that delivers controlled bursts of sensory input. It's a rudimentary form of virtual reality without the headset. |
 | **Neural Lace of the Void** | Item | 500 | A shimmering web of nanites woven into a complex neural interface, granting access to vast troves of data and bypassing conventional security measures. |
+| **Neural Lace Weaver** | Item | 1000 | A neural lace weaving device that allows for the direct injection of data and programs into a user's brain. The process is non-invasive, but highly addictive. |
 | **Neural Razorwire** | Item | 1000 | A shimmering network of nanites forms razor-sharp strands within the user's nervous system. It can be deployed to sever connections, scramble signals and inflict crippling pain. |
 | **Neural Resonance Harmonizer** | Item | 500 | A sleek chrome implant that synchronizes neural patterns across multiple minds. Wearers can seamlessly share sensory input and thoughts. |
+| **Neuro-Tether** | Item | 1000 | A slender neural implant that subtly enhances the wearer's focus and reflexes. It also allows for direct connection to external devices. |
 | **Nutrient Paste** | Item | 20 | A tube of synthetic nutrients. Tastes terrible. |
 | **Painkillers** | Item | 50 | Pharmaceutical painkillers. Heals 25 HP. |
 | **Pistol Ammo** | Item | 50 | A box of pistol ammunition. |

@@ -45,4 +45,30 @@ export class ImageDownloader {
             return null;
         }
     }
+    static async saveBase64Image(base64Data: string, filename: string): Promise<string | null> {
+        try {
+            // Ensure directory exists
+            if (!fs.existsSync(this.ASSETS_DIR)) {
+                fs.mkdirSync(this.ASSETS_DIR, { recursive: true });
+            }
+
+            // Remove header if present (e.g., "data:image/png;base64,")
+            const base64Image = base64Data.split(';base64,').pop();
+            if (!base64Image) {
+                Logger.error('ImageDownloader', 'Invalid base64 data');
+                return null;
+            }
+
+            const filePath = path.join(this.ASSETS_DIR, filename);
+            fs.writeFileSync(filePath, Buffer.from(base64Image, 'base64'));
+
+            Logger.info('ImageDownloader', `Saved base64 image to ${filePath}`);
+
+            // Return relative path for client
+            return `/assets/portraits/${filename}`;
+        } catch (error) {
+            Logger.error('ImageDownloader', `Error saving base64 image: ${error}`);
+            return null;
+        }
+    }
 }

@@ -376,8 +376,36 @@ export class DirectorManagementService {
     }
 
     public deleteNPC(id: string) {
+        // Fetch definition first to get the name
+        const npcDef = NPCRegistry.getInstance().getNPC(id);
+        const name = npcDef ? npcDef.name : null;
+
         if (NPCRegistry.getInstance().deleteNPC(id)) {
-            this.director.log(DirectorLogLevel.SUCCESS, `Deleted NPC: ${id}`);
+            this.director.log(DirectorLogLevel.SUCCESS, `Deleted NPC definition: ${id}`);
+
+            // Remove from active world
+            const engine = (this.director as any).engine;
+            const entities = engine.getEntitiesWithComponent(NPC);
+            let removedCount = 0;
+
+            for (const entity of entities) {
+                const npcComp = entity.getComponent(NPC);
+                if (npcComp) {
+                    const matchesId = entity.id === id;
+                    const matchesTypeName = npcComp.typeName === id || npcComp.typeName.toLowerCase() === id.toLowerCase();
+                    const matchesName = name && (npcComp.typeName === name || npcComp.typeName.toLowerCase() === name.toLowerCase());
+
+                    if (matchesId || matchesTypeName || matchesName) {
+                        engine.removeEntity(entity.id);
+                        removedCount++;
+                    }
+                }
+            }
+
+            if (removedCount > 0) {
+                this.director.log(DirectorLogLevel.SUCCESS, `Removed ${removedCount} active instances of NPC ${id} (${name || 'Unknown'}) from the world.`);
+            }
+
             this.director.adminNamespace.emit('director:npcs_update', this.getNPCs());
             CompendiumService.updateCompendium();
         } else {

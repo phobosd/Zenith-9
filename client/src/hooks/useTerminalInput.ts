@@ -14,6 +14,7 @@ const COMMANDS = [
     'advance', 'adv', 'retreat', 'flee', 'hangback', 'reload', 'ammo', 'stop', 'assess', 'balance', 'bal',
     'dash', 'slash', 'parry', 'thrust', 'upload', 'execute',
     'punch', 'jab', 'headbutt', 'uppercut', 'iaijutsu', 'iai', 'slice',
+    'accept', 'deliver', 'quests', 'journal', 'missions', 'job',
     // Emotes
     'nod', 'grin', 'laugh', 'shrug', 'wave', 'bow', 'salute', 'glare', 'smirk',
     'sigh', 'frown', 'chuckle', 'wink', 'jack', 'glitch'
@@ -92,6 +93,9 @@ export const useTerminalInput = (
         if (cmd === 'parry') return "Usage: parry (Adds PARRY to combat buffer)";
         if (cmd === 'thrust') return "Usage: thrust (Adds THRUST to combat buffer)";
         if (['upload', 'execute'].includes(cmd)) return "Usage: upload (Executes combat buffer)";
+        if (['accept', 'job'].includes(cmd)) return "Usage: accept";
+        if (['deliver', 'complete'].includes(cmd)) return "Usage: deliver";
+        if (['quests', 'journal', 'missions'].includes(cmd)) return "Usage: quests";
         if (cmd === 'god' && parts[1] === 'find') return "Usage: god find <query>";
         if (cmd === 'god' && parts[1] === 'spawn') return "Usage: god spawn <item_name | npc_name>";
         if (cmd === 'god' && parts[1] === 'money') return "Usage: god money <amount> [target]";
