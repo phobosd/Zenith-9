@@ -49,7 +49,14 @@ The `server/` directory contains PowerShell scripts for managing the server proc
 graph TD
     subgraph Core
         Engine[ECS Engine]
-        Director[World Director]
+        subgraph DirectorSystem
+            Director[World Director]
+            SocketHandler[Director Socket Handler]
+            Management[Director Management Service]
+            SnapshotMgr[Director Snapshot Service]
+            Automation[Director Automation Service]
+            Content[Director Content Service]
+        end
     end
 
     subgraph Generation
@@ -479,6 +486,9 @@ To implement a "Gravity Puzzle" where 3 switches must be "Down":
     *   **RBAC**: Added `Role` component and implemented Role-Based Access Control for admin commands.
     *   **Admin Security**: Implemented JWT-based authentication for the `/admin` socket namespace. Only users with `god` or `admin` roles can connect.
     *   **User Management**: Added backend support and Frontend UI (`UsersTab`) for listing/editing users, and managing their Characters (Stats, Reputation).
+    *   **Director Refactor**:
+        *   **Modular Architecture**: Split `WorldDirector` into specialized services: `SocketHandler`, `Management`, `Snapshot`, `Automation`, and `Content`.
+        *   **Service-Oriented**: `WorldDirector` is now a thin orchestrator, delegating logic to these sub-services.
 
 ### Persistence Update
 *   **SQLite**: Now the primary source of truth for Users, Characters, and World Entities.

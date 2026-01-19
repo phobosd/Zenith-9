@@ -7,65 +7,6 @@ The Admin Dashboard is the control center for the Zenith-9 game world. It allows
 2. [Features & Usage](#features--usage)
     - [1. Director Control](#1-director-control)
     - [2. Guardrails & Budgets](#2-guardrails--budgets)
-    - [3. Content Approvals](#3-content-approvals)
-    - [4. LLM Configuration](#4-llm-configuration)
-    - [5. World Map (Expansions)](#5-world-map-expansions)
-    - [6. Item & NPC Management](#6-item--npc-management)
-    - [7. Snapshots](#7-snapshots)
-    - [8. Logs](#8-logs)
-    - [9. World Events & Bosses](#9-world-events--bosses)
-    - [10. Loot System](#10-loot-system)
-3. [Autonomous Operations](#11-autonomous-operations)
-    - [The Automation Loop](#the-automation-loop)
-    - [Personality-Driven Logic](#personality-driven-logic)
-    - [The Approval Workflow](#the-approval-workflow)
-    - [Persistence](#persistence)
-
-## Architecture
-
-The Zenith-9 system integrates Large Language Models (LLMs) into the core game loop through a "World Director" system. This system acts as an intermediary between the raw creativity of the LLM and the strict rules of the game engine.
-
-```mermaid
-graph TD
-    subgraph "Client"
-        Admin[Admin Dashboard]
-        Game[Game Client]
-    end
-
-    subgraph "Server"
-        Director[World Director]
-        Guardrails[Guardrail Service]
-        Publisher[Publisher Service]
-        Engine["Game Engine (ECS)"]
-        
-        subgraph "Generators"
-            NPCGen[NPC Generator]
-            ItemGen[Item Generator]
-            QuestGen[Quest Generator]
-            RoomGen[Room Generator]
-        end
-        
-        LLM[LLM Service]
-    end
-
-    subgraph "External"
-        AI["LLM Provider (Gemini/Local)"]
-    end
-
-    Admin -->|Socket.IO| Director
-    Director -->|Config| Guardrails
-    Director -->|Prompts| Generators
-    Generators -->|Context| LLM
-    LLM -->|Raw JSON| Generators
-    Generators -->|Proposal| Director
-    Director -->|Review| Admin
-    Admin -->|Approve| Director
-    Director -->|Publish| Publisher
-    Publisher -->|Entities| Engine
-    Engine -->|State Updates| Game
-```
-
-## Features & Usage
 
 ### 1. Director Control
 The main "Director" tab provides high-level control over the AI's autonomy.
@@ -153,12 +94,12 @@ The Director can orchestrate large-scale events and generate powerful adversarie
     *   **Approval**: Bosses create a **Proposal** that must be reviewed and approved by an admin before they are published to the registry.
 *   **Auto-Approval**: World Event mobs (Invasions) bypass the approval queue for immediate impact.
 
-### 10. Loot System
+### 11. Loot System
 All NPCs (including Bosses and Invasion Mobs) now participate in a dynamic loot system.
 *   **On Death**: When an NPC is defeated, it drops all items in its inventory (hands and equipment) and any items defined in its `Loot` component onto the ground.
 *   **Visibility**: A message is broadcast to the attacker when loot is dropped.
 
-### 12. Autonomous Operations
+## Autonomous Operations
 
 The World Director is designed to operate autonomously when **Resumed**, driving the game's narrative and world growth without constant manual intervention.
 

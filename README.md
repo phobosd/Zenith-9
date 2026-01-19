@@ -187,6 +187,9 @@ Zenith-9/
 │   │   ├── systems/      # Game systems
 │   │   ├── commands/     # Command modules
 │   │   ├── world/        # World generation & factories
+│   │   ├── worldDirector/# AI Director System
+│   │   │   ├── services/ # Specialized Director services
+│   │   │   └── Director.ts # Main Orchestrator
 │   │   ├── factories/    # Entity factories
 │   │   └── persistence/  # Redis integration
 │   └── package.json
