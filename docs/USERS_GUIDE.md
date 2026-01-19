@@ -380,6 +380,35 @@ Occasionally, a legendary entity known as a **Boss** will materialize.
 *   **Difficulty**: Bosses have significantly higher health, attack, and defense. Do not engage them alone unless you are heavily geared.
 *   **Rewards**: Defeating a Boss is the most reliable way to obtain **Legendary** items, as they are guaranteed to drop high-quality loot.
 
+### 🕊️ Peaceful Events
+Not all world events are hostile. The AI Director occasionally manifests peaceful opportunities for resourceful citizens.
+
+#### 🛒 Traveling Merchant
+A wandering merchant from distant sectors appears with rare and exotic goods.
+*   **Duration**: 20 minutes
+*   **Announcement**: `[NEURAL LINK] A traveling merchant has been spotted in the sector...`
+*   **Opportunity**: The merchant carries 3-5 **Rare** or **Epic** items not found in standard shops.
+*   **Location**: Random coordinates (check your map for their position).
+*   **How to Buy**: Use `read <merchant name>` to view their inventory, then click items to purchase (just like shop terminals).
+*   **Departure**: When the event expires, the merchant packs up and leaves: `[NEURAL LINK] The traveling merchant has packed up their wares and moved on to another sector.`
+
+#### 📨 Data Courier
+A nervous courier appears, seeking help with an urgent delivery.
+*   **Duration**: 20 minutes
+*   **Announcement**: `[NEURAL LINK] URGENT: A data courier is seeking assistance with a time-sensitive delivery...`
+*   **Opportunity**: Accept a delivery quest for credits and faction reputation.
+*   **Package**: The courier carries a mysterious sealed package that must be delivered to specific coordinates.
+*   **Expiration**: If not completed in time: `[NEURAL LINK] The courier's time window has expired. The delivery opportunity has been lost.`
+
+#### 🔍 Scavenger Hunt
+A mysterious figure appears, offering cryptic clues to a hidden treasure.
+*   **Duration**: 20 minutes
+*   **Announcement**: `[NEURAL LINK] ENCRYPTED TRANSMISSION DETECTED: "The first clue awaits those brave enough to seek the hidden treasure..."`
+*   **Opportunity**: Follow a chain of clues to discover a **Legendary** item.
+*   **Mechanics**: The mysterious NPC provides the first clue, which leads to coordinates where the next clue (or treasure) can be found.
+*   **Reward**: Successfully completing the hunt rewards a unique legendary item.
+*   **Expiration**: If time runs out: `[NEURAL LINK] The mysterious figure has vanished. The treasure hunt has ended.`
+
 ## God Commands (Admin/Developer)
 
 These commands are for testing and world management.

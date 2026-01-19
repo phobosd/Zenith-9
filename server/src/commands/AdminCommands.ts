@@ -17,7 +17,7 @@ export const registerAdminCommands = (registry: CommandRegistry) => {
     registry.register({
         name: 'god',
         aliases: ['admin'],
-        description: 'Admin commands (Usage: god <spawn|set-stat|set-skill|view|reset|weather|pacify|registry>)',
+        description: 'Admin commands (Usage: god <spawn|money|set-stat|set-skill|view|reset|weather|pacify|registry|find|despawn>)',
         execute: (ctx) => {
             const subCommand = ctx.args[0];
             if (!subCommand) {
@@ -29,7 +29,7 @@ export const registerAdminCommands = (registry: CommandRegistry) => {
             const player = ctx.engine.getEntity(ctx.socketId);
             if (!player) return;
 
-            
+
             const role = player.getComponent(Role);
             if (!role || (role.value !== 'admin' && role.value !== 'god')) {
                 ctx.messageService.error(ctx.socketId, "You do not have permission to use this command.");
@@ -355,6 +355,36 @@ export const registerAdminCommands = (registry: CommandRegistry) => {
                 } else {
                     ctx.messageService.info(ctx.socketId, msg);
                 }
+            } else if (subCommand === 'despawn') {
+                const targetName = ctx.args.slice(1).join(' ');
+                if (!targetName) {
+                    ctx.messageService.info(ctx.socketId, 'Usage: god despawn <target>');
+                    return;
+                }
+
+                const target = findTarget(ctx, targetName);
+                if (!target) {
+                    ctx.messageService.error(ctx.socketId, `Target not found: ${targetName}`);
+                    return;
+                }
+
+                const npc = target.getComponent(NPC);
+                const item = target.getComponent(Item);
+                const desc = target.getComponent(Description);
+
+                const entityName = npc?.typeName || item?.name || desc?.title || target.id;
+
+                // Don't allow despawning players
+                if (!npc && !item) {
+                    ctx.messageService.error(ctx.socketId, `Cannot despawn players. Target must be an NPC or item.`);
+                    return;
+                }
+
+                ctx.engine.removeEntity(target.id);
+                ctx.messageService.success(ctx.socketId, `Despawned: ${entityName}`);
+
+                // Refresh autocomplete for the player
+                ctx.systems.observation.refreshAutocomplete(ctx.socketId, ctx.engine);
             }
         }
     });

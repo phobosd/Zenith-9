@@ -22,6 +22,7 @@ import { IsRoom } from '../components/IsRoom';
 import { Position } from '../components/Position';
 import { Loot } from '../components/Loot';
 import { NPC } from '../components/NPC';
+import { Terminal } from '../components/Terminal';
 import { ImageDownloader } from '../utils/ImageDownloader';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -110,7 +111,6 @@ export class WorldDirector {
         this.questGen = new QuestGenerator();
         this.roomGen = new RoomGenerator();
 
-        // Start the automation loop (it will respect isPaused)
         // Start the automation loop (it will respect isPaused)
         this.startAutomationLoop();
 
@@ -272,6 +272,9 @@ export class WorldDirector {
         // Default Durations
         const MOB_INVASION_DURATION = 30 * 60 * 1000; // 30 mins
         const BOSS_EVENT_DURATION = 15 * 60 * 1000;   // 15 mins
+        const TRAVELING_MERCHANT_DURATION = 20 * 60 * 1000; // 20 mins
+        const DATA_COURIER_DURATION = 20 * 60 * 1000; // 20 mins
+        const SCAVENGER_HUNT_DURATION = 20 * 60 * 1000; // 20 mins
 
         if (config.features.requireHumanApproval && !force) {
             this.think(`Creating proposal for World Event: ${eventType} (Approval Required)`);
@@ -395,7 +398,226 @@ export class WorldDirector {
             } catch (err) {
                 Logger.error('Director', `Failed to spawn BOSS event: ${err}`);
             }
+        } else if (eventType === 'TRAVELING_MERCHANT') {
+            duration = durationOverride || TRAVELING_MERCHANT_DURATION;
+            this.log(DirectorLogLevel.INFO, `🛒 TRAVELING MERCHANT EVENT! Duration: ${(duration / 60000).toFixed(1)}m`);
+
+            this.io.emit('message', {
+                type: 'success',
+                content: `\n\n[NEURAL LINK] A traveling merchant has been spotted in the sector. They carry exotic wares from distant sprawls. Seek them out before they move on!\n`
+            });
+
+            try {
+                // Generate merchant NPC with LLM
+                const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm, {
+                    generatedBy: 'Event:TravelingMerchant',
+                    subtype: 'MERCHANT',
+                    context: 'A wandering merchant with rare and exotic cyberpunk goods. They should have a mysterious background and unique dialogue about their travels across different sectors.'
+                });
+
+                if (proposal && proposal.payload) {
+                    const payload = proposal.payload as NPCPayload;
+                    payload.tags = ['event_merchant', 'passive'];
+                    payload.behavior = 'passive';
+
+                    // Generate 3-5 rare items for the merchant
+                    const itemCount = 3 + Math.floor(Math.random() * 3);
+                    const merchantItems: string[] = [];
+
+                    for (let i = 0; i < itemCount; i++) {
+                        const itemProposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm, {
+                            generatedBy: 'Event:MerchantInventory',
+                            rarity: Math.random() < 0.3 ? 'epic' : 'rare'
+                        });
+
+                        if (itemProposal && itemProposal.payload) {
+                            itemProposal.status = ProposalStatus.APPROVED;
+                            await this.publisher.publish(itemProposal);
+                            ItemRegistry.getInstance().reloadGeneratedItems();
+                            merchantItems.push(itemProposal.payload.id);
+                        }
+                    }
+
+                    // Add items to merchant's inventory
+                    if (!payload.equipment) payload.equipment = [];
+                    payload.equipment.push(...merchantItems);
+
+                    // Auto-publish merchant
+                    proposal.status = ProposalStatus.APPROVED;
+                    await this.processProposalAssets(proposal);
+                    await this.publisher.publish(proposal);
+                    NPCRegistry.getInstance().reloadGeneratedNPCs();
+
+                    // Spawn in random location
+                    const x = 10 + Math.floor(Math.random() * 10) - 5;
+                    const y = 10 + Math.floor(Math.random() * 10) - 5;
+
+                    const merchantEntity = PrefabFactory.createNPC(proposal.payload.id);
+                    if (merchantEntity) {
+                        let pos = merchantEntity.getComponent(Position);
+                        if (!pos) {
+                            pos = new Position(x, y);
+                            merchantEntity.addComponent(pos);
+                        } else {
+                            pos.x = x;
+                            pos.y = y;
+                        }
+
+                        // Add Terminal component so players can "read" the merchant to see items
+                        const merchantName = (proposal.payload as NPCPayload).name || 'Traveling Merchant';
+                        merchantEntity.addComponent(new Terminal(merchantName, {
+                            title: `${merchantName} - Exotic Wares`,
+                            items: merchantItems
+                        }));
+
+                        this.engine.addEntity(merchantEntity);
+                        entityIds.push(merchantEntity.id);
+                        this.log(DirectorLogLevel.SUCCESS, `Spawned Traveling Merchant at ${x},${y} with ${merchantItems.length} rare items`);
+                    }
+                }
+            } catch (err) {
+                Logger.error('Director', `Failed to spawn TRAVELING_MERCHANT event: ${err}`);
+            }
+        } else if (eventType === 'DATA_COURIER') {
+            duration = durationOverride || DATA_COURIER_DURATION;
+            this.log(DirectorLogLevel.INFO, `📨 DATA COURIER EVENT! Duration: ${(duration / 60000).toFixed(1)}m`);
+
+            this.io.emit('message', {
+                type: 'info',
+                content: `\n\n[NEURAL LINK] URGENT: A data courier is seeking assistance with a time-sensitive delivery. Generous compensation offered.\n`
+            });
+
+            try {
+                // Generate courier NPC
+                const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm, {
+                    generatedBy: 'Event:DataCourier',
+                    subtype: 'COURIER',
+                    context: 'A nervous courier with an urgent package delivery. They need someone trustworthy to complete the delivery. Should have dialogue explaining the urgency and importance of the package.'
+                });
+
+                if (proposal && proposal.payload) {
+                    const payload = proposal.payload as NPCPayload;
+                    payload.tags = ['event_courier', 'passive'];
+                    payload.behavior = 'passive';
+
+                    // Generate the package item
+                    const packageProposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm, {
+                        generatedBy: 'Event:CourierPackage',
+                        context: 'A mysterious sealed package or data chip that needs urgent delivery. Should look valuable and important.'
+                    });
+
+                    if (packageProposal && packageProposal.payload) {
+                        packageProposal.status = ProposalStatus.APPROVED;
+                        await this.publisher.publish(packageProposal);
+                        ItemRegistry.getInstance().reloadGeneratedItems();
+
+                        // Add package to courier's hands
+                        if (!payload.equipment) payload.equipment = [];
+                        payload.equipment.push(packageProposal.payload.id);
+                    }
+
+                    // Auto-publish courier
+                    proposal.status = ProposalStatus.APPROVED;
+                    await this.processProposalAssets(proposal);
+                    await this.publisher.publish(proposal);
+                    NPCRegistry.getInstance().reloadGeneratedNPCs();
+
+                    // Spawn courier
+                    const x = 10 + Math.floor(Math.random() * 10) - 5;
+                    const y = 10 + Math.floor(Math.random() * 10) - 5;
+
+                    const courierEntity = PrefabFactory.createNPC(proposal.payload.id);
+                    if (courierEntity) {
+                        let pos = courierEntity.getComponent(Position);
+                        if (!pos) {
+                            pos = new Position(x, y);
+                            courierEntity.addComponent(pos);
+                        } else {
+                            pos.x = x;
+                            pos.y = y;
+                        }
+                        this.engine.addEntity(courierEntity);
+                        entityIds.push(courierEntity.id);
+                        this.log(DirectorLogLevel.SUCCESS, `Spawned Data Courier at ${x},${y}`);
+
+                        // TODO: Generate quest for delivery (requires quest system integration)
+                        this.log(DirectorLogLevel.WARN, 'Quest generation for courier not yet implemented');
+                    }
+                }
+            } catch (err) {
+                Logger.error('Director', `Failed to spawn DATA_COURIER event: ${err}`);
+            }
+        } else if (eventType === 'SCAVENGER_HUNT') {
+            duration = durationOverride || SCAVENGER_HUNT_DURATION;
+            this.log(DirectorLogLevel.INFO, `🔍 SCAVENGER HUNT EVENT! Duration: ${(duration / 60000).toFixed(1)}m`);
+
+            this.io.emit('message', {
+                type: 'warning',
+                content: `\n\n[NEURAL LINK] ENCRYPTED TRANSMISSION DETECTED: "The first clue awaits those brave enough to seek the hidden treasure..."\n`
+            });
+
+            try {
+                // Generate mysterious NPC who gives the first clue
+                const proposal = await this.npcGen.generate(this.guardrails.getConfig(), this.llm, {
+                    generatedBy: 'Event:ScavengerHunt',
+                    subtype: 'MYSTERIOUS',
+                    context: 'A mysterious hooded figure who speaks in riddles and offers the first clue to a treasure hunt. Should be enigmatic and cryptic.'
+                });
+
+                if (proposal && proposal.payload) {
+                    const payload = proposal.payload as NPCPayload;
+                    payload.tags = ['event_scavenger', 'passive'];
+                    payload.behavior = 'passive';
+
+                    // Generate the legendary treasure item
+                    const treasureProposal = await this.itemGen.generate(this.guardrails.getConfig(), this.llm, {
+                        generatedBy: 'Event:ScavengerTreasure',
+                        subtype: 'LEGENDARY',
+                        rarity: 'legendary'
+                    });
+
+                    if (treasureProposal && treasureProposal.payload) {
+                        treasureProposal.status = ProposalStatus.APPROVED;
+                        await this.publisher.publish(treasureProposal);
+                        ItemRegistry.getInstance().reloadGeneratedItems();
+                        CompendiumService.updateCompendium();
+
+                        this.log(DirectorLogLevel.INFO, `Generated legendary treasure: ${(treasureProposal.payload as ItemPayload).name}`);
+                    }
+
+                    // Auto-publish the mysterious NPC
+                    proposal.status = ProposalStatus.APPROVED;
+                    await this.processProposalAssets(proposal);
+                    await this.publisher.publish(proposal);
+                    NPCRegistry.getInstance().reloadGeneratedNPCs();
+
+                    // Spawn the NPC with first clue
+                    const startX = 10 + Math.floor(Math.random() * 10) - 5;
+                    const startY = 10 + Math.floor(Math.random() * 10) - 5;
+
+                    const npcEntity = PrefabFactory.createNPC(proposal.payload.id);
+                    if (npcEntity) {
+                        let pos = npcEntity.getComponent(Position);
+                        if (!pos) {
+                            pos = new Position(startX, startY);
+                            npcEntity.addComponent(pos);
+                        } else {
+                            pos.x = startX;
+                            pos.y = startY;
+                        }
+                        this.engine.addEntity(npcEntity);
+                        entityIds.push(npcEntity.id);
+                        this.log(DirectorLogLevel.SUCCESS, `Spawned Scavenger Hunt NPC at ${startX},${startY}`);
+
+                        // TODO: Generate clue chain (requires quest/clue system)
+                        this.log(DirectorLogLevel.WARN, 'Clue chain generation not yet implemented');
+                    }
+                }
+            } catch (err) {
+                Logger.error('Director', `Failed to spawn SCAVENGER_HUNT event: ${err}`);
+            }
         }
+
 
         // Register Active Event
         if (entityIds.length > 0) {
@@ -437,6 +659,21 @@ export class WorldDirector {
                     type: 'system',
                     content: `\n\n[SYSTEM] OMEGA THREAT SIGNAL LOST. ENTITY HAS DEPARTED THE SECTOR.\n`
                 });
+            } else if (event.type === 'TRAVELING_MERCHANT') {
+                this.io.emit('message', {
+                    type: 'info',
+                    content: `\n\n[NEURAL LINK] The traveling merchant has packed up their wares and moved on to another sector.\n`
+                });
+            } else if (event.type === 'DATA_COURIER') {
+                this.io.emit('message', {
+                    type: 'info',
+                    content: `\n\n[NEURAL LINK] The courier's time window has expired. The delivery opportunity has been lost.\n`
+                });
+            } else if (event.type === 'SCAVENGER_HUNT') {
+                this.io.emit('message', {
+                    type: 'warning',
+                    content: `\n\n[NEURAL LINK] The mysterious figure has vanished. The treasure hunt has ended.\n`
+                });
             }
         }
 
@@ -446,6 +683,81 @@ export class WorldDirector {
         }
     }
 
+    private cleanupOrphanedEventEntities() {
+        // Remove any event NPCs that persisted from previous server session
+        const eventTags = ['event_merchant', 'event_courier', 'event_scavenger'];
+        const allNPCs = this.engine.getEntitiesWithComponent(NPC);
+
+        let removedCount = 0;
+        for (const npcEntity of allNPCs) {
+            const npcComp = npcEntity.getComponent(NPC);
+            if (npcComp && npcComp.tag) {
+                const hasEventTag = eventTags.includes(npcComp.tag);
+                if (hasEventTag) {
+                    this.engine.removeEntity(npcEntity.id);
+                    removedCount++;
+                }
+            }
+        }
+
+        if (removedCount > 0) {
+            this.log(DirectorLogLevel.INFO, `Cleaned up ${removedCount} orphaned event entities from previous session.`);
+        }
+    }
+
+    public stopEvent(eventId: string) {
+        const event = this.activeEvents.find(e => e.id === eventId);
+        if (!event) {
+            this.log(DirectorLogLevel.WARN, `Cannot stop event ${eventId}: Event not found.`);
+            return false;
+        }
+
+        this.log(DirectorLogLevel.INFO, `Manually stopping event: ${event.type} (${eventId})`);
+
+        // Remove all entities associated with this event
+        let removedCount = 0;
+        for (const entityId of event.entityIds) {
+            if (this.engine.getEntity(entityId)) {
+                this.engine.removeEntity(entityId);
+                removedCount++;
+            }
+        }
+
+        this.log(DirectorLogLevel.SUCCESS, `Event stopped: Removed ${removedCount} entities.`);
+
+        // Send end message based on event type
+        if (event.type === 'MOB_INVASION') {
+            this.io.emit('message', {
+                type: 'system',
+                content: `\n\n[SYSTEM] INVASION CONTAINED. BIOLOGICAL SIGNATURES DISSIPATING.\n`
+            });
+        } else if (event.type === 'BOSS_SPAWN') {
+            this.io.emit('message', {
+                type: 'system',
+                content: `\n\n[SYSTEM] OMEGA THREAT SIGNAL LOST. ENTITY HAS DEPARTED THE SECTOR.\n`
+            });
+        } else if (event.type === 'TRAVELING_MERCHANT') {
+            this.io.emit('message', {
+                type: 'info',
+                content: `\n\n[NEURAL LINK] The traveling merchant has packed up their wares and moved on to another sector.\n`
+            });
+        } else if (event.type === 'DATA_COURIER') {
+            this.io.emit('message', {
+                type: 'info',
+                content: `\n\n[NEURAL LINK] The courier's time window has expired. The delivery opportunity has been lost.\n`
+            });
+        } else if (event.type === 'SCAVENGER_HUNT') {
+            this.io.emit('message', {
+                type: 'warning',
+                content: `\n\n[NEURAL LINK] The mysterious figure has vanished. The treasure hunt has ended.\n`
+            });
+        }
+
+        // Remove from active events
+        this.activeEvents = this.activeEvents.filter(e => e.id !== eventId);
+        return true;
+    }
+
     public getStatus() {
         return {
             paused: this.isPaused,
@@ -453,6 +765,7 @@ export class WorldDirector {
             glitchConfig: this.glitchConfig, // Expose config
             guardrails: this.guardrails.getSafeConfig(),
             proposals: this.proposals,
+            activeEvents: this.activeEvents, // Expose active events
             innerThoughts: this.innerThoughts
         };
     }
@@ -787,6 +1100,12 @@ export class WorldDirector {
                 this.adminNamespace.emit('director:proposals_update', this.proposals);
             });
 
+            socket.on('director:stop_event', (eventId: string) => {
+                if (this.stopEvent(eventId)) {
+                    this.adminNamespace.emit('director:status', this.getStatus());
+                }
+            });
+
             socket.on('director:manual_trigger', async (data: { type: string, payload?: any }) => {
                 this.log(DirectorLogLevel.INFO, `Manual trigger received: ${data.type}`);
 
@@ -832,6 +1151,15 @@ export class WorldDirector {
                     case 'EVENT':
                         await this.triggerWorldEvent(data.payload?.eventType || 'MOB_INVASION');
                         return; // Events handle themselves
+                    case 'TRAVELING_MERCHANT':
+                        await this.triggerWorldEvent('TRAVELING_MERCHANT', true);
+                        return;
+                    case 'DATA_COURIER':
+                        await this.triggerWorldEvent('DATA_COURIER', true);
+                        return;
+                    case 'SCAVENGER_HUNT':
+                        await this.triggerWorldEvent('SCAVENGER_HUNT', true);
+                        return;
                     default:
                         this.log(DirectorLogLevel.WARN, `Generator for ${data.type} not yet implemented.`);
                         return;

@@ -73,6 +73,13 @@ export interface DirectorStatus {
         itemCount: number;
         legendaryChance: number;
     };
+    activeEvents?: Array<{
+        id: string;
+        type: string;
+        startTime: number;
+        duration: number;
+        entityIds: string[];
+    }>;
     innerThoughts?: { timestamp: number, thought: string }[];
 }
 
@@ -136,6 +143,7 @@ export const AdminDashboard: React.FC = () => {
     const [itemSearch, setItemSearch] = useState('');
     const [npcSearch, setNpcSearch] = useState('');
     const [innerThoughts, setInnerThoughts] = useState<{ timestamp: number, thought: string }[]>([]);
+    const [activeEvents, setActiveEvents] = useState<Array<{ id: string; type: string; startTime: number; duration: number; entityIds: string[] }>>([]);
 
     useEffect(() => {
         const token = localStorage.getItem('zenith_token');
@@ -191,6 +199,10 @@ export const AdminDashboard: React.FC = () => {
             }
             if (status.glitchConfig) {
                 setGlitchConfig(status.glitchConfig);
+            }
+            if (status.activeEvents) {
+                console.log('Received activeEvents:', status.activeEvents);
+                setActiveEvents(status.activeEvents);
             }
             if (status.innerThoughts) {
                 setInnerThoughts(status.innerThoughts);
@@ -262,6 +274,12 @@ export const AdminDashboard: React.FC = () => {
         if (!socket) return;
         socket.emit('director:manual_trigger', { type });
         addLog('info', `Manual trigger sent: ${type}`);
+    };
+
+    const stopEvent = (eventId: string) => {
+        if (!socket) return;
+        socket.emit('director:stop_event', eventId);
+        addLog('warn', `Stopping event: ${eventId}`);
     };
 
     const createSnapshot = () => {
@@ -501,6 +519,8 @@ export const AdminDashboard: React.FC = () => {
                         editBudget={editBudget}
                         BUDGET_TOOLTIPS={BUDGET_TOOLTIPS}
                         innerThoughts={innerThoughts}
+                        activeEvents={activeEvents}
+                        stopEvent={stopEvent}
                     />
                 )}
 

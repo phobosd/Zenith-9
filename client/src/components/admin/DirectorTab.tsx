@@ -23,14 +23,17 @@ interface DirectorTabProps {
     editBudget: (key: string, current: number) => void;
     BUDGET_TOOLTIPS: Record<string, string>;
     innerThoughts: { timestamp: number, thought: string }[];
+    activeEvents: Array<{ id: string; type: string; startTime: number; duration: number; entityIds: string[] }>;
+    stopEvent: (eventId: string) => void;
 }
 
 export const DirectorTab: React.FC<DirectorTabProps> = ({
     paused, togglePause, chaos, aggression, expansion, updatePersonality,
     triggerManualGen, enableNPCs, enableItems, enableQuests, enableExpansions,
     restrictedToGlitchArea, updateGuardrail, requireApproval, autoSnapshot,
-    budgets, editBudget, BUDGET_TOOLTIPS, innerThoughts
+    budgets, editBudget, BUDGET_TOOLTIPS, innerThoughts, activeEvents, stopEvent
 }) => {
+    console.log('DirectorTab activeEvents:', activeEvents, 'length:', activeEvents.length);
     return (
         <div className="admin-grid">
             {/* Master Control */}
@@ -102,7 +105,74 @@ export const DirectorTab: React.FC<DirectorTabProps> = ({
                     <button className="action-btn" onClick={() => triggerManualGen('QUEST')}>Generate Quest</button>
                     <button className="action-btn" onClick={() => triggerManualGen('WORLD_EXPANSION')}>Generate Room</button>
                 </div>
+                <div style={{ marginTop: '1rem', borderTop: '1px solid #333', paddingTop: '1rem' }}>
+                    <h3 style={{ fontSize: '0.9rem', color: '#00ff88', marginBottom: '0.75rem' }}>🕊️ Peaceful Events</h3>
+                    <div className="action-btn-group">
+                        <button className="action-btn" style={{ background: 'linear-gradient(135deg, #1a4d2e 0%, #2d7a4f 100%)' }} onClick={() => triggerManualGen('TRAVELING_MERCHANT')}>🛒 Traveling Merchant</button>
+                        <button className="action-btn" style={{ background: 'linear-gradient(135deg, #1a3d5c 0%, #2d5f8f 100%)' }} onClick={() => triggerManualGen('DATA_COURIER')}>📨 Data Courier</button>
+                        <button className="action-btn" style={{ background: 'linear-gradient(135deg, #5c3d1a 0%, #8f5f2d 100%)' }} onClick={() => triggerManualGen('SCAVENGER_HUNT')}>🔍 Scavenger Hunt</button>
+                    </div>
+                </div>
             </div>
+
+            {/* Active Events */}
+            {activeEvents.length > 0 && (
+                <div className="admin-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                        <h2 style={{ margin: 0, color: '#ffcc00' }}>⚡ Active Events ({activeEvents.length})</h2>
+                        <button
+                            className="action-btn"
+                            style={{
+                                background: 'linear-gradient(135deg, #8b0000 0%, #ff4444 100%)',
+                                minWidth: '120px'
+                            }}
+                            onClick={() => activeEvents.forEach(event => stopEvent(event.id))}
+                        >
+                            ⏹️ Stop All
+                        </button>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                        {activeEvents.map(event => {
+                            const now = Date.now();
+                            const elapsed = now - event.startTime;
+                            const remaining = Math.max(0, event.duration - elapsed);
+                            const remainingMins = Math.floor(remaining / 60000);
+                            const remainingSecs = Math.floor((remaining % 60000) / 1000);
+
+                            return (
+                                <div key={event.id} style={{
+                                    display: 'flex',
+                                    justifyContent: 'space-between',
+                                    alignItems: 'center',
+                                    padding: '0.75rem',
+                                    background: '#1a1a1a',
+                                    border: '1px solid #444',
+                                    borderRadius: '4px'
+                                }}>
+                                    <div>
+                                        <div style={{ fontWeight: 'bold', color: '#00ffff' }}>
+                                            {event.type.replace(/_/g, ' ')}
+                                        </div>
+                                        <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '0.25rem' }}>
+                                            Time Remaining: {remainingMins}m {remainingSecs}s | Entities: {event.entityIds.length}
+                                        </div>
+                                    </div>
+                                    <button
+                                        className="action-btn"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #8b0000 0%, #ff4444 100%)',
+                                            minWidth: '100px'
+                                        }}
+                                        onClick={() => stopEvent(event.id)}
+                                    >
+                                        ⏹️ Stop
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
 
             {/* Autonomous Toggles */}
             <div className="admin-card">

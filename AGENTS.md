@@ -128,6 +128,42 @@ The world grows dynamically through the `RoomGenerator`:
     3. Instantiated as live entities in the `Engine`.
 - **Exits**: Currently, rooms are generated as standalone nodes. Exits are typically handled by the `MovementSystem` which allows travel between adjacent coordinates (N/S/E/W) even if explicit "exit" components aren't present, provided a room exists at the target coordinates.
 
+#### World Events System
+The World Director can trigger both hostile and peaceful events that affect all players globally.
+
+**Event Architecture**:
+- **Trigger**: `director:manual_trigger` with event type, or `triggerWorldEvent(eventType, force, durationOverride)`
+- **Duration**: Events are tracked in `activeEvents` array with automatic cleanup via `checkActiveEvents()`
+- **Announcements**: Global messages sent to all players via `io.emit('message', ...)` at start and end
+- **Entity Tracking**: Event entities are stored with the event ID for cleanup when the event expires
+
+**Hostile Events**:
+- **MOB_INVASION** (30 min): Spawns 10-20 aggressive mobs at random coordinates. Mobs have 20% chance for RARE loot.
+- **BOSS_SPAWN** (15 min): Generates a boss NPC with 5x health, 2x attack/defense, guaranteed legendary loot.
+
+**Peaceful Events** (20 min default):
+- **TRAVELING_MERCHANT**: 
+    - Spawns passive merchant NPC with 3-5 rare/epic items
+    - Items auto-generated and added to merchant's equipment
+    - Merchant spawns at random coordinates (10±5, 10±5)
+    - Context: "A wandering merchant with rare and exotic cyberpunk goods..."
+- **DATA_COURIER**:
+    - Spawns passive courier NPC with delivery quest
+    - Generates mysterious package item
+    - Context: "A nervous courier with an urgent package delivery..."
+    - TODO: Quest system integration for actual delivery mechanics
+- **SCAVENGER_HUNT**:
+    - Spawns mysterious NPC with cryptic dialogue
+    - Generates legendary treasure item
+    - Context: "A mysterious hooded figure who speaks in riddles..."
+    - TODO: Clue chain system for multi-step treasure hunt
+
+**Implementation Notes**:
+- All peaceful events use `force: true` to bypass approval requirements
+- Events auto-publish NPCs and items to registries
+- Event cleanup removes all tracked entities when duration expires
+- Each event type has unique start/end announcement messages
+
 ---
 
 ## 🛠 Golden Path Implementation Recipes
