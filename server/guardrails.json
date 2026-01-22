@@ -33,7 +33,9 @@
             "baseUrl": "http://192.168.68.98:1234/",
             "model": "gemma-3-starshine-12b",
             "roles": [
-                "CREATIVE"
+                "CREATIVE",
+                "LOGIC",
+                "DEFAULT"
             ],
             "apiKey": ""
         },
@@ -44,7 +46,6 @@
             "baseUrl": "http://192.168.68.98:1234/v1",
             "model": "deepseek-r1-distill-qwen-7b",
             "roles": [
-                "DEFAULT",
                 "LOGIC"
             ]
         },
@@ -55,7 +56,7 @@
             "baseUrl": "https://image.pollinations.ai",
             "model": "flux",
             "roles": [],
-            "apiKey": "enc:09e763477403783b5ae0f28c6c5a9e2f:70237a69f217c7f48c2ad9096f0c605b:3e43b121c298abb69d4029fd5d28ee71c38d750124623523d894616f40034f65fd338b"
+            "apiKey": "enc:ce75d0cfee68da5ca6ad7a06a1955019:ae74da89084bcc7b935aa66a2a0d7978:9053adac4d8e9f60d5b98cf513d9109260e0516f9aabe3c541ff51d3eee97101bb0fd3"
         },
         "profile_q8fysj": {
             "id": "profile_q8fysj",
@@ -64,7 +65,7 @@
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "gemini-2.5-flash",
             "roles": [],
-            "apiKey": "enc:71cb39b37e1e10b642e5dd356a599409:271951335d3f0c8242db5d5819f32e1e:ff618a8d3b6f9f9dbaf04d6428b7d3c3a8919ee9f2a286934b6929e9c28f814f01eb2740009787"
+            "apiKey": "enc:9f3f80c2c5009710af527f03862fd3a1:4f628c2d5646a40f5448751cd1f2fd2c:33980fca3a1113694d2e367600c43fba970378f05ecb06df7f61e3fed0b7cd7bcd86e0596b9220"
         },
         "profile_imagen": {
             "id": "profile_imagen",
@@ -73,7 +74,7 @@
             "baseUrl": "https://generativelanguage.googleapis.com/v1",
             "model": "imagen-4.0-generate-001",
             "roles": [],
-            "apiKey": "enc:602d4a820b977188dde4ec05eb088ba3:5a78250935597bcc055ec97003665400:6a0385861c909bc16028d302"
+            "apiKey": "enc:5bc20e1d0476544574966fc214f6ce2c:41349cc630d20b060ab8602cbaa1ecc2:68898a557111550807a1fa41"
         },
         "profile_vdcd": {
             "id": "profile_vdcd",

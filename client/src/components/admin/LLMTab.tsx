@@ -7,9 +7,17 @@ interface LLMTabProps {
     updateLlmProfile: (id: string, field: string, value: any) => void;
     toggleRole: (profileId: string, role: LLMRole) => void;
     removeLlmProfile: (id: string) => void;
+    finops?: {
+        totalRequests: number;
+        totalPromptTokens: number;
+        totalCompletionTokens: number;
+        requestsPerSecond: number;
+        uptimeSeconds: number;
+        projectedMonthlyCosts: Record<string, number>;
+    };
 }
 
-export const LLMTab: React.FC<LLMTabProps> = ({ llmProfiles, addLlmProfile, updateLlmProfile, toggleRole, removeLlmProfile }) => {
+export const LLMTab: React.FC<LLMTabProps> = ({ llmProfiles, addLlmProfile, updateLlmProfile, toggleRole, removeLlmProfile, finops }) => {
     const [showModelModal, setShowModelModal] = React.useState<string | null>(null);
     const [availableModels, setAvailableModels] = React.useState<string[]>([]);
     const [isLoadingModels, setIsLoadingModels] = React.useState(false);
@@ -34,7 +42,61 @@ export const LLMTab: React.FC<LLMTabProps> = ({ llmProfiles, addLlmProfile, upda
     };
 
     return (
-        <div className="admin-card" style={{ height: 'calc(100vh - 250px)', display: 'flex', flexDirection: 'column' }}>
+        <div className="admin-card" style={{ height: 'calc(100vh - 250px)', display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            {/* FinOps Tracker Section */}
+            <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(0, 255, 255, 0.05)', border: '1px solid rgba(0, 255, 255, 0.2)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h2 style={{ margin: 0, color: '#00ffff', textShadow: '0 0 10px rgba(0, 255, 255, 0.5)' }}>FinOps Tracker</h2>
+                    <div style={{ fontSize: '0.8rem', color: '#888' }}>
+                        Uptime: {Math.floor((finops?.uptimeSeconds || 0) / 3600)}h {Math.floor(((finops?.uptimeSeconds || 0) % 3600) / 60)}m
+                    </div>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div className="stat-box" style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '4px', borderLeft: '3px solid #00ffff' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Requests / Second</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{(finops?.requestsPerSecond || 0).toFixed(3)}</div>
+                    </div>
+                    <div className="stat-box" style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '4px', borderLeft: '3px solid #00ffff' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Total Requests</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>{finops?.totalRequests || 0}</div>
+                    </div>
+                    <div className="stat-box" style={{ background: 'rgba(0,0,0,0.3)', padding: '1rem', borderRadius: '4px', borderLeft: '3px solid #00ffff' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Total Tokens</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                            {((finops?.totalPromptTokens || 0) + (finops?.totalCompletionTokens || 0)).toLocaleString()}
+                        </div>
+                        <div style={{ fontSize: '0.6rem', color: '#666' }}>
+                            In: {(finops?.totalPromptTokens || 0).toLocaleString()} | Out: {(finops?.totalCompletionTokens || 0).toLocaleString()}
+                        </div>
+                    </div>
+                </div>
+
+                <h3 style={{ fontSize: '0.9rem', marginBottom: '0.5rem', color: '#aaa' }}>Projected Monthly Costs (Provider Comparison)</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '0.5rem' }}>
+                    {finops && Object.entries(finops.projectedMonthlyCosts).sort((a, b) => a[1] - b[1]).map(([name, cost]) => (
+                        <div key={name} style={{
+                            padding: '0.5rem',
+                            background: name.includes('5090') ? 'rgba(0, 255, 0, 0.1)' : 'rgba(255,255,255,0.05)',
+                            border: name.includes('5090') ? '1px solid rgba(0, 255, 0, 0.3)' : '1px solid transparent',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            flexDirection: 'column'
+                        }}>
+                            <div style={{ fontSize: '0.7rem', color: '#888' }}>{name}</div>
+                            <div style={{
+                                fontSize: '1rem',
+                                fontWeight: 'bold',
+                                color: cost === 0 ? '#44ff44' : (cost > 100 ? '#ff4444' : '#ffffff')
+                            }}>
+                                ${cost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                {!finops && <div style={{ textAlign: 'center', padding: '1rem', color: '#666' }}>Waiting for usage data...</div>}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <h2 style={{ margin: 0 }}>LLM Configuration</h2>
                 <button className="action-btn" onClick={addLlmProfile}>ADD PROFILE</button>

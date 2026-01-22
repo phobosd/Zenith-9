@@ -554,6 +554,28 @@ NPCs can be generated with full LLM personalities through the Admin Dashboard:
 4.  **Approval**: Review and approve the generated NPC in the Proposals tab
 5.  **Spawning**: Once approved, spawn the NPC from the NPCs tab
 
+### 7. Social System
+
+The `SocialSystem` enables dynamic interactions between NPCs and players, as well as between NPCs themselves.
+
+*   **Proactive Greetings**: NPCs can initiate conversations with players entering their room based on their personality and relationship.
+*   **NPC-to-NPC Banter**: NPCs in the same room can engage in brief conversations, adding life to the world.
+*   **Behavioral Influence**:
+    *   **Friendly/Neutral**: More likely to greet players and chat with other NPCs.
+    *   **Cautious/Elusive**: Less likely to initiate contact.
+    *   **Aggressive**: May taunt or threaten instead of greeting.
+
+### 8. Random Personality Generation
+
+To ensure a diverse population, the system includes a fallback mechanism for NPCs without pre-defined personalities (e.g., generic mobs or older data).
+
+*   **Trigger**: When an NPC is instantiated without a `Personality` component.
+*   **Generation**: The `PrefabFactory` assigns:
+    *   **Traits**: 2-3 random traits from a curated list (e.g., "Paranoid", "Optimistic", "Clumsy").
+    *   **Voice**: A random voice descriptor (e.g., "Deep and gravelly", "Whispery and soft").
+    *   **Agenda**: A random goal (e.g., "Survive another day", "Find the best noodles").
+*   **Result**: Even generic "Cyber Thugs" or "Street Vendors" will have unique personality quirks, preventing the "Neutral/Neutral/Neutral" clone problem.
+
 ---
 
 ### Recent Modifications (2026-01-17)

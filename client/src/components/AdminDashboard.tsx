@@ -74,6 +74,13 @@ export interface DirectorStatus {
         itemCount: number;
         legendaryChance: number;
     };
+    aiConfig?: {
+        ambientDialogueFrequency: number;
+        llmContextWindow: number;
+        relationshipDecayRate: number;
+        maxConversationTurns: number;
+        npcMovementInterval: number;
+    };
     activeEvents?: Array<{
         id: string;
         type: string;
@@ -82,6 +89,14 @@ export interface DirectorStatus {
         entityIds: string[];
     }>;
     innerThoughts?: { timestamp: number, thought: string }[];
+    finops?: {
+        totalRequests: number;
+        totalPromptTokens: number;
+        totalCompletionTokens: number;
+        requestsPerSecond: number;
+        uptimeSeconds: number;
+        projectedMonthlyCosts: Record<string, number>;
+    };
 }
 
 const BUDGET_TOOLTIPS: Record<string, string> = {
@@ -119,6 +134,15 @@ export const AdminDashboard: React.FC = () => {
         legendaryChance: 0.05
     });
 
+    // AI Config State
+    const [aiConfig, setAiConfig] = useState({
+        ambientDialogueFrequency: 30,
+        llmContextWindow: 10,
+        relationshipDecayRate: 5,
+        maxConversationTurns: 6,
+        npcMovementInterval: 30000
+    });
+
     // Guardrails State
     const [requireApproval, setRequireApproval] = useState(true);
     const [autoSnapshot, setAutoSnapshot] = useState(true);
@@ -147,6 +171,7 @@ export const AdminDashboard: React.FC = () => {
     const [activeEvents, setActiveEvents] = useState<Array<{ id: string; type: string; startTime: number; duration: number; entityIds: string[] }>>([]);
     const [npcStatus, setNpcStatus] = useState<any[]>([]);
     const [enableLLM, setEnableLLM] = useState(false);
+    const [finops, setFinops] = useState<DirectorStatus['finops']>(undefined);
 
     useEffect(() => {
         const token = localStorage.getItem('zenith_token');
@@ -204,12 +229,18 @@ export const AdminDashboard: React.FC = () => {
             if (status.glitchConfig) {
                 setGlitchConfig(status.glitchConfig);
             }
+            if (status.aiConfig) {
+                setAiConfig(status.aiConfig);
+            }
             if (status.activeEvents) {
                 console.log('Received activeEvents:', status.activeEvents);
                 setActiveEvents(status.activeEvents);
             }
             if (status.innerThoughts) {
                 setInnerThoughts(status.innerThoughts);
+            }
+            if (status.finops) {
+                setFinops(status.finops);
             }
         });
 
@@ -239,6 +270,22 @@ export const AdminDashboard: React.FC = () => {
 
         newSocket.on('director:npc_status_update', (list: any[]) => {
             setNpcStatus(list);
+        });
+
+        newSocket.on('director:personality_update', (personality: any) => {
+            if (personality) {
+                setChaos(personality.chaos);
+                setAggression(personality.aggression);
+                setExpansion(personality.expansion);
+            }
+        });
+
+        newSocket.on('director:glitch_config_update', (config: any) => {
+            setGlitchConfig(config);
+        });
+
+        newSocket.on('director:ai_config_update', (config: any) => {
+            setAiConfig(config);
         });
 
         setSocket(newSocket);
@@ -424,6 +471,14 @@ export const AdminDashboard: React.FC = () => {
         socket?.emit('director:update_glitch_config', config);
     };
 
+    const updateAIConfig = (config: any) => {
+        socket?.emit('director:update_ai_config', config);
+    };
+
+    const deleteNPCMemory = (npcId: string, index: number, type: 'short' | 'long') => {
+        socket?.emit('director:delete_npc_memory', { npcId, index, type });
+    };
+
     return (
         <div className="admin-container">
             {/* Confirmation Overlay */}
@@ -580,6 +635,7 @@ export const AdminDashboard: React.FC = () => {
                         deleteNPC={deleteNPC}
                         spawnRoamingNPC={spawnRoamingNPC}
                         generatePortrait={generatePortrait}
+                        deleteNPCMemory={deleteNPCMemory}
                     />
                 )}
 
@@ -611,11 +667,22 @@ export const AdminDashboard: React.FC = () => {
                         updateLlmProfile={updateLlmProfile}
                         toggleRole={toggleRole}
                         removeLlmProfile={removeLlmProfile}
+                        finops={finops}
                     />
                 )}
 
                 {activeTab === 'ai' && (
-                    <AITab innerThoughts={innerThoughts} npcStatus={npcStatus} />
+                    <AITab
+                        innerThoughts={innerThoughts}
+                        npcStatus={npcStatus}
+                        aiConfig={aiConfig}
+                        updateAIConfig={updateAIConfig}
+                        editingNPC={editingNPC}
+                        setEditingNPC={setEditingNPC}
+                        updateNPC={updateNPC}
+                        generatePortrait={generatePortrait}
+                        deleteNPCMemory={deleteNPCMemory}
+                    />
                 )}
 
                 {activeTab === 'logs' && (

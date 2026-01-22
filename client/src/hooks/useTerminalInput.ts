@@ -125,13 +125,23 @@ export const useTerminalInput = (
         };
 
         if (parts.length === 1) {
-            matches = COMMANDS.filter(cmd => cmd.startsWith(parts[0]));
+            if (parts[0].startsWith("'")) {
+                const search = parts[0].substring(1);
+                matches = autocompleteData.roomObjects.filter(s => matchCandidate(s, search));
+                baseString = "'";
+            } else {
+                matches = COMMANDS.filter(cmd => cmd.startsWith(parts[0]));
+            }
         } else {
             const cmd = parts[0];
             const lastArg = parts[parts.length - 1];
             baseString = rawParts.slice(0, rawParts.length - 1).join(' ') + ' ';
 
-            if (cmd === 'god') {
+            if (cmd === 'say' || cmd.startsWith("'")) {
+                const search = parts.slice(1).join(' ');
+                matches = autocompleteData.roomObjects.filter(s => matchCandidate(s, search));
+                baseString = rawParts[0] + ' ';
+            } else if (cmd === 'god') {
                 if (parts.length === 2) {
                     matches = ['spawn', 'reset', 'set-stat', 'set-skill', 'view', 'weather', 'pacify', 'registry', 'money'].filter(s => s.startsWith(lastArg));
                 } else if (parts.length >= 3) {

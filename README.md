@@ -2,6 +2,14 @@
 
 A cyberpunk-themed MUD (Multi-User Dungeon) with an innovative **Neural Pulse** timing-based combat system.
 
+## 📚 Documentation
+
+- **[User's Guide](./docs/USERS_GUIDE.md)**: Comprehensive guide on commands, combat, and game mechanics.
+- **[Admin Guide](./docs/ADMIN_GUIDE.md)**: Detailed guide on using the Admin Dashboard and world management.
+- **[Agent Guide](./AGENTS.md)**: Technical documentation for developers and AI agents (Architecture, Mental Model, Recipes).
+- **[World Compendium](./docs/COMPENDIUM.md)**: Lore and data reference for the Zenith-9 universe.
+- **[Areas Reference](./docs/AREAS.md)**: Documentation of the different zones and procedural generation.
+
 ## 🎮 Features
 
 ### 🖥️ Modern Cyberpunk Interface
@@ -43,18 +51,6 @@ Located in the heart of the Central Plaza (10,10), the **Glitch Door** offers a 
 - **Roguelike Runs**: Enter a temporary instance filled with "Glitch" enemies and distorted environments.
 - **High Risk, High Reward**: Survive the instability to find unique `[GLITCH]` prefixed items with legendary stats.
 - **AI-Generated Content**: The World Director generates unique mobs and loot for each run, ensuring no two delves are the same.
-
----
-
-## 📖 Technical Documentation
-
-For developers and AI agents, please refer to [AGENTS.md](./AGENTS.md). It contains:
-- **Full System Architecture Diagram** (Mermaid)
-- **Mental Model** of the engine and game loop
-- **Golden Path Recipes** for adding items, NPCs, commands, and puzzles
-- **Guardrails** for maintaining system stability
-
----
 
 ## 🚀 Quick Start
 
@@ -99,10 +95,6 @@ npm run dev
 ```
 
 Navigate to `http://localhost:5173` in your browser.
-
-## 🎮 How to Play
-
-For a comprehensive guide on commands, combat, and game mechanics, please refer to the [User's Guide](./docs/USERS_GUIDE.md).
 
 ## 🏗️ Architecture
 
@@ -167,8 +159,6 @@ Zenith-9 includes a comprehensive Admin Dashboard for real-time world management
 - **User Management**: Manage user accounts, roles, and permissions.
 - **Security**: Role-Based Access Control (RBAC) and JWT authentication for admin actions.
 - **Snapshots**: Backup and restore the entire world state.
-
-For a detailed guide on using the dashboard, see the [Admin Guide](./docs/ADMIN_GUIDE.md).
 
 ### Project Structure
 ```

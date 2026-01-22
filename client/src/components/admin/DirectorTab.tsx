@@ -100,6 +100,7 @@ export const DirectorTab: React.FC<DirectorTabProps> = ({
                 </div>
                 <div className="action-btn-group">
                     <button className="action-btn" onClick={() => triggerManualGen('NPC')}>Generate NPC</button>
+                    <button className="action-btn" onClick={() => triggerManualGen('FRIENDLY')}>Generate Friendly NPC</button>
                     <button className="action-btn" onClick={() => triggerManualGen('MOB')}>Generate Mob</button>
                     <button className="action-btn" onClick={() => triggerManualGen('BOSS')}>Create BOSS</button>
                     <button className="action-btn" onClick={() => triggerManualGen('EVENT')}>World Event</button>

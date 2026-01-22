@@ -37,7 +37,7 @@ export const ItemsTab: React.FC<ItemsTabProps> = ({
                     />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                    {['item', 'ammo', 'armor', 'container', 'cyberware', 'consumable'].map(type => (
+                    {['item', 'ammo', 'armor', 'container', 'cyberware', 'consumable', 'generated'].map(type => (
                         <button
                             key={type}
                             onClick={() => setItemFilter(itemFilter === type ? null : type)}
@@ -74,7 +74,9 @@ export const ItemsTab: React.FC<ItemsTabProps> = ({
                         {items
                             .filter(item => {
                                 const matchesSearch = item.name.toLowerCase().includes(itemSearch.toLowerCase()) || item.id.toLowerCase().includes(itemSearch.toLowerCase());
-                                const matchesFilter = itemFilter ? item.type === itemFilter : true;
+                                const matchesFilter = itemFilter === 'generated'
+                                    ? !!item.generatedBy
+                                    : itemFilter ? item.type === itemFilter : true;
                                 return matchesSearch && matchesFilter;
                             })
                             .map(item => (
