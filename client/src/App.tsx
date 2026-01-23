@@ -10,6 +10,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Terminal />} />
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/:tab" element={<AdminDashboard />} />
       </Routes>
     </Router>
   );

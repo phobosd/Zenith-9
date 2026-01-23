@@ -37,6 +37,11 @@ import { Loot } from '../components/Loot';
 import { Personality } from '../components/Personality';
 import { Memory } from '../components/Memory';
 import { Relationship } from '../components/Relationship';
+import { AutomatedAction } from '../components/AutomatedAction';
+import { Conversation } from '../components/Conversation';
+import { Needs } from '../components/Needs';
+import { Schedule } from '../components/Schedule';
+import { WoundTable } from '../components/WoundTable';
 
 export class ComponentRegistry {
     private static instance: ComponentRegistry;
@@ -101,5 +106,10 @@ export class ComponentRegistry {
         this.componentMap.set('Personality', Personality);
         this.componentMap.set('Memory', Memory);
         this.componentMap.set('Relationship', Relationship);
+        this.componentMap.set('AutomatedAction', AutomatedAction);
+        this.componentMap.set('Conversation', Conversation);
+        this.componentMap.set('Needs', Needs);
+        this.componentMap.set('Schedule', Schedule);
+        this.componentMap.set('WoundTable', WoundTable);
     }
 }

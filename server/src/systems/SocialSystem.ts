@@ -395,6 +395,18 @@ export class SocialSystem extends System {
                     for (const mem of result.memories) {
                         if (typeof mem === 'string' && mem.length > 5) {
                             memory.addLongTerm(mem, [partnerPersistentId]);
+
+                            // Add structured rumor data to make it show up in the Rumor Mill
+                            const lastEntry = memory.longTerm[memory.longTerm.length - 1];
+                            lastEntry.rumor = {
+                                subject: partnerPersistentId,
+                                action: "discussed",
+                                target: npcComp.typeName,
+                                location: "Neural Link",
+                                time: "Recent",
+                                reliability: 0.8
+                            };
+
                             Logger.info('SocialSystem', `[${npcComp.typeName}] Formed Memory: "${mem}"`);
                         }
                     }

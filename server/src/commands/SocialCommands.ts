@@ -32,13 +32,15 @@ export function registerSocialCommands(registry: CommandRegistry) {
 
             // Broadcast to room
             const roomName = `room:${pos.x}:${pos.y}`;
-            ctx.io.to(roomName).emit('message', {
+
+            // 1. Send to the speaker
+            ctx.io.to(ctx.socketId).emit('message', {
                 type: 'chat',
                 sender: 'You',
                 content: `You say, "${message}"`
             });
 
-            // Send to others in room (excluding sender)
+            // 2. Send to others in room (excluding sender)
             ctx.io.to(roomName).except(ctx.socketId).emit('message', {
                 type: 'chat',
                 sender: charName,

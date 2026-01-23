@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { io, Socket } from 'socket.io-client';
 import { DirectorTab } from './admin/DirectorTab';
 import { ApprovalsTab } from './admin/ApprovalsTab';
@@ -117,7 +118,20 @@ type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world
 
 export const AdminDashboard: React.FC = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
-    const [activeTab, setActiveTab] = useState<AdminTab>('director');
+    const { tab } = useParams<{ tab: string }>();
+    const navigate = useNavigate();
+    const activeTab = (tab as AdminTab) || 'director';
+
+    const setActiveTab = (newTab: AdminTab) => {
+        navigate(`/admin/${newTab}`);
+    };
+
+    useEffect(() => {
+        if (!tab) {
+            navigate('/admin/director', { replace: true });
+        }
+    }, [tab, navigate]);
+
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [proposals, setProposals] = useState<Proposal[]>([]);
     const [paused, setPaused] = useState(true);
@@ -175,7 +189,8 @@ export const AdminDashboard: React.FC = () => {
 
     useEffect(() => {
         const token = localStorage.getItem('zenith_token');
-        const newSocket = io('http://localhost:3000/admin', {
+        const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+        const newSocket = io(`${serverUrl}/admin`, {
             transports: ['websocket'],
             auth: { token }
         });

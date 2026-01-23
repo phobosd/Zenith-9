@@ -8,6 +8,7 @@ export interface ActiveQuest extends QuestDefinition {
 }
 
 export class PlayerQuests extends Component {
+    static type = 'PlayerQuests';
     public active: ActiveQuest[] = [];
     public completedIds: string[] = [];
 

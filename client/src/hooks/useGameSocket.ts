@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import type { TerminalLine } from '../components/TerminalLineItem';
 
-const SOCKET_URL = 'http://localhost:3000';
+const SOCKET_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
 
 export const useGameSocket = () => {
     const [socket, setSocket] = useState<Socket | null>(null);

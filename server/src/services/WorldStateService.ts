@@ -36,7 +36,7 @@ export class WorldStateService {
                     const component = new componentClass();
                     component.fromJSON(data.components[type]);
                     entity.addComponent(component);
-                } else {
+                } else if (type !== 'undefined') {
                     Logger.warn('WorldStateService', `Unknown component type: ${type} for entity ${data.id}`);
                 }
             }

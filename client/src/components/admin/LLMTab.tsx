@@ -27,7 +27,8 @@ export const LLMTab: React.FC<LLMTabProps> = ({ llmProfiles, addLlmProfile, upda
         setShowModelModal(profileId);
         setAvailableModels([]);
         try {
-            const res = await fetch(`http://localhost:3000/api/llm/models/${profileId}`);
+            const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+            const res = await fetch(`${serverUrl}/api/llm/models/${profileId}`);
             const data = await res.json();
             if (data.models && Array.isArray(data.models)) {
                 setAvailableModels(data.models);
@@ -194,7 +195,8 @@ export const LLMTab: React.FC<LLMTabProps> = ({ llmProfiles, addLlmProfile, upda
                                             className="action-btn small"
                                             onClick={async () => {
                                                 try {
-                                                    const res = await fetch(`http://localhost:3000/api/llm/balance/${profile.id}`);
+                                                    const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+                                                    const res = await fetch(`${serverUrl}/api/llm/balance/${profile.id}`);
                                                     const data = await res.json();
                                                     alert(JSON.stringify(data, null, 2));
                                                 } catch (e) {

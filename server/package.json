@@ -6,6 +6,7 @@
   "scripts": {
     "test": "jest",
     "build": "tsc",
+    "start": "node dist/index.js",
     "dev": "nodemon",
     "db:seed": "ts-node src/db/seed.ts",
     "snapshot:create": "ts-node src/scripts/snapshot.ts create",

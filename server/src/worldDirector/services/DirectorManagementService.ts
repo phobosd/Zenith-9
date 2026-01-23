@@ -22,6 +22,7 @@ import { Memory } from '../../components/Memory';
 import { Relationship } from '../../components/Relationship';
 import { Item } from '../../components/Item';
 import { Entity } from '../../ecs/Entity';
+import { Visuals } from '../../components/Visuals';
 
 export class DirectorManagementService {
     private director: WorldDirector;
@@ -586,6 +587,7 @@ export class DirectorManagementService {
             const personality = e.getComponent(Personality);
             const memory = e.getComponent(Memory);
             const relationship = e.getComponent(Relationship);
+            const visuals = e.getComponent(Visuals);
 
             const relationships = relationship ? Array.from(relationship.relationships.entries()).map(([targetKey, data]) => {
                 // Resolve name from targetKey (which could be a UUID, a Player Name, or an NPC TypeName)
@@ -678,7 +680,8 @@ export class DirectorManagementService {
                     shortTerm: memory.shortTerm,
                     longTerm: memory.longTerm
                 } : null,
-                relationships
+                relationships,
+                portrait: visuals?.portrait || ""
             };
         });
     }

@@ -53,23 +53,26 @@ const WEATHER_STATES: WeatherState[] = [
 
 export class AtmosphereSystem extends System {
     private timer: number = 0;
-    private readonly CHANGE_INTERVAL = 60000; // Change every 1 minute (60,000 ms)
+    private readonly MIN_INTERVAL = 30 * 60 * 1000; // 30 minutes
+    private readonly MAX_INTERVAL = 45 * 60 * 1000; // 45 minutes
+    private currentInterval: number;
     private currentStateIndex: number = 0;
 
     constructor(private messageService: MessageService) {
         super();
+        this.currentInterval = this.getRandomInterval();
+    }
+
+    private getRandomInterval(): number {
+        return Math.floor(Math.random() * (this.MAX_INTERVAL - this.MIN_INTERVAL + 1)) + this.MIN_INTERVAL;
     }
 
     update(engine: IEngine, deltaTime: number): void {
         this.timer += deltaTime;
 
-        // Log every 10 seconds to verify it's ticking
-        if (Math.floor(this.timer / 100) % 100 === 0) {
-            // Logger.info('Atmosphere', `Timer: ${this.timer}/${this.CHANGE_INTERVAL}`);
-        }
-
-        if (this.timer >= this.CHANGE_INTERVAL) {
+        if (this.timer >= this.currentInterval) {
             this.timer = 0;
+            this.currentInterval = this.getRandomInterval();
             this.triggerWeatherChange(engine);
         }
     }

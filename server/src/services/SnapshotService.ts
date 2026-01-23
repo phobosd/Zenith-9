@@ -13,8 +13,11 @@ export class SnapshotService {
     private dataDir: string;
 
     constructor() {
+        const redisUrl = process.env.REDIS_URL ||
+            (process.env.REDIS_HOST ? `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT || 6379}` : 'redis://localhost:6379');
+
         this.redisClient = createClient({
-            url: process.env.REDIS_URL || 'redis://localhost:6379'
+            url: redisUrl
         });
 
         this.redisClient.on('error', (err: any) => console.error('Redis Client Error', err));
