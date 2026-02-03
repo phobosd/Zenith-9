@@ -1,4 +1,5 @@
 # Zenith-9
+![Zenith-9 Logo](./docs/images/zenith_9_logo.png)
 
 A cyberpunk-themed MUD (Multi-User Dungeon) with an innovative **Neural Pulse** timing-based combat system.
 
