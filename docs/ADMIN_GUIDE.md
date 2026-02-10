@@ -18,6 +18,7 @@ The Admin Dashboard is the control center for the Zenith-9 game world. It allows
 13. [Autonomous Operations](#13-autonomous-operations)
 14. [AI Systems & Social Management](#14-ai-systems--social-management)
 15. [LLM-Enabled NPCs](#15-llm-enabled-npcs)
+16. [Server Management (CLI)](#16-server-management-cli)
 
 ### 1. Director Control
 The main "Director" tab provides high-level control over the AI's autonomy.
@@ -165,8 +166,11 @@ The **AI SYSTEMS** tab provides deep visibility into the individual "Agents" inh
     *   **Relationships**: Trust levels with active players.
 *   **Rumor Mill Management**: Monitor the total number of rumors circulating in the world and flush the cache if information becomes stale or corrupted.
 *   **AI Configuration**:
-    *   **Ambient Dialogue Frequency**: Adjust how often NPCs speak without being prompted.
-    *   **Relationship Decay**: Configure how quickly trust levels return to neutral over time.
+    *   **Ambient Dialogue Frequency**: Adjust how often NPCs speak without being prompted (Risk vs. Noise).
+    *   **Relationship Decay**: Configure how quickly trust levels return to neutral over time (% per day).
+    *   **LLM Context Window**: Number of recent messages preserved in short-term memory for LLM prompts.
+    *   **Max Conversation Turns**: Limit on persistent conversation depth before summarization or pruning.
+    *   **NPC Movement Interval**: Time (in ms) between autonomous NPC relocation attempts.
 
 ### 15. LLM-Enabled NPCs
 Zenith-9 features a sophisticated NPC interaction system powered by Large Language Models (LLMs). Unlike traditional NPCs with static dialogue trees, these NPCs have persistent personalities, memories, and evolving relationships with players.
@@ -183,3 +187,32 @@ The **AI SYSTEMS** tab allows administrators to oversee and tune the NPC populat
 *   **Dialogue Tuning**: Adjust the `Ambient Dialogue Frequency` to control how often NPCs "bark" or speak autonomously in the background.
 *   **Relationship Management**: Reset or manually adjust trust levels if needed for testing or event orchestration.
 *   **Memory Flush**: If an NPC's memory becomes corrupted or irrelevant, admins can flush their memory cache to reset their context.
+
+### 16. Server Management (CLI)
+For administrators with terminal access to the host server, the `manage.sh` script provides a unified interface for controlling the game services.
+
+#### Location
+The script is located in the root directory: `./manage.sh`.
+*(Windows users can use the equivalent `manage.bat`)*
+
+#### Usage
+```bash
+./manage.sh [command]
+```
+
+#### Commands
+*   `start`: Starts all required services (Redis, Cloudflare Tunnel, Server, Client).
+    *   *Note: Requires Docker Compose for Redis.*
+*   `stop`: Gracefully terminates all running services managed by the script.
+*   `restart`: Stops and then immediately starts all services. Useful for applying configuration changes.
+*   `status`: Checks and displays the running status (PID) of:
+    *   Redis Container
+    *   Game Server
+    *   Game Client
+    *   Cloudflare Tunnel
+
+#### Log Files
+Logs are now stored in the `logs/` directory. The script retains the previous run's log as `.old.log` (e.g., `logs/server.old.log`).
+*   `logs/server.log`: Game Server output
+*   `logs/client.log`: Game Client build/dev server output
+*   `logs/cloudflared.log`: Tunnel output

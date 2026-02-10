@@ -2,14 +2,14 @@
     "budgets": {
         "maxWeaponDamage": 50,
         "maxArmorDefense": 20,
-        "maxGoldDrop": 50,
-        "maxItemValue": 1000,
-        "maxNPCHealth": 250,
-        "maxNPCAttack": 75,
-        "maxNPCDefense": 20,
+        "maxGoldDrop": 500,
+        "maxItemValue": 10000,
+        "maxNPCHealth": 1000,
+        "maxNPCAttack": 100,
+        "maxNPCDefense": 50,
         "maxQuestXPReward": 5000,
         "expansionProbability": 0.05,
-        "aggressionProbability": 1,
+        "aggressionProbability": 0.01,
         "chaosProbability": 0.1
     },
     "throttles": {
@@ -26,86 +26,18 @@
         "restrictedToGlitchArea": false
     },
     "llmProfiles": {
-        "default": {
-            "id": "default",
-            "name": "Remote - Creative",
+        "profile_rypv2a": {
+            "id": "profile_rypv2a",
+            "name": "New Profile",
             "provider": "local",
-            "baseUrl": "http://192.168.68.98:1234/",
+            "baseUrl": "http://192.168.68.98:1234/v1",
             "model": "gemma-3-starshine-12b",
             "roles": [
                 "CREATIVE",
                 "LOGIC",
                 "DEFAULT"
-            ],
-            "apiKey": ""
-        },
-        "profile_fmxkmf9": {
-            "id": "profile_fmxkmf9",
-            "name": "Remote - Logic",
-            "provider": "local",
-            "baseUrl": "http://192.168.68.98:1234/v1",
-            "model": "deepseek-r1-distill-qwen-7b",
-            "roles": [
-                "LOGIC"
             ]
-        },
-        "profile_x1habh": {
-            "id": "profile_x1habh",
-            "name": "Pollinations (Image)",
-            "provider": "pollinations",
-            "baseUrl": "https://image.pollinations.ai",
-            "model": "flux",
-            "roles": [],
-            "apiKey": "enc:ce75d0cfee68da5ca6ad7a06a1955019:ae74da89084bcc7b935aa66a2a0d7978:9053adac4d8e9f60d5b98cf513d9109260e0516f9aabe3c541ff51d3eee97101bb0fd3"
-        },
-        "profile_q8fysj": {
-            "id": "profile_q8fysj",
-            "name": "Gemini (Text)",
-            "provider": "gemini",
-            "baseUrl": "https://generativelanguage.googleapis.com/v1",
-            "model": "gemini-2.5-flash",
-            "roles": [],
-            "apiKey": "enc:9f3f80c2c5009710af527f03862fd3a1:4f628c2d5646a40f5448751cd1f2fd2c:33980fca3a1113694d2e367600c43fba970378f05ecb06df7f61e3fed0b7cd7bcd86e0596b9220"
-        },
-        "profile_imagen": {
-            "id": "profile_imagen",
-            "name": "Gemini Image (Spare)",
-            "provider": "gemini",
-            "baseUrl": "https://generativelanguage.googleapis.com/v1",
-            "model": "imagen-4.0-generate-001",
-            "roles": [],
-            "apiKey": "enc:5bc20e1d0476544574966fc214f6ce2c:41349cc630d20b060ab8602cbaa1ecc2:68898a557111550807a1fa41"
-        },
-        "profile_vdcd": {
-            "id": "profile_vdcd",
-            "name": "Stable Diffusion",
-            "provider": "stable-diffusion",
-            "baseUrl": "http://192.168.68.98:7860",
-            "model": "sd\\dreamshaperXL_lightningDPMSDE.safetensors [fdbe56354b]",
-            "roles": [
-                "IMAGE"
-            ]
-        },
-        "profile_plpbcl": {
-            "id": "profile_plpbcl",
-            "name": "localhost - logic",
-            "provider": "local",
-            "baseUrl": "http://localhost:1234/v1",
-            "model": "qwen/qwen3-coder-30b",
-            "roles": []
-        },
-        "profile_2lbznn": {
-            "id": "profile_2lbznn",
-            "name": "localhost - creative",
-            "provider": "local",
-            "baseUrl": "http://localhost:1234/v1",
-            "model": "gemma-3-starshine-12b",
-            "roles": []
         }
     },
-    "bannedWords": [
-        "placeholder",
-        "test",
-        "debug"
-    ]
+    "bannedWords": []
 }

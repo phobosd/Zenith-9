@@ -19,6 +19,46 @@ interface AITabProps {
     deleteNPCMemory: (npcId: string, index: number, type: 'short' | 'long') => void;
 }
 
+interface CollapsibleCardProps {
+    title: string;
+    subtitle?: string;
+    color: string;
+    children: React.ReactNode;
+    defaultOpen?: boolean;
+    headerControls?: React.ReactNode;
+    style?: React.CSSProperties;
+    className?: string; // Add className prop if needed, or just rely on 'admin-card' being internal
+}
+
+const CollapsibleCard: React.FC<CollapsibleCardProps> = ({
+    title, subtitle, color, children, defaultOpen = true, headerControls, style
+}) => {
+    const [isOpen, setIsOpen] = React.useState(defaultOpen);
+
+    return (
+        <div className="admin-card" style={style}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                    onClick={() => setIsOpen(!isOpen)}
+                    style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', flex: headerControls ? '0 1 auto' : '1' }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#666' }}>{isOpen ? '▼' : '►'}</span>
+                        <h3 className={`text-${color}`} style={{ margin: 0 }}>{title}</h3>
+                    </div>
+                    {subtitle && <span className="text-gray text-xs" style={{ marginLeft: '1.5rem' }}>{subtitle}</span>}
+                </div>
+                {headerControls && (
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                        {headerControls}
+                    </div>
+                )}
+            </div>
+            {isOpen && children}
+        </div>
+    );
+};
+
 export const AITab: React.FC<AITabProps> = ({
     innerThoughts, npcStatus, aiConfig, updateAIConfig,
     editingNPC, setEditingNPC, updateNPC, generatePortrait, deleteNPCMemory
@@ -30,11 +70,13 @@ export const AITab: React.FC<AITabProps> = ({
         <div className="tab-content">
             <div className="admin-grid">
                 {/* Director Thoughts */}
-                <div className="admin-card" style={{ gridColumn: 'span 2' }}>
-                    <div className="card-header">
-                        <h3 className="text-neon-blue">DIRECTOR INNER THOUGHTS</h3>
-                        <span className="text-gray text-xs">Real-time reasoning stream</span>
-                    </div>
+                <CollapsibleCard
+                    title="DIRECTOR INNER THOUGHTS"
+                    subtitle="Real-time reasoning stream"
+                    color="neon-blue"
+                    style={{ gridColumn: 'span 2' }}
+                    defaultOpen={true}
+                >
                     <div className="thought-stream" style={{
                         height: '400px',
                         overflowY: 'auto',
@@ -54,16 +96,17 @@ export const AITab: React.FC<AITabProps> = ({
                             </div>
                         ))}
                     </div>
-                </div>
+                </CollapsibleCard>
 
                 {/* NPC Agent Status */}
-                <div className="admin-card" style={{ gridColumn: 'span 2' }}>
-                    <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                            <h3 className="text-neon-green">ACTIVE NPC AGENTS</h3>
-                            <span className="text-gray text-xs">Live personality and memory status</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <CollapsibleCard
+                    title="ACTIVE NPC AGENTS"
+                    subtitle="Live personality and memory status"
+                    color="neon-green"
+                    style={{ gridColumn: 'span 2' }}
+                    defaultOpen={true}
+                    headerControls={
+                        <>
                             <input
                                 type="text"
                                 placeholder="Search..."
@@ -97,8 +140,9 @@ export const AITab: React.FC<AITabProps> = ({
                                     {type}
                                 </button>
                             ))}
-                        </div>
-                    </div>
+                        </>
+                    }
+                >
                     <div style={{ maxHeight: '500px', overflowY: 'auto' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
                             <thead style={{ position: 'sticky', top: 0, background: '#111', zIndex: 1 }}>
@@ -160,13 +204,14 @@ export const AITab: React.FC<AITabProps> = ({
                             </tbody>
                         </table>
                     </div>
-                </div>
+                </CollapsibleCard>
 
                 {/* AI Settings */}
-                <div className="admin-card">
-                    <div className="card-header">
-                        <h3 className="text-neon-purple">AI CONFIGURATION</h3>
-                    </div>
+                <CollapsibleCard
+                    title="AI CONFIGURATION"
+                    color="neon-purple"
+                    defaultOpen={true}
+                >
                     <div className="card-body">
                         <div className="setting-row" title="Controls how often NPCs initiate conversations with players or other NPCs.">
                             <label>Ambient Dialogue Frequency</label>
@@ -223,13 +268,14 @@ export const AITab: React.FC<AITabProps> = ({
                             <span className="text-xs text-gray">{aiConfig.npcMovementInterval || 30000} ms</span>
                         </div>
                     </div>
-                </div>
+                </CollapsibleCard>
 
                 {/* Rumor Mill Stats */}
-                <div className="admin-card">
-                    <div className="card-header">
-                        <h3 className="text-neon-green">RUMOR MILL</h3>
-                    </div>
+                <CollapsibleCard
+                    title="RUMOR MILL"
+                    color="neon-green"
+                    defaultOpen={true}
+                >
                     <div className="card-body">
                         <div className="stat-row">
                             <span>Active Rumors:</span>
@@ -243,7 +289,7 @@ export const AITab: React.FC<AITabProps> = ({
                             FLUSH RUMOR CACHE
                         </button>
                     </div>
-                </div>
+                </CollapsibleCard>
             </div>
 
             {/* EDIT MODAL */}
