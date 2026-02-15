@@ -118,6 +118,7 @@ type AdminTab = 'director' | 'approvals' | 'snapshots' | 'llm' | 'logs' | 'world
 
 export const AdminDashboard: React.FC = () => {
     const [socket, setSocket] = useState<Socket | null>(null);
+    const [connected, setConnected] = useState(false);
     const { tab } = useParams<{ tab: string }>();
     const navigate = useNavigate();
     const activeTab = (tab as AdminTab) || 'director';
@@ -187,9 +188,17 @@ export const AdminDashboard: React.FC = () => {
     const [enableLLM, setEnableLLM] = useState(false);
     const [finops, setFinops] = useState<DirectorStatus['finops']>(undefined);
 
+    const [connectionError, setConnectionError] = useState<string | null>(null);
+
     useEffect(() => {
         const token = localStorage.getItem('zenith_token');
         const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3000';
+
+        if (!token) {
+            setConnectionError("No authentication token found. Please log in first.");
+            return;
+        }
+
         const newSocket = io(`${serverUrl}/admin`, {
             transports: ['websocket'],
             auth: { token }
@@ -197,6 +206,8 @@ export const AdminDashboard: React.FC = () => {
 
         newSocket.on('connect', () => {
             console.log('Connected to Admin Stream');
+            setConnected(true);
+            setConnectionError(null);
             addLog('success', 'Connected to World Director');
             newSocket.emit('snapshot:list');
             newSocket.emit('director:get_chunks');
@@ -205,9 +216,19 @@ export const AdminDashboard: React.FC = () => {
             newSocket.emit('director:get_npc_status');
         });
 
+        newSocket.on('disconnect', () => {
+            setConnected(false);
+        });
+
         newSocket.on('connect_error', (err) => {
             console.error('Admin Connection Error:', err.message);
-            addLog('error', `Connection Failed: ${err.message}`);
+            setConnected(false);
+
+            if (err.message.includes('Authentication error') || err.message.includes('No token') || err.message.includes('Insufficient permissions')) {
+                setConnectionError(err.message);
+            } else {
+                addLog('error', `Connection Failed: ${err.message}`);
+            }
         });
 
         newSocket.on('director:log', (entry: LogEntry) => {
@@ -496,6 +517,23 @@ export const AdminDashboard: React.FC = () => {
 
     return (
         <div className="admin-container">
+            {/* Error Overlay */}
+            {connectionError && (
+                <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+                    <div className="bg-red-900/20 border border-red-500/50 p-8 rounded-lg max-w-md text-center backdrop-blur-md">
+                        <div className="text-4xl mb-4">⛔</div>
+                        <h2 className="text-2xl font-bold text-red-500 mb-2">Access Denied</h2>
+                        <p className="text-gray-300 mb-6 font-mono text-sm">{connectionError}</p>
+                        <button
+                            className="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded font-bold transition-colors"
+                            onClick={() => window.location.href = '/'}
+                        >
+                            RETURN_TO_LOGIN
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Confirmation Overlay */}
             {confirmAction && (
                 <div className="confirm-overlay">
@@ -526,8 +564,8 @@ export const AdminDashboard: React.FC = () => {
                 <div>
                     <h1 className="text-neon-blue">Zenith-9 World Director</h1>
                     <div className="status-indicator">
-                        <div className={`dot ${socket?.connected ? 'dot-online' : 'dot-offline'}`} />
-                        <span>{socket?.connected ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
+                        <div className={`dot ${connected ? 'dot-online' : 'dot-offline'}`} />
+                        <span>{connected ? 'SYSTEM ONLINE' : 'SYSTEM OFFLINE'}</span>
                     </div>
                 </div>
                 <div style={{
@@ -575,8 +613,8 @@ export const AdminDashboard: React.FC = () => {
                 <button className={`tab-btn ${activeTab === 'logs' ? 'tab-btn-active' : ''}`} onClick={() => setActiveTab('logs')}>LOGS</button>
             </div>
 
-            {/* Tab Content Area */}
-            <div className="admin-content-area">
+            {/* Content Area */}
+            <div className="flex-1 overflow-auto bg-gray-900/80 p-6 relative">
                 {activeTab === 'director' && (
                     <DirectorTab
                         paused={paused}

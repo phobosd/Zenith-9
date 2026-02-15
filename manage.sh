@@ -66,7 +66,13 @@ start_services() {
             fi
             cloudflared --config tunnel-config.yml tunnel run > "$LOG_DIR/cloudflared.log" 2>&1 &
             TUNNEL_PID=$!
-            echo "Tunnel started (PID: $TUNNEL_PID). Logging to $LOG_DIR/cloudflared.log"
+            sleep 2
+            if kill -0 $TUNNEL_PID > /dev/null 2>&1; then
+                echo "Tunnel started successfully (PID: $TUNNEL_PID). Logging to $LOG_DIR/cloudflared.log"
+            else
+                echo "Error: Tunnel failed to start. Check $LOG_DIR/cloudflared.log for details:"
+                cat "$LOG_DIR/cloudflared.log"
+            fi
         fi
     fi
 
@@ -156,6 +162,11 @@ stop_services() {
     if [ ! -z "$TUNNEL_PIDS" ]; then
          echo "Killing Cloudflare Tunnel process(es): $TUNNEL_PIDS"
          echo $TUNNEL_PIDS | xargs kill -9
+         # Wait for it to actually die
+         while pgrep -f "cloudflared tunnel" > /dev/null; do
+             echo "Waiting for tunnel to exit..."
+             sleep 1
+         done
     else
          echo "No Cloudflare Tunnel 'zenith-host' found running."
     fi

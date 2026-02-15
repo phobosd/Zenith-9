@@ -1,0 +1,7 @@
+tunnel: zenith-host
+credentials-file: /Users/andypace/.cloudflared/018be01a-0ee7-4bd0-bc26-726d534723c8.json
+
+ingress:
+  - service: http://localhost:3000
+    originRequest:
+      noTLSVerify: true
