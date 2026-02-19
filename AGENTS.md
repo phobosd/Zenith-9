@@ -16,25 +16,24 @@ As an agent, you are responsible for maintaining the integrity of this knowledge
     - A **lore element** or **world-building detail** that affects gameplay is established.
     - **Environmental effects** or hazards are added.
 3.  **No Browser Testing**: Do not use the browser subagent to test features or UI. The user will handle all browser-based verification.
+4.  **Run Tests Often**: You **MUST** run the test suite via `./manage.sh test` frequently during development, specifically:
+    - Before requesting a review.
+    - After any refactoring.
+    - When implementing new features (TDD is encouraged).
 
 ### 🔄 Server Management Scripts
+The project includes a master management script for macOS/Linux: **`./manage.sh`**.
+**Usage**: `./manage.sh [command]`
 
-The `server/` directory contains PowerShell scripts for managing the server process. **Use these instead of manual process management**:
+- **`./manage.sh start`**: Starts Redis (Docker), Cloudflare Tunnel, Server, and Client.
+- **`./manage.sh stop`**: Stops all running services.
+- **`./manage.sh restart`**: Restarts all services.
+- **`./manage.sh status`**: Checks the status of all components.
+- **`./manage.sh test`**: Runs the full test suite.
 
-- **`start_server.ps1`**: Starts the development server with `npm run dev`
-- **`restart_server.ps1`**: Kills any process on port 3000 and starts a fresh server instance
-- **`kill_server.ps1`**: Terminates all processes listening on port 3000
+**Windows Users**: The `server/` directory contains `.ps1` scripts (`start_server.ps1`, `restart_server.ps1`) for PowerShell usage, though `manage.sh` via WSL is recommended.
 
-**Usage**: When you need to restart the server (e.g., after code changes that don't auto-reload), use:
-```powershell
-.\server\restart_server.ps1
-```
-
-**Note**: The server uses `nodemon` which auto-restarts on file changes in `src/**/*`. Manual restarts are only needed for:
-- Changes to `package.json` dependencies
-- Changes to configuration files outside `src/`
-- When the server crashes or hangs
-- When a manual database reset is required
+**Note**: The server uses `nodemon` for auto-restarts on file changes in `src/**/*`. Manual restarts are only needed for configuration changes or crashes.
 
 ### 👑 Special Entities
 
@@ -366,11 +365,23 @@ Use the `GameEventBus` to decouple systems:
    ```
 
 ### 🧪 Testing Framework
-Zenith-9 uses **Jest** for unit testing:
-- **Location**: Tests are located in `**/__tests__/*.test.ts`.
-- **Running**: Use `npm test` to run the suite.
-- **Mocking**: Use `jest.mock('uuid')` or similar for deterministic tests.
-- **Config**: `jest.config.js` handles TypeScript transformation and module mapping.
+Zenith-9 uses **Jest** (Server) and **Vitest** (Client) for robust testing.
+
+**Mandate**: Tests are not optional. You must ensure all new logic is covered by unit tests.
+
+**How to Run**:
+- **Full Suite**: `./manage.sh test` (Runs both server and client tests).
+- **Server Only**: `cd server && npm test`.
+- **Client Only**: `cd client && npm test`.
+
+**Location**:
+- Server Unit: `server/tests/unit/`
+- Server Integration: `server/tests/integration/` (e.g., `LoginFlow.test.ts`)
+- Client: `client/src/__tests__/unit/`
+
+**Mocking**: Use `jest.mock()` or `vi.mock()` to isolate systems. Deterministic tests are required.
+
+**Frequency**: You **MUST** run these tests often. Continuous testing is the only way to ensure system stability as we expand features.
 
 ### 🔍 Implementing Tab Completion
 Autocomplete is a two-part system:
@@ -613,12 +624,14 @@ To ensure the highest quality output, I operate using a "Virtual Team" of distin
 
 ---
 
-### 8. Recent Modifications (2026-01-17)
+### 8. Recent Modifications (2026-02-15)
+*   **Architecture Refinement**: Extracted `GameLoop` into a dedicated class and moved authentication logic to `AuthHandlers.ts` for better separation of concerns and testability.
+*   **Test Coverage Expansion**: Implemented comprehensive unit tests for `GameLoop`, `MovementSystem`, `InventorySystem`, and Client `Terminal`. Added Integration tests for `LoginFlow`.
+*   **Refined Persistence**: Confirmed `world_entities` and `world_state` cleaning in `reset_world.ts`.
 *   **Authentication System**: Implemented `AuthService` (JWT/Bcrypt) and `DatabaseService` (SQLite) for persistent user accounts.
-*   **Character Creation**: Added `CharacterService` with archetypes (Street Samurai, Netrunner, Gutter Punk) and persistent storage.
+*   **Character Creation**: Added `CharacterService` with archetypes and persistent storage.
 *   **Multiplayer Presence**: Updated `MovementSystem` and `ObservationSystem` to handle real-time room presence and player visibility.
-*   **Social Commands**: Added `say`, `link` (global), and `emote` commands.
-        *   **Service-Oriented**: `WorldDirector` is now a thin orchestrator, delegating logic to these sub-services.
+*   **Service-Oriented**: `WorldDirector` is now a thin orchestrator, delegating logic to sub-services.
 
 ### Persistence Update
 *   **SQLite**: Now the primary source of truth for Users, Characters, and World Entities.

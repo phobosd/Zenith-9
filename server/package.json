@@ -12,7 +12,8 @@
     "snapshot:create": "ts-node src/scripts/snapshot.ts create",
     "snapshot:restore": "ts-node src/scripts/snapshot.ts restore",
     "snapshot:list": "ts-node src/scripts/snapshot.ts list",
-    "encrypt-key": "ts-node src/scripts/encrypt-key.ts"
+    "encrypt-key": "ts-node src/scripts/encrypt-key.ts",
+    "reset": "ts-node src/scripts/reset_world.ts"
   },
   "keywords": [],
   "author": "",

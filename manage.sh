@@ -232,8 +232,11 @@ case "$ACTION" in
     status)
         check_status
         ;;
+    test)
+        ./run_tests.sh
+        ;;
     *)
-        echo "Usage: ./manage.sh {start|stop|restart|status}"
+        echo "Usage: $0 {start|stop|restart|status|test}"
         exit 1
         ;;
 esac

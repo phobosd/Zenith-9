@@ -4,14 +4,16 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import { AdminDashboard } from './components/AdminDashboard';
 
+import { MusicPlayer } from './components/MusicPlayer';
+
 function App() {
   return (
     <Router>
       <Routes>
         <Route path="/" element={<Terminal />} />
         <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/:tab" element={<AdminDashboard />} />
       </Routes>
+      <MusicPlayer />
     </Router>
   );
 }

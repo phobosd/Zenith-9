@@ -81,6 +81,7 @@ import { AuthService } from './services/AuthService';
 import { CharacterService, ARCHETYPES } from './services/CharacterService';
 import { DatabaseService } from './services/DatabaseService';
 import { RateLimiter } from './services/RateLimiter';
+import { registerAuthHandlers } from './handlers/AuthHandlers';
 
 
 const ALL_STATS = ['STR', 'CON', 'AGI', 'CHA', 'HP', 'MAXHP', 'ATTACK', 'DEFENSE'];
@@ -412,151 +413,9 @@ async function startServer() {
 }
 
 // Game Loop
-const TICK_RATE = 10; // 10 ticks per second
-const TICK_MS = 1000 / TICK_RATE;
-let lastSaveTime = Date.now();
-let lastWorldSaveTime = Date.now();
-let lastStatsUpdateTime = Date.now();
-
-setInterval(() => {
-    try {
-        engine.update(TICK_MS);
-
-        // Periodically save characters (every 30 seconds)
-        if (Date.now() - lastSaveTime > 30000) {
-            const players = engine.getEntitiesWithComponent(Role);
-            for (const player of players) {
-                const charData = characterService.getCharacterBySocketId(player.id);
-                if (charData) {
-                    // Serialize components
-                    const components: any = {};
-                    player.components.forEach((comp, type) => {
-                        components[type] = comp.toJSON();
-                    });
-                    characterService.saveCharacter(charData.id, {
-                        archetype: charData.archetype,
-                        components
-                    });
-                }
-            }
-            lastSaveTime = Date.now();
-        }
-
-        // Periodically save world state (every 60 seconds)
-        if (Date.now() - lastWorldSaveTime > 60000) {
-            const allEntities = Array.from(engine.getEntities().values()).filter(e => {
-                if (e.hasComponent(Role)) return false;
-                const pos = e.getComponent(Position);
-                // Don't save dungeon entities (x >= 2000)
-                if (pos && pos.x >= 2000) return false;
-                return true;
-            });
-            worldState.saveAllEntities(allEntities);
-            lastWorldSaveTime = Date.now();
-        }
-
-        // Periodically update player stats (every 1 second)
-        if (Date.now() - lastStatsUpdateTime > 1000) {
-            const players = engine.getEntitiesWithComponent(Role);
-            for (const player of players) {
-                const socket = io.sockets.sockets.get(player.id);
-                if (socket) {
-                    emitPlayerStats(socket, player, engine);
-                }
-            }
-            lastStatsUpdateTime = Date.now();
-        }
-    } catch (error) {
-        Logger.error('GameLoop', 'Error in game loop:', error);
-    }
-}, TICK_MS);
-
-console.log('[DEBUG] Game loop initialized');
-
-console.log('[DEBUG] Setting up connection handler');
-
-function emitPlayerStats(socket: any, player: Entity, engine: IEngine) {
-    const combatStats = player.getComponent(CombatStats);
-    const stance = player.getComponent(Stance);
-    const rt = player.getComponent(Roundtime);
-    const credits = player.getComponent(Credits);
-    const reputation = player.getComponent(Reputation);
-    const heat = player.getComponent(Heat);
-    const humanity = player.getComponent(Humanity);
-    const inventory = player.getComponent(Inventory);
-    const momentum = player.getComponent(Momentum);
-
-    if (!combatStats) return;
-
-    const getHandContent = (handId: string | null) => {
-        if (!handId) return null;
-        const item = engine.getEntity(handId);
-        return item?.getComponent(Item)?.name || null;
-    };
-
-    const getHandDetails = (handId: string | null) => {
-        if (!handId) return null;
-        const entity = engine.getEntity(handId);
-        if (!entity) return null;
-        const itemComp = entity.getComponent(Item);
-        if (!itemComp) return null;
-
-        const template = ItemRegistry.getInstance().getItem(itemComp.name) ||
-            ItemRegistry.getInstance().getAllItems().find(i => i.name === itemComp.name);
-
-        return {
-            name: itemComp.name,
-            description: itemComp.description || template?.description || "No description.",
-            weight: itemComp.weight,
-            rarity: itemComp.rarity || template?.rarity,
-            extraData: {
-                damage: (entity.getComponent(Weapon) as any)?.damage || template?.extraData?.damage,
-                range: (entity.getComponent(Weapon) as any)?.range || template?.extraData?.range,
-                magSize: template?.extraData?.magSize,
-                currentAmmo: (entity.getComponent(Weapon) as any)?.currentAmmo || template?.extraData?.currentAmmo,
-                hasAmmo: template?.extraData?.magSize > 0 && template?.extraData?.range > 0
-            },
-            attributes: template?.attributes
-        };
-    };
-
-    const stats = {
-        hp: combatStats.hp,
-        maxHp: combatStats.maxHp,
-        stance: stance?.current || 'standing',
-        roundtime: rt?.secondsRemaining || 0,
-        maxRoundtime: rt?.totalSeconds || 0,
-        balance: combatStats.balance || 1.0,
-        fatigue: combatStats.fatigue || 0,
-        maxFatigue: 100,
-        engagement: combatStats.engagementTier || 'disengaged',
-        momentum: momentum?.current || 0,
-        hasKatana: false,
-        leftHand: getHandContent(inventory?.leftHand || null),
-        rightHand: getHandContent(inventory?.rightHand || null),
-        leftHandDetails: getHandDetails(inventory?.leftHand || null),
-        rightHandDetails: getHandDetails(inventory?.rightHand || null),
-        evasion: combatStats.evasion,
-        parry: combatStats.parry,
-        shield: combatStats.shield,
-        aggression: combatStats.aggression,
-        heat: heat?.value || 0,
-        humanity: humanity?.current || 100,
-        reputation: reputation?.factions ? Object.fromEntries(reputation.factions) : {}
-    };
-
-    // Check for katana
-    if (inventory) {
-        const checkKatana = (id: string | null) => {
-            if (!id) return false;
-            const item = engine.getEntity(id);
-            return !!item?.getComponent(Item)?.name.toLowerCase().includes('katana');
-        };
-        stats.hasKatana = !!(checkKatana(inventory.leftHand) || checkKatana(inventory.rightHand));
-    }
-
-    socket.emit('stats-update', stats);
-}
+import { GameLoop } from './GameLoop';
+const gameLoop = new GameLoop(engine, io, characterService, worldState);
+gameLoop.start();
 
 io.on('connection', (socket) => {
     Logger.info('Network', `User connected: ${socket.id}`);
@@ -570,50 +429,7 @@ io.on('connection', (socket) => {
     });
 
     // --- AUTHENTICATION EVENTS ---
-    socket.on('auth:verify', async (data: { token: string }) => {
-        const user = authService.verifyToken(data.token);
-        if (user) {
-            const character = characterService.getCharacterByUserId(user.id);
-            socket.emit('auth:login_result', {
-                success: true,
-                user,
-                token: data.token,
-                hasCharacter: !!character
-            });
-        } else {
-            socket.emit('auth:login_result', { success: false, message: 'Invalid token' });
-        }
-    });
-
-    socket.on('auth:register', async (data: any) => {
-        const result = await authService.register(data.username, data.password);
-        if (result.success && result.user && data.archetype) {
-            // Automatically create character for the new user
-            await characterService.createCharacter(result.user.id, data.username, data.archetype);
-            Logger.info('Auth', `Created citizen and character for: ${data.username}`);
-        }
-        socket.emit('auth:register_result', result);
-    });
-
-    socket.on('auth:login', async (data: any) => {
-        Logger.info('Auth', `Login attempt for user: ${data.username}`);
-        const result = await authService.login(data.username, data.password);
-        if (result.success && result.user) {
-            const character = characterService.getCharacterByUserId(result.user.id);
-            socket.emit('auth:login_result', { ...result, hasCharacter: !!character });
-        } else {
-            socket.emit('auth:login_result', result);
-        }
-    });
-
-    socket.on('char:create', async (data: any) => {
-        // Verify token first
-        const user = authService.verifyToken(data.token);
-        if (!user) return socket.emit('char:create_result', { success: false, message: 'Unauthorized' });
-
-        const result = await characterService.createCharacter(user.id, data.name, data.archetype);
-        socket.emit('char:create_result', result);
-    });
+    registerAuthHandlers(socket, authService, characterService);
 
     socket.on('game:start', async (data: any) => {
         const user = authService.verifyToken(data.token);
@@ -649,7 +465,7 @@ io.on('connection', (socket) => {
         observationSystem.handleMap(socket.id, engine);
 
         // Initial stats update
-        emitPlayerStats(socket, player, engine);
+        gameLoop.emitPlayerStats(socket, player);
 
         Logger.info('Game', `Player ${charData.name} (${user.username}) entered the world.`);
 
@@ -901,6 +717,25 @@ app.get('/api/llm/samplers/:profileId', async (req, res) => {
     } catch (error) {
         Logger.error('API', `Failed to fetch samplers: ${error}`);
         res.status(500).json({ error: 'Failed to fetch samplers' });
+    }
+});
+
+app.get('/api/music', (req, res) => {
+    try {
+        const fs = require('fs');
+        const musicDir = path.join(process.cwd(), '../client/public/assets/music');
+
+        if (!fs.existsSync(musicDir)) {
+            return res.json({ tracks: [] });
+        }
+
+        const files = fs.readdirSync(musicDir);
+        const mp3s = files.filter((f: string) => f.toLowerCase().endsWith('.mp3'));
+
+        res.json({ tracks: mp3s });
+    } catch (error) {
+        Logger.error('API', 'Failed to list music files', error);
+        res.status(500).json({ error: 'Failed to list music files' });
     }
 });
 
