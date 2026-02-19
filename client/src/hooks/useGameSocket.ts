@@ -47,17 +47,28 @@ export const useGameSocket = () => {
         addLine({ id: Date.now().toString() + Math.random(), text, type: 'system' });
     }, [addLine]);
 
+    const [connectionError, setConnectionError] = useState('');
+
     useEffect(() => {
-        const newSocket = io(SOCKET_URL);
+        const newSocket = io(SOCKET_URL, {
+            transports: ['websocket', 'polling'], // Prioritize websocket
+            reconnectionAttempts: 5
+        });
         setSocket(newSocket);
 
         newSocket.on('connect', () => {
             addSystemLine('Connected to Zenith-9 Server...');
-
+            setConnectionError('');
             const savedToken = localStorage.getItem('zenith_token');
             if (savedToken) {
                 newSocket.emit('auth:verify', { token: savedToken });
             }
+        });
+
+        newSocket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err);
+            setConnectionError(`Connection failed: ${err.message}`);
+            addSystemLine(`Connection error: ${err.message}`);
         });
 
         newSocket.on('disconnect', () => {
@@ -231,6 +242,7 @@ export const useGameSocket = () => {
         addLine,
         addSystemLine,
         setTerminalData,
-        setGuideContent
+        setGuideContent,
+        connectionError
     };
 };

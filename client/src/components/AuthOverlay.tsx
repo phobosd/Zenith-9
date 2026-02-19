@@ -6,9 +6,10 @@ interface AuthOverlayProps {
     socket: Socket;
     archetypes: string[];
     externalError?: string;
+    connectionError?: string;
 }
 
-export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, externalError }) => {
+export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, externalError, connectionError }) => {
     const [mode, setMode] = useState<'login' | 'register'>('login');
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
@@ -35,7 +36,7 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, ex
         }
     }, [externalError]);
 
-    const displayError = externalError || localError;
+    const displayError = connectionError || externalError || localError;
 
     return (
         <div className="auth-overlay">
@@ -45,13 +46,16 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, ex
                         {mode === 'login' && 'NEURAL-LINK LOGIN'}
                         {mode === 'register' && 'CITIZEN REGISTRATION'}
                     </div>
-                    <div className="auth-status">ENCRYPTED CONNECTION</div>
+                    <div className="auth-status" style={{ color: connectionError ? '#ff0000' : undefined }}>
+                        {connectionError ? 'CONNECTION OFFLINE' : 'ENCRYPTED CONNECTION'}
+                    </div>
                 </div>
 
                 <form className="auth-content" onSubmit={handleSubmit}>
                     <div className="input-group">
-                        <label>CITIZEN NAME</label>
+                        <label htmlFor="username">CITIZEN NAME</label>
                         <input
+                            id="username"
                             type="text"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
@@ -62,8 +66,9 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, ex
 
                     {mode === 'register' && (
                         <div className="input-group">
-                            <label>ARCHETYPE</label>
+                            <label htmlFor="archetype">ARCHETYPE</label>
                             <select
+                                id="archetype"
                                 value={selectedArchetype}
                                 onChange={(e) => setSelectedArchetype(e.target.value)}
                                 required
@@ -84,8 +89,9 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, ex
                     )}
 
                     <div className="input-group">
-                        <label>PASS-KEY</label>
+                        <label htmlFor="password">PASS-KEY</label>
                         <input
+                            id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -95,7 +101,7 @@ export const AuthOverlay: React.FC<AuthOverlayProps> = ({ socket, archetypes, ex
 
                     {displayError && <div className={`auth-error ${displayError.includes('successful') ? 'success' : ''}`}>{displayError}</div>}
 
-                    <button type="submit" className="auth-submit">
+                    <button type="submit" className="auth-submit" disabled={!!connectionError}>
                         {mode === 'login' && 'ESTABLISH LINK'}
                         {mode === 'register' && 'CREATE NEW CITIZEN'}
                     </button>

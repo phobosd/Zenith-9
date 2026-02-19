@@ -28,7 +28,8 @@ export const Terminal: React.FC = () => {
         authError,
         setTerminalData,
         setGuideContent,
-        addSystemLine
+        addSystemLine,
+        connectionError
     } = useGameSocket();
 
     const [isGlitching, setIsGlitching] = useState(false);
@@ -68,6 +69,7 @@ export const Terminal: React.FC = () => {
                     socket={socket}
                     archetypes={autocompleteData.archetypes}
                     externalError={authError}
+                    connectionError={connectionError}
                 />
             )}
             {playerStats && (
